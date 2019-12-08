@@ -1,9 +1,5 @@
-require 'logger'
-
-$log = Logger.new(STDOUT)
-#$log.level = Logger::DEBUG
-$log.level = Logger::INFO
-def log; $log; end
+require_relative '../utils/log'
+require_relative '../utils/grid'
 
 INPUT_FILE = File.join(__dir__, 'input.txt')
 
@@ -126,76 +122,6 @@ def walk_wire(wire, point)
       raise 'Unknown instruction'
     end
   end  
-end
-
-Bounds = Struct.new(:left, :right, :top, :bottom) do
-  def &(other)
-    Bounds.new(
-      [self.left, other.left].min,
-      [self.right, other.right].max,
-      [self.top, other.top].min,
-      [self.bottom, other.bottom].max,
-    )
-  end
-
-  def width
-    self.right - self.left + 1
-  end
-
-  def height
-    self.bottom - self.top + 1
-  end
-end
-
-class Grid
-  def initialize(bounds)
-    @bounds = bounds
-    @width = @bounds.width
-    @height = @bounds.height
-    @left = @bounds.left
-    @top = @bounds.top
-    @cells = Array.new(@width * @height)
-  end
-
-  def cell_index(coord)
-    x = coord.x - @left
-    y = coord.y - @top
-    raise "x coordinate out of bounds: #{coord.inspect} #{@bounds.inspect}" if x < 0 || x >= @width
-    raise "y coordinate out of bounds: #{coord.inspect} #{@bounds.inspect}" if y < 0 || y >= @height
-    x + (y * @width)
-  end
-
-  def get(coord)
-    i = cell_index(coord)
-    @cells[i]
-  end
-
-  def set!(coord, value)
-    i = cell_index(coord)
-    @cells[i] = value
-  end
-end
-
-Coordinate = Struct.new(:x, :y) do
-  def move_left(amount)
-    Coordinate.new(self.x - amount, y)
-  end
-
-  def move_right(amount)
-    Coordinate.new(self.x + amount, y)
-  end
-
-  def move_up(amount)
-    Coordinate.new(self.x, self.y - amount)
-  end
-  
-  def move_down(amount)
-    Coordinate.new(self.x, self.y + amount)
-  end
-
-  def manhattan_distance(other)
-    (other.x - self.x).abs + (other.y - self.y).abs
-  end
 end
 
 Instruction = Struct.new(:op, :amount)

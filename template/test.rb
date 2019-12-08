@@ -1,6 +1,7 @@
 require 'minitest/autorun'
 
-load File.join(__dir__, 'main.rb')
+require_relative './main'
+
 log.level = Logger::DEBUG
 
 class TestPart1 < Minitest::Test

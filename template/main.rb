@@ -1,10 +1,4 @@
-require 'logger'
-
-$log = Logger.new(STDOUT)
-def log; $log; end
-
-$log.level = Logger::INFO
-#$log.level = Logger::DEBUG
+require_relative '../utils/log'
 
 INPUT_FILE = File.join(__dir__, 'input.txt')
 
