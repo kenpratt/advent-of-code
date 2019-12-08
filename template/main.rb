@@ -1,4 +1,5 @@
 require_relative '../utils/log'
+require_relative '../utils/profile'
 
 INPUT_FILE = File.join(__dir__, 'input.txt')
 
@@ -15,18 +16,14 @@ def part2(input)
 end
 
 def main
-  if ARGV[0] == 'debug'
-    log.level = Logger::DEBUG
-  end
-
   raw_input = File.read(INPUT_FILE)
   input = process_input(raw_input)
 
   log.info "Part 1:"
-  log.info part1(input)
+  log.info measure{part1(input)}
 
   log.info "Part 2:"
-  log.info part2(input)
+  log.info measure{part2(input)}
 end
 
 if __FILE__ == $0
