@@ -1,24 +1,32 @@
-require "minitest/autorun"
+require 'minitest/autorun'
+require 'logger'
+
+$log = Logger.new(STDOUT)
+def log; $log; end
+
+$log.level = Logger::DEBUG
+#$log.level = Logger::INFO
 
 INPUT_FILE = File.join(__dir__, 'input.txt')
 
-def run(input)
+def process_input(raw_input)
   nil
 end
 
-def process_input(input)
+def solution(input)
+  nil
 end
   
 def main
-  lines = File.readlines(INPUT_FILE)
+  raw_input = File.read(INPUT_FILE)
   # ...
-  input = process_input(lines)
+  input = process_input(raw_input)
 
-  puts "Part 1:"
-  puts run(input)
+  log.info "Part 1:"
+  log.info solution(input)
 
-  puts "Part 2:"
-  puts run(input)
+  log.info "Part 2:"
+  log.info solution(input)
 end
 
 class TestExamples < Minitest::Test
@@ -26,8 +34,9 @@ class TestExamples < Minitest::Test
   ]
 
   def test_examples
-    TESTS.each do |input, output|
-      res = run_program(process_input(input))
+    TESTS.each do |raw_input, output|
+      input = process_input(raw_input)
+      res = solution(input)
       assert_equal output, res
     end
   end
