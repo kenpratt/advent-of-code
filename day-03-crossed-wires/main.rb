@@ -93,7 +93,7 @@ end
 def walk_wire(wire, point)
   distance_walked = 0
   wire.each do |instruction|
-    res = case instruction.op
+    case instruction.op
     when 'L'
       instruction.amount.times do
         point = point.move_left(1)
@@ -134,22 +134,19 @@ def find_bounds(wire)
   bounds = Bounds.new(0, 0, 0, 0)
   point = Coordinate.new(0, 0)
   wire.each do |instruction|
-    res = case instruction.op
+    point = case instruction.op
     when 'L'
-      point = point.move_left(instruction.amount)
-      bounds.left = point.x if point.x < bounds.left
+      point.move_left(instruction.amount)
     when 'R'
-      point = point.move_right(instruction.amount)
-      bounds.right = point.x if point.x > bounds.right
+      point.move_right(instruction.amount)
     when 'U'
-      point = point.move_up(instruction.amount)
-      bounds.top = point.y if point.y < bounds.top
+      point.move_up(instruction.amount)
     when 'D'
-      point = point.move_down(instruction.amount)
-      bounds.bottom = point.y if point.y > bounds.bottom
+      point.move_down(instruction.amount)
     else
       raise 'Unknown instruction'
     end
+    bounds.expand!(point)
   end
   bounds
 end
