@@ -3,7 +3,7 @@ require_relative '../utils/grid'
 
 INPUT_FILE = File.join(__dir__, 'input.txt')
 
-def part1(input)
+def part1_(input)
   wire1, wire2 = *input
   log.debug wire1.inspect
   log.debug wire2.inspect  
@@ -42,7 +42,7 @@ def part1(input)
   origin.manhattan_distance(best)
 end
 
-def part2(input)
+def part2_(input)
   wire1, wire2 = *input
   log.debug wire1.inspect
   log.debug wire2.inspect  
@@ -81,6 +81,63 @@ def part2(input)
   log.debug best.inspect
 
   best[1]
+end
+
+
+def part1(input)
+  wire1, wire2 = *input
+  log.debug wire1.inspect
+  log.debug wire2.inspect  
+
+  origin = Coordinate.new(0, 0)
+
+  set1 = Set.new
+  walk_wire(wire1, origin) do |point, _|
+    set1 << point
+  end
+
+  set2 = Set.new
+  walk_wire(wire2, origin) do |point, _|
+    set2 << point
+  end
+
+  intersections = set1 & set2
+  log.debug intersections.inspect
+
+  best = intersections.min_by {|c| origin.manhattan_distance(c)}
+  log.debug best.inspect
+
+  origin.manhattan_distance(best)
+end
+
+def part2(input)
+  wire1, wire2 = *input
+  log.debug wire1.inspect
+  log.debug wire2.inspect  
+  
+  origin = Coordinate.new(0, 0)
+
+  set1 = Set.new
+  walked1 = {}
+  walk_wire(wire1, origin) do |point, walked|
+    set1 << point
+    walked1[point] = walked
+  end
+
+  set2 = Set.new
+  walked2 = {}
+  walk_wire(wire2, origin) do |point, walked|
+    set2 << point
+    walked2[point] = walked
+  end
+
+  intersections = set1 & set2
+  log.debug intersections.inspect
+
+  best = intersections.min_by {|point| walked1[point] + walked2[point]}
+  log.debug best.inspect
+
+  walked1[best] + walked2[best]
 end
 
 def process_input(input)
