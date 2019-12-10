@@ -12,10 +12,10 @@ class TestPart1 < Minitest::Test
   ]
 
   def test_examples
-    TESTS.each do |raw_input, output|
-      input = process_input(raw_input)
+    TESTS.each do |input_str, expected_output|
+      input = process_input(input_str)
       res = part1(input)
-      assert_equal output, res
+      assert_equal(expected_output, res)
     end
   end
 end
@@ -28,10 +28,10 @@ class TestPart2 < Minitest::Test
   ]
 
   def test_examples
-    TESTS.each do |raw_input, output|
-      input = process_input(raw_input)
+    TESTS.each do |input_str, expected_output|
+      input = process_input(input_str)
       res = part2(input)
-      assert_equal output, res
+      assert_equal(expected_output, res)
     end
   end
 end

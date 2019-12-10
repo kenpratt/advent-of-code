@@ -9,16 +9,16 @@ class TestPart1 < Minitest::Test
   ]
 
   def test_examples
-    EXAMPLES.each do |raw_input, expected_output|
-      input = process_input(raw_input)
+    EXAMPLES.each do |input_str, expected_output|
+      input = process_input(input_str)
       res = part1(input)
       assert_equal(expected_output, res)
     end
   end
 
   def test_input
-    raw_input = File.read(INPUT_FILE)
-    input = process_input(raw_input)
+    input_str = File.read(INPUT_FILE)
+    input = process_input(input_str)
     res = part1(input)
     assert_equal(nil, res)
   end
@@ -29,16 +29,16 @@ class TestPart2 < Minitest::Test
   ]
 
   def test_examples
-    EXAMPLES.each do |raw_input, expected_output|
-      input = process_input(raw_input)
+    EXAMPLES.each do |input_str, expected_output|
+      input = process_input(input_str)
       res = part2(input)
       assert_equal(expected_output, res)
     end
   end
 
   def test_input
-    raw_input = File.read(INPUT_FILE)
-    input = process_input(raw_input)
+    input_str = File.read(INPUT_FILE)
+    input = process_input(input_str)
     res = part2(input)
     assert_equal(nil, res)
   end

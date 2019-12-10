@@ -7,8 +7,8 @@ require_relative 'computer'
 
 INPUT_FILE = File.join(__dir__, 'input.txt')
 
-def parse_program(raw_input)
-  raw_input.strip.split(',').map(&:to_i)
+def parse_program(input_str)
+  input_str.strip.split(',').map(&:to_i)
 end
 
 def modify_program(input, noun, verb)

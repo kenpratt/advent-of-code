@@ -3,7 +3,7 @@ require_relative '../utils/profile'
 
 INPUT_FILE = File.join(__dir__, 'input.txt')
 
-def process_input(raw_input)
+def process_input(input_str)
   nil
 end
 
@@ -16,8 +16,8 @@ def part2(input)
 end
 
 def main
-  raw_input = File.read(INPUT_FILE)
-  input = process_input(raw_input)
+  input_str = File.read(INPUT_FILE)
+  input = process_input(input_str)
 
   log.info "Part 1:"
   log.info measure{part1(input)}

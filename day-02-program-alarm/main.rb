@@ -35,9 +35,9 @@ class TestExamples < Minitest::Test
   ]
 
   def test_examples
-    TESTS.each do |input, output|
-      res = run_program(input.split(',').map(&:to_i))
-      assert_equal output, res.join(',')
+    TESTS.each do |input_str, expected_output|
+      res = run_program(input_str.split(',').map(&:to_i))
+      assert_equal(expected_output, res.join(','))
     end
   end
 end
