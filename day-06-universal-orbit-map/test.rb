@@ -27,6 +27,7 @@ end
 
 class TestPart2 < Minitest::Test
   EXAMPLES = [
+    ["COM)B\nB)C\nC)D\nD)E\nE)F\nB)G\nG)H\nD)I\nE)J\nJ)K\nK)L\nK)YOU\nI)SAN", 4],
   ]
 
   def test_examples
@@ -35,5 +36,12 @@ class TestPart2 < Minitest::Test
       res = part2(input)
       assert_equal(expected_output, res)
     end
+  end
+
+  def test_input
+    input_str = File.read(INPUT_FILE)
+    input = process_input(input_str)
+    res = part2(input)
+    assert_equal(274, res)
   end
 end
