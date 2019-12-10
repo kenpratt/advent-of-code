@@ -92,7 +92,7 @@ class TestDay5 < Minitest::Test
     end
   end
 
-  def test_part_1
+  def test_part_2
     program_str = File.read(INPUT_FILE)
     program = parse_program(program_str)
     computer = run_program(program, [5])
