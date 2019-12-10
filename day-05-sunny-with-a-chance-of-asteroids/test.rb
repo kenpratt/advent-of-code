@@ -21,7 +21,7 @@ class TestDay2 < Minitest::Test
       program = parse_program(program_str)
       computer = run_program(program, [])
       result = computer.memory.join(',')
-      assert_equal(result, expected_result)
+      assert_equal(expected_result, result)
     end
   end
 
@@ -34,7 +34,7 @@ class TestDay2 < Minitest::Test
     modified_program = modify_program(program, 12, 2)
     computer = run_program(modified_program, [])
     result = computer.memory[0]
-    assert_equal(result, 3166704)
+    assert_equal(3166704, result)
   end
 
   def test_part_2
@@ -48,7 +48,7 @@ class TestDay2 < Minitest::Test
       result = computer.memory[0]
       result == 19690720
     end
-    assert_equal(winner, [80, 18])
+    assert_equal([80, 18], winner)
   end
 end
 
@@ -80,7 +80,7 @@ class TestDay5 < Minitest::Test
     program = parse_program(program_str)
     computer = run_program(program, [1])
     result = computer.output.last
-    assert_equal(result, 6745903)
+    assert_equal(6745903, result)
   end
 
   def test_examples
@@ -97,6 +97,6 @@ class TestDay5 < Minitest::Test
     program = parse_program(program_str)
     computer = run_program(program, [5])
     result = computer.output.last
-    assert_equal(result, 9168267)
+    assert_equal(9168267, result)
   end
 end
