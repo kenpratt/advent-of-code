@@ -112,7 +112,7 @@ class TestDay7 < Minitest::Test
 
   PART2_EXAMPLES = [
     ['3,26,1001,26,-4,26,3,27,1002,27,2,27,1,27,26,27,4,27,1001,28,-1,28,1005,28,6,99,0,0,5', '9,8,7,6,5', 139629729],
-    #['3,52,1001,52,-5,52,3,53,1,52,56,54,1007,54,5,55,1005,55,26,1001,54,-5,54,1105,1,12,1,53,54,53,1008,54,0,55,1001,55,1,55,2,53,55,53,4,53,1001,56,-1,56,1005,56,6,99,0,0,0,0,10', '9,7,8,5,6', '18216']
+    ['3,52,1001,52,-5,52,3,53,1,52,56,54,1007,54,5,55,1005,55,26,1001,54,-5,54,1105,1,12,1,53,54,53,1008,54,0,55,1001,55,1,55,2,53,55,53,4,53,1001,56,-1,56,1005,56,6,99,0,0,0,0,10', '9,7,8,5,6', 18216]
   ]
 
   def test_thruster_signal
@@ -142,20 +142,20 @@ class TestDay7 < Minitest::Test
     assert_equal([2, 0, 1, 4, 3], best_phase_settings)
   end
 
-  def test_thruster_signal_with_feedback_loop
+  def test_thruster_signal
     PART2_EXAMPLES.each do |program_str, phase_settings_str, expected_thruster_signal|
       program = parse_program(program_str)
       phase_settings = phase_settings_str.split(',').map(&:to_i)
-      thruster_signal = run_amplifiers_with_feedback_loop(program, phase_settings, 0)
+      thruster_signal = run_amplifiers(program, phase_settings, 0)
       assert_equal(expected_thruster_signal, thruster_signal)
     end
   end
 
-  def test_best_phase_setting_with_feedback_loop
+  def test_best_phase_setting
     PART2_EXAMPLES.each do |program_str, expected_phase_settings_str, expected_thruster_signal|
       program = parse_program(program_str)
       expected_phase_settings = expected_phase_settings_str.split(',').map(&:to_i)
-      thruster_signal, best_phase_settings = *find_best_phase_setting_permutation_with_feedback_loop(program, (5..9).to_a, 0)
+      thruster_signal, best_phase_settings = *find_best_phase_setting_permutation(program, (5..9).to_a, 0)
       assert_equal(expected_thruster_signal, thruster_signal)
       assert_equal(expected_phase_settings, best_phase_settings)
     end
@@ -164,7 +164,7 @@ class TestDay7 < Minitest::Test
   def test_part_2
     program_str = File.read(INPUT_FILE)
     program = parse_program(program_str)
-    thruster_signal, best_phase_settings = *find_best_phase_setting_permutation_with_feedback_loop(program, (5..9).to_a, 0)
+    thruster_signal, best_phase_settings = *find_best_phase_setting_permutation(program, (5..9).to_a, 0)
     assert_equal(35961106, thruster_signal)
     assert_equal([7, 8, 6, 9, 5], best_phase_settings)
   end
