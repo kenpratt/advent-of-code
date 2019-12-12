@@ -3,29 +3,34 @@ require 'pry'
 require_relative '../utils/log'
 require_relative '../utils/profile'
 
+require_relative 'computer'
+
 INPUT_FILE = File.join(__dir__, 'input.txt')
 
-def process_input(input_str)
-  nil
+def parse_program(input_str)
+  input_str.strip.split(',').map(&:to_i)
 end
 
-def part1(input)
-  nil
+def modify_program(input, noun, verb)
+  out = input.clone
+  out[1] = noun
+  out[2] = verb
+  out  
 end
 
-def part2(input)
-  nil
+def run_program(program, input)
+  IntcodeComputer.run(program, input)
 end
 
 def main
-  input_str = File.read(INPUT_FILE)
-  input = process_input(input_str)
+  program_str = File.read(INPUT_FILE)
+  program = parse_program(program_str)
 
   log.info "Part 1:"
-  log.info measure{part1(input)}
+  log.info measure{run_program(program, [1]).output.last}
 
   log.info "Part 2:"
-  log.info measure{part2(input)}
+  log.info measure{run_program(program, [5]).output.last}
 end
 
 if __FILE__ == $0
