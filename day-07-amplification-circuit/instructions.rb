@@ -62,6 +62,11 @@ class Instruction
         raise "Unknown offset: #{offset}"
       end
     end
+
+    # optionally override
+    def blocked?
+      return false
+    end
   end
   
   class Add < Instruction
@@ -89,7 +94,9 @@ class Instruction
   class ReadInput < Instruction
     def self.opcode; 3; end
     def self.param_count; 1; end
+    def blocked?; input.empty?; end
     def execute
+      log.debug "[#{@computer.name}] read input: #{input.inspect}"
       # takes a single integer as input and saves it to the position given by its only parameter.
       val = input.shift
       write(1, val)
@@ -100,6 +107,7 @@ class Instruction
     def self.opcode; 4; end
     def self.param_count; 1; end
     def execute
+      log.debug "[#{@computer.name}] write output: #{input.inspect}"
       # outputs the value of its only parameter.
       output << read(1)
     end

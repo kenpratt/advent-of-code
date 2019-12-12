@@ -1,14 +1,16 @@
 require_relative 'instructions'
 
 class IntcodeComputer
-    attr_reader :memory, :instruction_pointer, :input, :output
+    attr_reader :memory, :instruction_pointer, :input, :output, :name
   
-    def initialize(program, input)
+    def initialize(program, input, name='Computer')
       @memory = program.clone
       @instruction_pointer = 0
       @input = input.clone
       @output = []
-      @halt = false
+      @blocked = false
+      @halted = false
+      @name = name
     end
   
     def self.run(program, input=[])
@@ -18,27 +20,42 @@ class IntcodeComputer
     end
   
     def run
-      @halt = false
-      while !@halt && @instruction_pointer < @memory.size
+      @blocked = false
+      @halted = false
+      while !@blocked && !@halted
         execute_current_instruction
       end
-      validate_output!
       self
     end
+
+    def blocked?; @blocked; end
+    def halted?; @halted; end
   
     def execute_current_instruction
+      if @instruction_pointer > @memory.size
+        raise "Instruction pointer out of program memory"
+      end
+
       curr_instruction_pointer = @instruction_pointer
   
       # read operation from current instruction pointer (immediate mode)
       operation = read(0, 1)
   
-      # parse and execute
+      # parse instruction
       instruction = Instruction.parse(operation, self)
-      instruction.execute
-  
-      # advance instruction pointer, unless the instruction modified it
-      if @instruction_pointer == curr_instruction_pointer
-        @instruction_pointer += instruction.size
+
+      # check if blocked on input
+      if instruction.blocked?
+        # :(
+        @blocked = true
+      else
+        # execute instruction
+        instruction.execute
+    
+        # advance instruction pointer, unless the instruction modified it
+        if @instruction_pointer == curr_instruction_pointer
+          @instruction_pointer += instruction.size
+        end
       end
     end
   
@@ -74,12 +91,15 @@ class IntcodeComputer
     end
   
     def halt
-      @halt = true
+      @halted = true
     end
-  
-    def validate_output!
-      @output[0...-1].each_with_index do |val, i|
-        raise "Bad output value at index #{i}: #{val}" unless val == 0
-      end
+
+    def add_input(input)
+      @input << input
+      @blocked = false
+    end
+
+    def to_s
+       "[#{name}] input: #{@input.inspect}, output: #{@output.inspect}, blocked: #{@blocked}, halted: #{@halted}, ip: #{@instruction_pointer}"
     end
   end

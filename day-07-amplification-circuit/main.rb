@@ -29,9 +29,57 @@ def run_amplifiers(program, phase_settings, initial_input)
   end
 end
 
+def run_amplifiers_with_feedback_loop(program, phase_settings, initial_input)
+  # initialize computers with phase settings
+  computers = phase_settings.each_with_index.map do |phase_setting, index|
+    IntcodeComputer.new(program, [phase_setting], "Computer ##{index}")
+  end
+
+  # prime initial input
+  computers.first.add_input(initial_input)
+
+  # run in "parallel", with outputs hooked up to inputs
+  num_computers = computers.size
+  curr_index = 0
+  halt = false
+  while !halt
+    next_index = (curr_index + 1) % num_computers
+    curr_computer = computers[curr_index]
+    next_computer = computers[next_index]
+
+    # run this computer
+    curr_computer.run
+
+    # check if done
+    halt = computers.all? {|c| c.halted?}
+
+    # shift output to next computer's input
+    if !halt
+      while curr_computer.output.any?
+        next_computer.add_input(curr_computer.output.shift)
+      end
+    end
+
+    curr_index = next_index
+  end
+
+  computers.last.output.first
+end
+
 def find_best_phase_setting_permutation(program, phase_settings, initial_input)
   phase_settings.permutation.inject(nil) do |curr_best, setting_to_try|
     thruster_signal = run_amplifiers(program, setting_to_try, initial_input)
+    if curr_best.nil? || thruster_signal > curr_best[0]
+      [thruster_signal, setting_to_try]
+    else
+      curr_best
+    end
+  end
+end
+
+def find_best_phase_setting_permutation_with_feedback_loop(program, phase_settings, initial_input)
+  phase_settings.permutation.inject(nil) do |curr_best, setting_to_try|
+    thruster_signal = run_amplifiers_with_feedback_loop(program, setting_to_try, initial_input)
     if curr_best.nil? || thruster_signal > curr_best[0]
       [thruster_signal, setting_to_try]
     else
