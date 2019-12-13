@@ -171,3 +171,38 @@ class TestDay7 < Minitest::Test
     assert_equal([7, 8, 6, 9, 5], best_phase_settings)
   end
 end
+
+class TestDay9 < Minitest::Test
+  INPUT_FILE = File.join(__dir__, '..', 'day-09-sensor-boost', 'input.txt')
+
+  EXAMPLES = [
+    ['109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99', [], [109, 1, 204, -1, 1001, 100, 1, 100, 1008, 100, 16, 101, 1006, 101, 0, 99]],
+    ['1102,34915192,34915192,7,4,7,99,0', [], [1219070632396864]],
+    ['104,1125899906842624,99', [], [1125899906842624]],
+  ]
+
+  def test_examples
+    EXAMPLES.each do |program_str, input, expected_result|
+      program = parse_program(program_str)
+      computer = run_program(program, input)
+      result = computer.output
+      assert_equal(expected_result, result)
+    end
+  end
+
+  def test_part_1
+    program_str = File.read(INPUT_FILE)
+    program = parse_program(program_str)
+    computer = run_program(program, [1])
+    result = computer.output
+    assert_equal([2714716640], result)
+  end
+
+  def test_part_2
+    program_str = File.read(INPUT_FILE)
+    program = parse_program(program_str)
+    computer = run_program(program, [2])
+    result = computer.output
+    assert_equal([58879], result)
+  end
+end

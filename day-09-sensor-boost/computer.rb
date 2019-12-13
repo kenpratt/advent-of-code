@@ -6,6 +6,7 @@ class IntcodeComputer
     def initialize(program, input, name='Computer')
       @memory = program.clone
       @instruction_pointer = 0
+      @relative_base = 0
       @input = input.clone
       @output = []
       @blocked = false
@@ -20,8 +21,6 @@ class IntcodeComputer
     end
   
     def run
-      @blocked = false
-      @halted = false
       while !@blocked && !@halted
         execute_current_instruction
       end
@@ -32,6 +31,9 @@ class IntcodeComputer
     def halted?; @halted; end
   
     def execute_current_instruction
+      return if @blocked
+      return if @halted
+
       if @instruction_pointer > @memory.size
         raise "Instruction pointer out of program memory"
       end
@@ -60,34 +62,60 @@ class IntcodeComputer
     end
   
     def read(offset, mode)
+      contents = direct_read(@instruction_pointer + offset)
+
       case mode
       when 0
         # position mode (indirect)
-        pos = @memory[@instruction_pointer + offset]
-        @memory[pos]
+        pos = contents
+        direct_read(pos)
       when 1
         # immediate mode (direct)
-        @memory[@instruction_pointer + offset]
+        contents
+      when 2
+        # relative mode (indirect with relative base)
+        pos = @relative_base + contents
+        direct_read(pos)
       else
         raise "Unknown read mode: #{mode}"
       end
     end
-  
+
     def write(offset, mode, value)
+      contents = direct_read(@instruction_pointer + offset)
+
       case mode
       when 0
         # position mode (indirect)
-        pos = @memory[@instruction_pointer + offset]
-        @memory[pos] = value
+        pos = contents
+        direct_write(pos, value)
       when 1
-        raise "Cannot use immedate mode for writes"
+        raise "Cannot use immediate mode for writes"
+      when 2
+        # relative mode (indirect with relative base)
+        pos = @relative_base + contents
+        direct_write(pos, value)
       else
         raise "Unknown write mode: #{mode}"
       end
     end
   
+    def direct_read(address)
+      raise "Cannot read from negative address: #{address}" if address < 0
+      @memory.fetch(address, 0) # pretend we have infinite memory
+    end
+
+    def direct_write(address, value)
+      raise "Cannot write to negative address: #{address}" if address < 0
+      @memory[address] = value
+    end
+  
     def set_instruction_pointer(value)
       @instruction_pointer = value
+    end
+
+    def adjust_relative_base(value)
+      @relative_base += value
     end
   
     def halt
