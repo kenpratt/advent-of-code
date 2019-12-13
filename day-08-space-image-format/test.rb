@@ -22,7 +22,7 @@ class TestPart1 < Minitest::Test
     input_str = File.read(INPUT_FILE)
     layers = process_input(input_str, 25, 6)
     result = part1(layers)
-    assert_equal(1250, result)
+    assert_equal(1742, result)
   end
 end
 
@@ -43,7 +43,8 @@ class TestPart2 < Minitest::Test
     input_str = File.read(INPUT_FILE)
     layers = process_input(input_str, 25, 6)
     layer = flatten_layers(layers)
-    result = part2(layer)
-    assert_equal(1, result)
+    puts "Part 2"
+    puts layer
+    puts
   end
 end

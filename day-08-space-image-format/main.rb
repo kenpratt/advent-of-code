@@ -16,6 +16,27 @@ Layer = Struct.new(:pixels, :width, :height) do
     end
     Layer.new(new_pixels, width, height)
   end
+
+  def to_grid
+    pixels.each_slice(width).to_a
+  end
+
+  def to_s
+    to_grid.map {|row| row.map {|s| render_pixel(s)}.join('')}.join("\n")
+  end
+
+  def render_pixel(p)
+    case p
+    when 0
+      ' '
+    when 1
+      '#'
+    when 2
+      '%'
+    else
+      raise "Unknown pixel value: #{p}"
+    end
+  end
 end
 
 def process_input(input_str, width, height)
@@ -32,7 +53,7 @@ def flatten_layers(layers)
 end
 
 def part1(layers)
-  layer = layers.min {|l| l.count_pixels(0)}
+  layer = layers.min_by {|l| l.count_pixels(0)}
   layer.count_pixels(1) * layer.count_pixels(2)
 end
 
