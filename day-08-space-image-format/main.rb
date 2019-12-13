@@ -5,15 +5,38 @@ require_relative '../utils/profile'
 
 INPUT_FILE = File.join(__dir__, 'input.txt')
 
-def process_input(input_str)
-  nil
+Layer = Struct.new(:pixels, :width, :height) do
+  def count_pixels(value)
+    pixels.count(value)
+  end
+
+  def merge(other)
+    new_pixels = self.pixels.zip(other.pixels).map do |p1, p2|
+      p1 == 2 ? p2 : p1
+    end
+    Layer.new(new_pixels, width, height)
+  end
 end
 
-def part1(input)
-  nil
+def process_input(input_str, width, height)
+  pixels = input_str.each_char.map(&:to_i)
+  pixels.each_slice(width * height).map do |layer_pixels|
+    Layer.new(layer_pixels, width, height)
+  end.to_a
 end
 
-def part2(input)
+def flatten_layers(layers)
+  layers.reduce do |l1, l2| 
+    l1.merge(l2)
+  end
+end
+
+def part1(layers)
+  layer = layers.min {|l| l.count_pixels(0)}
+  layer.count_pixels(1) * layer.count_pixels(2)
+end
+
+def part2(layer)
   nil
 end
 
