@@ -21,11 +21,12 @@ class TestPart1 < Minitest::Test
         pos=<x=  2, y=  0, z=  4>, vel=<x=  1, y= -1, z= -1>
       EOM
       <<~EOM ,
-        pot: 2 + 1 + 3 =  6;   kin: 3 + 2 + 1 = 6;   total:  6 * 6 = 36
-        pot: 1 + 8 + 0 =  9;   kin: 1 + 1 + 3 = 5;   total:  9 * 5 = 45
-        pot: 3 + 6 + 1 = 10;   kin: 3 + 2 + 3 = 8;   total: 10 * 8 = 80
-        pot: 2 + 0 + 4 =  6;   kin: 1 + 1 + 1 = 3;   total:  6 * 3 = 18
+        pot:  6; kin:  6; total: 36
+        pot:  9; kin:  5; total: 45
+        pot: 10; kin:  8; total: 80
+        pot:  6; kin:  3; total: 18
       EOM
+      179,
     ],
     [
       <<~EOM ,
@@ -42,29 +43,31 @@ class TestPart1 < Minitest::Test
         pos=<x= 16, y=-13, z= 23>, vel=<x=  7, y=  1, z=  1>
       EOM
       <<~EOM ,
-        pot:  8 + 12 +  9 = 29;   kin: 7 +  3 + 0 = 10;   total: 29 * 10 = 290
-        pot: 13 + 16 +  3 = 32;   kin: 3 + 11 + 5 = 19;   total: 32 * 19 = 608
-        pot: 29 + 11 +  1 = 41;   kin: 3 +  7 + 4 = 14;   total: 41 * 14 = 574
-        pot: 16 + 13 + 23 = 52;   kin: 7 +  1 + 1 =  9;   total: 52 *  9 = 468      
+        pot: 29; kin: 10; total:290
+        pot: 32; kin: 19; total:608
+        pot: 41; kin: 14; total:574
+        pot: 52; kin:  9; total:468      
       EOM
+      1940
     ],
   ]
 
   def test_examples
-    EXAMPLES.each do |input_str, iterations, expected_states, expected_energy|
+    EXAMPLES.each do |input_str, iterations, expected_states, expected_energy, expected_total_energy|
       input = process_input(input_str)
       simulation = simulate(input, iterations)
       assert_equal(expected_states.strip, simulation.states_to_s)
-      #assert_equal(expected_energy.strip, simulation.energy_to_s)
+      assert_equal(expected_energy.strip, simulation.energy_to_s)
+      assert_equal(expected_total_energy, simulation.total_energy)
     end
   end
 
-  # def test_input
-  #   input_str = File.read(INPUT_FILE)
-  #   input = process_input(input_str)
-  #   res = part1(input)
-  #   assert_equal(nil, res)
-  # end
+  def test_input
+    input_str = File.read(INPUT_FILE)
+    input = process_input(input_str)
+    simulation = simulate(input, 1000)
+    assert_equal(14780, simulation.total_energy)
+  end
 end
 
 # class TestPart2 < Minitest::Test

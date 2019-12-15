@@ -71,9 +71,29 @@ class Simulation
   def states_to_s
     @moons.map(&:to_s).join("\n")
   end
+
+  def energy_to_s
+    @moons.map(&:energy_to_s).join("\n")
+  end
+
+  def total_energy
+    @moons.sum(&:total_energy)
+  end
 end
 
 Moon = Struct.new(:position, :velocity) do
+  def potential_energy
+    position.values.sum(&:abs)
+  end
+
+  def kinetic_energy
+    velocity.values.sum(&:abs)
+  end
+
+  def total_energy
+    potential_energy * kinetic_energy
+  end
+
   def to_s
     sprintf(
       "pos=<x=%3d, y=%3d, z=%3d>, vel=<x=%3d, y=%3d, z=%3d>",
@@ -83,6 +103,15 @@ Moon = Struct.new(:position, :velocity) do
       velocity[:x],
       velocity[:y],
       velocity[:z],
+    )
+  end
+
+  def energy_to_s
+    sprintf(
+      "pot:%3d; kin:%3d; total:%3d",
+      potential_energy,
+      kinetic_energy,
+      total_energy,
     )
   end
 end
