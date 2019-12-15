@@ -2,6 +2,7 @@ require 'pry'
 
 require_relative '../utils/log'
 require_relative '../utils/profile'
+require_relative '../utils/grid'
 
 require_relative 'computer'
 
@@ -22,56 +23,148 @@ def run_program(program, input)
   IntcodeComputer.run(program, input)
 end
 
-def run_amplifiers(program, phase_settings, initial_input)
-  # initialize computers with phase settings
-  computers = phase_settings.each_with_index.map do |phase_setting, index|
-    IntcodeComputer.new(program, [phase_setting], "Computer ##{index}")
+class Robot
+  attr_reader :position
+
+  def initialize(position, orientation)
+    @position = position
+    @orientation = orientation
   end
 
-  # prime initial input
-  computers.first.add_input(initial_input)
-
-  # run in "parallel", with outputs hooked up to inputs
-  num_computers = computers.size
-  curr_index = 0
-  halt = false
-  while !halt
-    next_index = (curr_index + 1) % num_computers
-    curr_computer = computers[curr_index]
-    next_computer = computers[next_index]
-
-    # run this computer
-    curr_computer.run
-
-    # check if done
-    halt = computers.all? {|c| c.halted?}
-
-    # shift output to next computer's input
-    if !halt
-      while curr_computer.output.any?
-        next_computer.add_input(curr_computer.output.shift)
-      end
+  def turn!(direction_to_turn)
+    case direction_to_turn
+    when 0
+      turn_left!
+    when 1
+      turn_right!
+    else
+      raise "Unknown turn instruction: #{direction_to_turn}"
     end
-
-    curr_index = next_index
   end
 
-  computers.last.output.first
+  def turn_left!
+    next_orientation = case @orientation
+    when :up
+      :left
+    when :left
+      :down
+    when :down
+      :right
+    when :right
+      :up
+    else
+      raise "Unknown orientation: #{@orientation}"
+    end
+    @orientation = next_orientation
+  end
+
+  def turn_right!
+    next_orientation = case @orientation
+    when :up
+      :right
+    when :right
+      :down
+    when :down
+      :left
+    when :left
+      :up
+    else
+      raise "Unknown orientation: #{@orientation}"
+    end
+    @orientation = next_orientation
+  end
+
+  def advance!
+    @position.move!(@orientation, 1)
+  end
+
+  def render_orientation
+    case @orientation
+    when :up
+      '^'
+    when :left
+      '<'
+    when :down
+      'v'
+    when :right
+      '>'
+    else
+      raise "Unknown orientation: #{@orientation}"
+    end   
+  end
 end
 
-def find_best_phase_setting_permutation(program, phase_settings, initial_input)
-  phase_settings.permutation.inject(nil) do |curr_best, setting_to_try|
-    thruster_signal = run_amplifiers(program, setting_to_try, initial_input)
-    if curr_best.nil? || thruster_signal > curr_best[0]
-      [thruster_signal, setting_to_try]
-    else
-      curr_best
+class PaintedGrid
+  def initialize
+    @robot = Robot.new(Coordinate.new(0, 0), :up)
+    @painted = Hash.new(0)
+    @bounds = Bounds.new(0, 0, 0, 0)
+  end
+
+  def current_colour
+    @painted[@robot.position]
+  end
+
+  def paint!(colour)
+    @painted[@robot.position.clone] = colour
+    log.debug "paint #{@robot.position} #{colour}"
+  end
+  
+  def turn_robot!(direction_to_turn)
+    @robot.turn!(direction_to_turn)
+    @robot.advance!
+    @bounds.expand!(@robot.position)
+    log.debug "turned robot! #{direction_to_turn}, now at #{@robot.position}"
+  end
+
+  def num_painted
+    @painted.size
+  end
+
+  def to_s
+    @bounds.render_grid do |c|
+      if c == @robot.position
+        @robot.render_orientation
+      else
+        case @painted[c]
+        when 1
+          '#'
+        when 0
+          '.'
+        else
+          raise "Unknown painted colour: #{@painted[c]}"
+        end
+      end
     end
   end
+end
+
+def run_painting_robot(program, initial_panel_colour)
+  computer = IntcodeComputer.run(program, [])
+  grid = PaintedGrid.new
+  grid.paint!(initial_panel_colour)
+
+  while !computer.halted?
+    # read current colour from grid & input into computer
+    input = grid.current_colour
+    computer.add_input(input)
+
+    computer.run
+
+    output = computer.clear_output
+    raise "Expected two outputs but received #{output}" unless output.size == 2
+    colour_to_paint = output[0]
+    direction_to_turn = output[1]
+
+    log.debug "paint: #{colour_to_paint}, turn: #{direction_to_turn}"
+    grid.paint!(colour_to_paint)
+    grid.turn_robot!(direction_to_turn)
+  end
+
+  grid
 end
 
 def main
-  # (0..4).to_a.permutation
   program_str = File.read(INPUT_FILE)
   program = parse_program(program_str)
 

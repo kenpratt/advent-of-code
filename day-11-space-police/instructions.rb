@@ -100,9 +100,9 @@ class ReadInput < Instruction
   def self.param_count; 1; end
   def blocked?; input.empty?; end
   def execute
-    log.debug "[#{@computer.name}] read input: #{input.inspect}"
     # takes a single integer as input and saves it to the position given by its only parameter.
     val = input.shift
+    log.debug "[#{@computer.name}] read input: #{val}"
     write(1, val)
   end
 end
@@ -111,9 +111,10 @@ class WriteOutput < Instruction
   def self.opcode; 4; end
   def self.param_count; 1; end
   def execute
-    log.debug "[#{@computer.name}] write output: #{input.inspect}"
     # outputs the value of its only parameter.
-    output << read(1)
+    val = read(1)
+    log.debug "[#{@computer.name}] write output: #{val}"
+    output << val
   end
 end
 

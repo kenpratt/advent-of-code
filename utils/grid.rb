@@ -23,6 +23,14 @@ Bounds = Struct.new(:left, :right, :top, :bottom) do
     self.bottom = point.y if point.y > self.bottom
     self
   end
+
+  def render_grid
+    (top..bottom).map do |y|
+      (left..right).map do |x|
+        yield Coordinate.new(x, y)
+      end.join('')
+    end.join("\n")
+  end
 end
 
 class Grid
@@ -55,37 +63,43 @@ class Grid
 end
 
 Coordinate = Struct.new(:x, :y) do
-  def move_left(amount)
-    Coordinate.new(self.x - amount, y)
+  def move(direction, amount)
+    case direction
+    when :left
+      Coordinate.new(self.x - amount, y)
+    when :right
+      Coordinate.new(self.x + amount, y)
+    when :up
+      Coordinate.new(self.x, self.y - amount)
+    when :down
+      Coordinate.new(self.x, self.y + amount)
+    else
+      raise "Unknown direction: #{direction}"
+    end
   end
+  def move_left(amount); move(:left, amount); end
+  def move_right(amount); move(:right, amount); end
+  def move_up(amount); move(:up, amount); end
+  def move_down(amount); move(:down, amount); end
 
-  def move_right(amount)
-    Coordinate.new(self.x + amount, y)
-  end
-
-  def move_up(amount)
-    Coordinate.new(self.x, self.y - amount)
-  end
-  
-  def move_down(amount)
-    Coordinate.new(self.x, self.y + amount)
-  end
-
-  def move_left!(amount)
-    self.x -= amount
-  end
-
-  def move_right!(amount)
-    self.x += amount
-  end
-
-  def move_up!(amount)
-    self.y -= amount
-  end
-  
-  def move_down!(amount)
-    self.y += amount
+  def move!(direction, amount)
+    case direction
+    when :left
+      self.x -= amount
+    when :right
+      self.x += amount
+    when :up
+      self.y -= amount
+    when :down
+      self.y += amount
+    else
+      raise "Unknown direction: #{direction}"
+    end
   end  
+  def move_left!(amount); move!(:left, amount); end
+  def move_right!(amount); move!(:right, amount); end
+  def move_up!(amount); move!(:up, amount); end
+  def move_down!(amount); move!(:down, amount); end
 
   def manhattan_distance(other)
     (other.x - self.x).abs + (other.y - self.y).abs
