@@ -30,9 +30,44 @@ def simulate(moon_positions, iterations)
   simulation
 end
 
+def simulate_until_repeat(moon_positions)
+  simulation = Simulation.new(moon_positions)
+  hist = History.new
+  found_repeat = false
+  steps = 0
+  snapshot = simulation.dump_state
+  hist.add!(simulation.dump_state)
+  while !found_repeat
+    steps += 1
+    simulation.step!
+    snapshot = simulation.dump_state
+    found_repeat = hist.repeat?(snapshot)
+    hist.add!(snapshot) unless found_repeat
+  end
+  steps
+end
+
 AXES = [:x, :y, :z]
 
+class History
+  attr_reader :data
+
+  def initialize
+    @data = []
+  end
+
+  def repeat?(state)
+    @data.include?(state)
+  end
+
+  def add!(state)
+    @data << state
+  end
+end
+
 class Simulation
+  attr_reader :moons
+
   def initialize(moon_positions)
     @moons = moon_positions.map do |position|
       Moon.new(position, {x: 0, y: 0, z: 0})
@@ -79,6 +114,10 @@ class Simulation
   def total_energy
     @moons.sum(&:total_energy)
   end
+
+  def dump_state
+    @moons.map(&:dump_state)
+  end
 end
 
 Moon = Struct.new(:position, :velocity) do
@@ -92,6 +131,10 @@ Moon = Struct.new(:position, :velocity) do
 
   def total_energy
     potential_energy * kinetic_energy
+  end
+
+  def dump_state
+    [position.clone, velocity.clone]
   end
 
   def to_s
