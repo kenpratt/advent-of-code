@@ -123,20 +123,37 @@ class Moon
   end
 
   def gravitate!(other)
-    gravitate_helper(other, 0, 3) # x
-    gravitate_helper(other, 1, 4) # y
-    gravitate_helper(other, 2, 5) # z
-  end
-
-  private def gravitate_helper(other, pos_idx, vel_idx)
-    p1 = @data[pos_idx]
-    p2 = other.data[pos_idx]
+    # x
+    p1 = @data[0]
+    p2 = other.data[0]
     if p1 < p2
-      @data[vel_idx] += 1
-      other.data[vel_idx] -= 1
+      @data[3] += 1
+      other.data[3] -= 1
     elsif p1 > p2
-      @data[vel_idx] -= 1
-      other.data[vel_idx] += 1
+      @data[3] -= 1
+      other.data[3] += 1
+    end
+
+    # y
+    p1 = @data[1]
+    p2 = other.data[1]
+    if p1 < p2
+      @data[4] += 1
+      other.data[4] -= 1
+    elsif p1 > p2
+      @data[4] -= 1
+      other.data[4] += 1
+    end
+
+    # z
+    p1 = @data[2]
+    p2 = other.data[2]
+    if p1 < p2
+      @data[5] += 1
+      other.data[5] -= 1
+    elsif p1 > p2
+      @data[5] -= 1
+      other.data[5] += 1
     end
   end
 
