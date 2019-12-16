@@ -74,11 +74,12 @@ class Simulation
     @moons = moon_positions.map do |position|
       Moon.new(position)
     end
+    @combinations = (0...@moons.size).to_a.combination(2).to_a
   end
 
   def step!
-    @moons.combination(2).each do |moon1, moon2|
-      moon1.gravitate!(moon2)
+    @combinations.each do |idx1, idx2|
+      @moons[idx1].gravitate!(@moons[idx2])
     end
     @moons.each do |moon|
       moon.apply_velocity!
