@@ -1,14 +1,13 @@
+extern crate num_integer;
+
 use std::collections::HashMap;
 use std::fs;
 use regex::Regex;
+use num_integer::lcm;
 
 fn main() {
-    //part1();
-    //part2();
-    run_simulation_until_repeat(
-        "<x=-8, y=-10, z=0>\n<x=5, y=5, z=10>\n<x=2, y=-7, z=3>\n<x=9, y=-8, z=-3>".to_string(),
-        10000000, // 10M
-    );
+    part1();
+    part2();
 }
 
 fn part1() {
@@ -19,7 +18,7 @@ fn part1() {
 
 fn part2() {
     let contents = fs::read_to_string("input.txt").expect("Something went wrong reading the file");
-    let steps_until_repeat = run_simulation_until_repeat(contents, 1000);
+    let steps_until_repeat = run_simulation_until_repeat(contents);
     println!("part 2 steps: {:?}", steps_until_repeat);
 }
 
@@ -34,13 +33,13 @@ fn run_simulation(contents: String, iterations: usize) -> Simulation {
     return simulation;
 }
 
-fn run_simulation_until_repeat(contents: String, max_iterations: usize) -> usize {
+fn run_simulation_until_repeat(contents: String) -> usize {
     let mut simulation = construct_simulation(contents);
-    let mut history = History::new(simulation.moons.len());
+    let mut history = History::new();
     history.add(&simulation);
-    for _ in 0..max_iterations {
+    loop {
         simulation.step();
-        if simulation.steps % 1000 == 0 {
+        if simulation.steps % 1000000 == 0 {
             println!("{}", simulation.steps);
         }
         history.add(&simulation);
@@ -111,6 +110,18 @@ impl Simulation {
 
     pub fn total_energy(&self) -> i16 {
         return self.moons.iter().map(|moon| moon.total_energy()).sum();
+    }
+
+    pub fn x_coords(&self) -> Vec<Coordinate> {
+        return self.moons.iter().map(|moon| moon.x).collect();
+    }
+
+    pub fn y_coords(&self) -> Vec<Coordinate> {
+        return self.moons.iter().map(|moon| moon.y).collect();
+    }
+
+    pub fn z_coords(&self) -> Vec<Coordinate> {
+        return self.moons.iter().map(|moon| moon.z).collect();
     }
 }
 
@@ -190,50 +201,56 @@ impl Moon {
 
 #[derive(Debug)]
 pub struct History {
-    data: Vec<CoordinateHistory>,
+    x: AxisHistory,
+    y: AxisHistory,
+    z: AxisHistory,
 }
 
 impl History {
-    pub fn new(num_moons: usize) -> History {
-        let mut data = vec![];
-        for _ in 0..(num_moons * 3) {
-            data.push(CoordinateHistory::new());
-        }
+    pub fn new() -> History {
         return History {
-            data: data,
+            x: AxisHistory::new(),
+            y: AxisHistory::new(),
+            z: AxisHistory::new(),
         }
     }
 
     pub fn add(&mut self, simulation: &Simulation) {
-        for (moon_index, moon) in simulation.moons.iter().enumerate() {
-            let i = moon_index * 3;
-            self.data[i].add(moon.x, simulation.steps);
-            self.data[i+1].add(moon.y, simulation.steps);
-            self.data[i+2].add(moon.z, simulation.steps);
-        }
+        self.x.add(simulation.x_coords(), simulation.steps);
+        self.y.add(simulation.y_coords(), simulation.steps);
+        self.z.add(simulation.z_coords(), simulation.steps);
     }
 
     pub fn found_loop(&self) -> bool {
-        return self.data.iter().all(|h| h.found_loop());
+        return self.x.found_loop() && self.y.found_loop() && self.z.found_loop();
     }
 
     pub fn steps_until_repeat(&self) -> usize {
-        for c in self.data.iter() {
-            println!("{:?}", c.loop_info);
-        }
-        return 0;
+        let x_loop = self.x.loop_info.unwrap();
+        let y_loop = self.y.loop_info.unwrap();
+        let z_loop = self.z.loop_info.unwrap();
+
+        println!("{:?}", x_loop);
+        println!("{:?}", y_loop);
+        println!("{:?}", z_loop);
+
+        let lcm_xy = lcm(x_loop.size, y_loop.size);
+        let lcm_xyz = lcm(lcm_xy, z_loop.size);
+
+        println!("{:?}", lcm_xyz);
+        return lcm_xyz;
     }
 }
 
 #[derive(Debug)]
-pub struct CoordinateHistory {
-    data: HashMap<Coordinate, usize>,
+pub struct AxisHistory {
+    data: HashMap<Vec<Coordinate>, usize>,
     loop_info: Option<LoopInfo>,
 }
 
-impl CoordinateHistory {
-    pub fn new() -> CoordinateHistory {
-        return CoordinateHistory {
+impl AxisHistory {
+    pub fn new() -> AxisHistory {
+        return AxisHistory {
             data: HashMap::new(),
             loop_info: None,
         }
@@ -243,24 +260,24 @@ impl CoordinateHistory {
         return self.loop_info.is_some();
     }
 
-    pub fn add(&mut self, coord: Coordinate, steps: usize) {
+    pub fn add(&mut self, coords: Vec<Coordinate>, steps: usize) {
         if self.found_loop() {
             return;
         }
 
-        match self.data.get(&coord) {
+        match self.data.get(&coords) {
             Some(prior_steps) => {
                 let size = steps - prior_steps;
                 self.loop_info = Some(LoopInfo::new(prior_steps.clone(), size));
             },
             None => {
-                self.data.insert(coord, steps);
+                self.data.insert(coords, steps);
             }
         }
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct LoopInfo {
     offset: usize,
     size: usize,
@@ -324,20 +341,15 @@ mod tests {
     fn test_part2_example1() {
         let steps_until_repeat = run_simulation_until_repeat(
             "<x=-1, y=0, z=2>\n<x=2, y=-10, z=-7>\n<x=4, y=-8, z=8>\n<x=3, y=5, z=-1>".to_string(),
-            3000,
         );
         assert_eq!(steps_until_repeat, 2772);
     }
 
-    // #[test]
-    // fn test_part2_example2() {
-    //     let simulation = run_simulation_until_repeat(
-    //     //let steps_until_repeat = run_simulation(
-    //         "<x=-8, y=-10, z=0>\n<x=5, y=5, z=10>\n<x=2, y=-7, z=3>\n<x=9, y=-8, z=-3>".to_string(),
-    //         10000000, // 10M
-    //         //100000000, // 100M
-    //         // 4,686,774,924
-    //     );
-    //     //assert_eq!(steps_until_repeat, 4686774924);
-    // }    
+    #[test]
+    fn test_part2_example2() {
+        let steps_until_repeat = run_simulation_until_repeat(
+            "<x=-8, y=-10, z=0>\n<x=5, y=5, z=10>\n<x=2, y=-7, z=3>\n<x=9, y=-8, z=-3>".to_string(),
+        );
+        assert_eq!(steps_until_repeat, 4686774924);
+    }
 }
