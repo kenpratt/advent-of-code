@@ -30,16 +30,18 @@ def simulate(moon_positions, iterations)
   simulation
 end
 
-def simulate_until_repeat(moon_positions)
+def simulate_until_repeat(moon_positions, max_steps)
   simulation = Simulation.new(moon_positions)
   hist = History.new
   found_repeat = false
   steps = 0
   snapshot = simulation.dump_state
   hist.add!(simulation.dump_state)
-  while !found_repeat
+  while !found_repeat && steps < max_steps
     steps += 1
     simulation.step!
+    log.debug "step #{steps}" if steps % 5000 == 0
+    #binding.pry if steps == 100
     snapshot = simulation.dump_state
     found_repeat = hist.repeat?(snapshot)
     hist.add!(snapshot) unless found_repeat
@@ -53,7 +55,7 @@ class History
   attr_reader :data
 
   def initialize
-    @data = []
+    @data = SortedSet.new
   end
 
   def repeat?(state)
@@ -70,36 +72,16 @@ class Simulation
 
   def initialize(moon_positions)
     @moons = moon_positions.map do |position|
-      Moon.new(position, {x: 0, y: 0, z: 0})
+      Moon.new(position)
     end
   end
 
   def step!
     @moons.combination(2).each do |moon1, moon2|
-      gravitate!(moon1, moon2)
+      moon1.gravitate!(moon2)
     end
     @moons.each do |moon|
-      apply_velocity!(moon)
-    end
-  end
-
-  def gravitate!(moon1, moon2)
-    AXES.each do |axis|
-      v1 = moon1.position[axis]
-      v2 = moon2.position[axis]
-      if v1 < v2
-        moon1.velocity[axis] += 1
-        moon2.velocity[axis] -= 1
-      elsif v1 > v2
-        moon1.velocity[axis] -= 1
-        moon2.velocity[axis] += 1
-      end
-    end
-  end
-  
-  def apply_velocity!(moon)
-    AXES.each do |axis|
-      moon.position[axis] += moon.velocity[axis]
+      moon.apply_velocity!
     end
   end
 
@@ -116,37 +98,59 @@ class Simulation
   end
 
   def dump_state
-    @moons.map(&:dump_state)
+    @moons.flat_map(&:dump_state)
   end
 end
 
-Moon = Struct.new(:position, :velocity) do
+class Moon
+  attr_reader :data
+
+  def initialize(position)
+    @data = [position[:x], position[:y], position[:z], 0, 0, 0]
+  end
+    
   def potential_energy
-    position.values.sum(&:abs)
+    @data[0].abs + @data[1].abs + @data[2].abs
   end
 
   def kinetic_energy
-    velocity.values.sum(&:abs)
+    @data[3].abs + @data[4].abs + @data[5].abs
   end
 
   def total_energy
     potential_energy * kinetic_energy
   end
 
+  def gravitate!(other)
+    gravitate_helper(other, 0, 3) # x
+    gravitate_helper(other, 1, 4) # y
+    gravitate_helper(other, 2, 5) # z
+  end
+
+  private def gravitate_helper(other, pos_idx, vel_idx)
+    p1 = @data[pos_idx]
+    p2 = other.data[pos_idx]
+    if p1 < p2
+      @data[vel_idx] += 1
+      other.data[vel_idx] -= 1
+    elsif p1 > p2
+      @data[vel_idx] -= 1
+      other.data[vel_idx] += 1
+    end
+  end
+
+  def apply_velocity!
+    @data[0] += @data[3] # x
+    @data[1] += @data[4] # y
+    @data[2] += @data[5] # z
+  end
+
   def dump_state
-    [position.clone, velocity.clone]
+    clone
   end
 
   def to_s
-    sprintf(
-      "pos=<x=%3d, y=%3d, z=%3d>, vel=<x=%3d, y=%3d, z=%3d>",
-      position[:x],
-      position[:y],
-      position[:z],
-      velocity[:x],
-      velocity[:y],
-      velocity[:z],
-    )
+    sprintf("pos=<x=%3d, y=%3d, z=%3d>, vel=<x=%3d, y=%3d, z=%3d>", *@data)
   end
 
   def energy_to_s

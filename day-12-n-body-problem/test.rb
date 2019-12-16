@@ -72,32 +72,33 @@ end
 
 class TestPart2 < Minitest::Test
   EXAMPLES = [
-    [
-      <<~EOM ,
-        <x=-1, y=0, z=2>
-        <x=2, y=-10, z=-7>
-        <x=4, y=-8, z=8>
-        <x=3, y=5, z=-1>
-      EOM
-      2772,
-    ],
     # [
     #   <<~EOM ,
-    #     <x=-8, y=-10, z=0>
-    #     <x=5, y=5, z=10>
-    #     <x=2, y=-7, z=3>
-    #     <x=9, y=-8, z=-3>
+    #     <x=-1, y=0, z=2>
+    #     <x=2, y=-10, z=-7>
+    #     <x=4, y=-8, z=8>
+    #     <x=3, y=5, z=-1>
     #   EOM
-    #   4686774924,
+    #   2772,
     # ],
+    [
+      <<~EOM ,
+        <x=-8, y=-10, z=0>
+        <x=5, y=5, z=10>
+        <x=2, y=-7, z=3>
+        <x=9, y=-8, z=-3>
+      EOM
+      4686774924,
+    ],
   ]
 
   def test_examples
     EXAMPLES.each do |input_str, expected_num_steps|
       log.debug "running test #{input_str.inspect} #{expected_num_steps}"
       input = process_input(input_str)
-      steps = profile {simulate_until_repeat(input)}
-      assert_equal(expected_num_steps, steps)
+      profile {simulate(input, 500_000)}
+      # steps = profile {simulate_until_repeat(input, 200000)}
+      # assert_equal(expected_num_steps, steps)
     end
   end
 
