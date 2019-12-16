@@ -7,7 +7,7 @@ fn main() {
     //part2();
     run_simulation_until_repeat(
         "<x=-8, y=-10, z=0>\n<x=5, y=5, z=10>\n<x=2, y=-7, z=3>\n<x=9, y=-8, z=-3>".to_string(),
-        10000000, // 10M
+        2000000, // 10M
     );
 }
 
@@ -36,7 +36,7 @@ fn run_simulation(contents: String, iterations: usize) -> Simulation {
 
 fn run_simulation_until_repeat(contents: String, max_iterations: usize) -> Simulation {
     let mut simulation = construct_simulation(contents);
-    let mut history = History::new();
+    let mut history = History::new(max_iterations);
     history.add(simulation.snapshot());
     for _ in 0..max_iterations {
         simulation.step();
@@ -60,15 +60,15 @@ fn construct_simulation(contents: String) -> Simulation {
 fn parse_line(line: &str) -> Moon {
     let re = Regex::new(r"^<x=(\-?\d+), y=(\-?\d+), z=(\-?\d+)>$").unwrap();
     let captures = re.captures(line).unwrap();
-    let x = captures.get(1).unwrap().as_str().parse::<i32>().unwrap();
-    let y = captures.get(2).unwrap().as_str().parse::<i32>().unwrap();
-    let z = captures.get(3).unwrap().as_str().parse::<i32>().unwrap();
+    let x = captures.get(1).unwrap().as_str().parse::<i16>().unwrap();
+    let y = captures.get(2).unwrap().as_str().parse::<i16>().unwrap();
+    let z = captures.get(3).unwrap().as_str().parse::<i16>().unwrap();
     let moon = Moon::new(x, y, z);
     println!("{:?}", moon);
     return moon;
 }
 
-type Snapshot = Vec<i32>;
+type Snapshot = Vec<Moon>;
 
 #[derive(Debug)]
 pub struct Simulation {
@@ -111,27 +111,27 @@ impl Simulation {
         moon.gravitate(other_px, other_py, other_pz);
     }
 
-    pub fn total_energy(&self) -> i32 {
+    pub fn total_energy(&self) -> i16 {
         return self.moons.iter().map(|moon| moon.total_energy()).sum();
     }
 
-    pub fn snapshot(&self) -> Vec<i32> {
-        return self.moons.iter().flat_map(|moon| moon.values()).collect();
+    pub fn snapshot(&self) -> Vec<Moon> {
+        return self.moons.clone();
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Moon {
-    px: i32,
-    py: i32,
-    pz: i32,
-    vx: i32,
-    vy: i32,
-    vz: i32,
+    px: i16,
+    py: i16,
+    pz: i16,
+    vx: i16,
+    vy: i16,
+    vz: i16,
 }
 
 impl Moon {
-    pub fn new(px: i32, py: i32, pz: i32) -> Moon {
+    pub fn new(px: i16, py: i16, pz: i16) -> Moon {
         return Moon {
             px: px,
             py: py,
@@ -142,7 +142,7 @@ impl Moon {
         };
     }
 
-    pub fn gravitate(&mut self, other_px: i32, other_py: i32, other_pz: i32) {
+    pub fn gravitate(&mut self, other_px: i16, other_py: i16, other_pz: i16) {
         if self.px < other_px {
             self.vx += 1;
         } else if self.px > other_px {
@@ -168,19 +168,19 @@ impl Moon {
         self.pz += self.vz;
     }
 
-    pub fn potential_energy(&self) -> i32 {
+    pub fn potential_energy(&self) -> i16 {
         return self.px.abs() + self.py.abs() + self.pz.abs();
     }
 
-    pub fn kinetic_energy(&self) -> i32 {
+    pub fn kinetic_energy(&self) -> i16 {
         return self.vx.abs() + self.vy.abs() + self.vz.abs();
     }
 
-    pub fn total_energy(&self) -> i32 {
+    pub fn total_energy(&self) -> i16 {
         return self.potential_energy() * self.kinetic_energy();
     }
 
-    pub fn values(&self) -> Vec<i32> {
+    pub fn values(&self) -> Vec<i16> {
         return vec![self.px, self.py, self.pz, self.vx, self.vy, self.vz];
     }
 }
@@ -191,9 +191,9 @@ pub struct History {
 }
 
 impl History {
-    pub fn new() -> History {
+    pub fn new(initial_capacity: usize) -> History {
         return History {
-            data: HashSet::new(),
+            data: HashSet::with_capacity(initial_capacity),
         }
     }
 
@@ -260,15 +260,15 @@ mod tests {
         assert_eq!(simulation.steps, 2772);
     }
 
-    #[test]
-    fn test_part2_example2() {
-        let simulation = run_simulation_until_repeat(
-        //let simulation = run_simulation(
-            "<x=-8, y=-10, z=0>\n<x=5, y=5, z=10>\n<x=2, y=-7, z=3>\n<x=9, y=-8, z=-3>".to_string(),
-            10000000, // 10M
-            //100000000, // 100M
-            // 4,686,774,924
-        );
-        //assert_eq!(simulation.steps, 4686774924);
-    }    
+    // #[test]
+    // fn test_part2_example2() {
+    //     let simulation = run_simulation_until_repeat(
+    //     //let simulation = run_simulation(
+    //         "<x=-8, y=-10, z=0>\n<x=5, y=5, z=10>\n<x=2, y=-7, z=3>\n<x=9, y=-8, z=-3>".to_string(),
+    //         10000000, // 10M
+    //         //100000000, // 100M
+    //         // 4,686,774,924
+    //     );
+    //     //assert_eq!(simulation.steps, 4686774924);
+    // }    
 }

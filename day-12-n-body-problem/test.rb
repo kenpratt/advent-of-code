@@ -96,9 +96,12 @@ class TestPart2 < Minitest::Test
     EXAMPLES.each do |input_str, expected_num_steps|
       log.debug "running test #{input_str.inspect} #{expected_num_steps}"
       input = process_input(input_str)
-      steps = 2_000_000
+      steps = 10_000_000
       measure {simulate(input, steps)}
-      profile {simulate(input, steps)}
+      puts "min: #{$min}"
+      puts "max: #{$max}"
+      puts "fuzz: #{$fuzz.size}"
+      #profile {simulate(input, steps)}
       # steps = profile {simulate_until_repeat(input, 200000)}
       # assert_equal(expected_num_steps, steps)
     end

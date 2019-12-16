@@ -73,6 +73,9 @@ class Simulation
       Moon.new(position)
     end
     @combinations = (0...@moons.size).to_a.combination(2).to_a
+    $min = 100
+    $max = -100
+    $fuzz = Set.new
   end
 
   def step!
@@ -82,6 +85,7 @@ class Simulation
     @moons.each do |moon|
       moon.apply_velocity!
     end
+    $fuzz << total_energy
   end
 
   def states_to_s
@@ -99,6 +103,11 @@ class Simulation
   def dump_state
     @moons.flat_map(&:dump_state)
   end
+end
+
+def update_seen(val)
+  $min = val if val < $min
+  $max = val if val > $max
 end
 
 class Moon
@@ -137,12 +146,22 @@ class Moon
     dz = (@pz <=> other.pz)
     @vz -= dz
     other.vz += dz
+
+    update_seen(@vx)
+    update_seen(@vy)
+    update_seen(@vz)
+    update_seen(other.vx)
+    update_seen(other.vy)
+    update_seen(other.vz)
   end
 
   def apply_velocity!
     @px += @vx
     @py += @vy
     @pz += @vz
+    update_seen(@px)
+    update_seen(@py)
+    update_seen(@pz)
   end
 
   def dump_state
