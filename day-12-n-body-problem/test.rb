@@ -72,15 +72,15 @@ end
 
 class TestPart2 < Minitest::Test
   EXAMPLES = [
-    # [
-    #   <<~EOM ,
-    #     <x=-1, y=0, z=2>
-    #     <x=2, y=-10, z=-7>
-    #     <x=4, y=-8, z=8>
-    #     <x=3, y=5, z=-1>
-    #   EOM
-    #   2772,
-    # ],
+    [
+      <<~EOM ,
+        <x=-1, y=0, z=2>
+        <x=2, y=-10, z=-7>
+        <x=4, y=-8, z=8>
+        <x=3, y=5, z=-1>
+      EOM
+      2772,
+    ],
     [
       <<~EOM ,
         <x=-8, y=-10, z=0>
@@ -97,10 +97,11 @@ class TestPart2 < Minitest::Test
       log.debug "running test #{input_str.inspect} #{expected_num_steps}"
       input = process_input(input_str)
       steps = 10_000_000
-      measure {simulate(input, steps)}
+      foo = measure {simulate_until_repeat(input, steps)}
       puts "min: #{$min}"
       puts "max: #{$max}"
       puts "fuzz: #{$fuzz.size}"
+      binding.pry
       #profile {simulate(input, steps)}
       # steps = profile {simulate_until_repeat(input, 200000)}
       # assert_equal(expected_num_steps, steps)

@@ -37,6 +37,7 @@ def simulate_until_repeat(moon_positions, max_steps)
   steps = 0
   snapshot = simulation.dump_state
   hist.add!(simulation.dump_state)
+  foo = [simulation.dump_state]
   while !found_repeat && steps < max_steps
     steps += 1
     simulation.step!
@@ -45,7 +46,9 @@ def simulate_until_repeat(moon_positions, max_steps)
     snapshot = simulation.dump_state
     found_repeat = hist.repeat?(snapshot)
     hist.add!(snapshot) unless found_repeat
+    foo << snapshot
   end
+  binding.pry
   steps
 end
 
@@ -165,7 +168,7 @@ class Moon
   end
 
   def dump_state
-    clone
+    [@px, @py, @pz, @vx, @vy, @vz]
   end
 
   def to_s

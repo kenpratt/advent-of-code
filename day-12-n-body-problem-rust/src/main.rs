@@ -7,7 +7,7 @@ fn main() {
     //part2();
     run_simulation_until_repeat(
         "<x=-8, y=-10, z=0>\n<x=5, y=5, z=10>\n<x=2, y=-7, z=3>\n<x=9, y=-8, z=-3>".to_string(),
-        2000000, // 10M
+        10000000, // 10M
     );
 }
 
