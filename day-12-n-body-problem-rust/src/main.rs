@@ -33,7 +33,7 @@ fn run_simulation(contents: String, iterations: usize) -> Simulation {
     return simulation;
 }
 
-fn run_simulation_until_repeat(contents: String) -> usize {
+fn run_simulation_until_repeat(contents: String) -> u64 {
     let mut simulation = construct_simulation(contents);
     let mut history = History::new();
     history.add(&simulation);
@@ -71,7 +71,7 @@ fn parse_line(line: &str) -> Moon {
 pub struct Simulation {
     moons: Vec<Moon>,
     num_moons: usize,
-    steps: usize,
+    steps: u32,
 }
 
 impl Simulation {
@@ -225,7 +225,7 @@ impl History {
         return self.x.found_loop() && self.y.found_loop() && self.z.found_loop();
     }
 
-    pub fn steps_until_repeat(&self) -> usize {
+    pub fn steps_until_repeat(&self) -> u64 {
         let x_loop = self.x.loop_info.unwrap();
         let y_loop = self.y.loop_info.unwrap();
         let z_loop = self.z.loop_info.unwrap();
@@ -234,8 +234,12 @@ impl History {
         println!("{:?}", y_loop);
         println!("{:?}", z_loop);
 
-        let lcm_xy = lcm(x_loop.size, y_loop.size);
-        let lcm_xyz = lcm(lcm_xy, z_loop.size);
+        if x_loop.offset != 0 || y_loop.offset != 0 || z_loop.offset != 0 {
+            panic!("Don't know how to calculate repeat at non zero offset yet");
+        }
+
+        let lcm_xy = lcm(u64::from(x_loop.size), u64::from(y_loop.size));
+        let lcm_xyz = lcm(lcm_xy, u64::from(z_loop.size));
 
         println!("{:?}", lcm_xyz);
         return lcm_xyz;
@@ -244,7 +248,7 @@ impl History {
 
 #[derive(Debug)]
 pub struct AxisHistory {
-    data: HashMap<Vec<Coordinate>, usize>,
+    data: HashMap<Vec<Coordinate>, u32>,
     loop_info: Option<LoopInfo>,
 }
 
@@ -260,7 +264,7 @@ impl AxisHistory {
         return self.loop_info.is_some();
     }
 
-    pub fn add(&mut self, coords: Vec<Coordinate>, steps: usize) {
+    pub fn add(&mut self, coords: Vec<Coordinate>, steps: u32) {
         if self.found_loop() {
             return;
         }
@@ -279,12 +283,12 @@ impl AxisHistory {
 
 #[derive(Debug, Clone, Copy)]
 pub struct LoopInfo {
-    offset: usize,
-    size: usize,
+    offset: u32,
+    size: u32,
 }
 
 impl LoopInfo {
-    pub fn new(offset: usize, size: usize) -> LoopInfo {
+    pub fn new(offset: u32, size: u32) -> LoopInfo {
         return LoopInfo {
             offset: offset,
             size: size,
