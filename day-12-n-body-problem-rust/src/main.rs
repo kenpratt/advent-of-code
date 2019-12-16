@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::fs;
 use regex::Regex;
 
@@ -19,8 +19,8 @@ fn part1() {
 
 fn part2() {
     let contents = fs::read_to_string("input.txt").expect("Something went wrong reading the file");
-    let simulation = run_simulation_until_repeat(contents, 1000);
-    println!("part 2 steps: {:?}", simulation.steps);
+    let steps_until_repeat = run_simulation_until_repeat(contents, 1000);
+    println!("part 2 steps: {:?}", steps_until_repeat);
 }
 
 fn run_simulation(contents: String, iterations: usize) -> Simulation {
@@ -34,22 +34,22 @@ fn run_simulation(contents: String, iterations: usize) -> Simulation {
     return simulation;
 }
 
-fn run_simulation_until_repeat(contents: String, max_iterations: usize) -> Simulation {
+fn run_simulation_until_repeat(contents: String, max_iterations: usize) -> usize {
     let mut simulation = construct_simulation(contents);
-    let mut history = History::new(max_iterations);
-    history.add(simulation.snapshot());
+    let mut history = History::new(simulation.moons.len());
+    history.add(&simulation);
     for _ in 0..max_iterations {
         simulation.step();
-        if simulation.steps % 1000000 == 0 {
+        if simulation.steps % 1000 == 0 {
             println!("{}", simulation.steps);
         }
-        let snapshot = simulation.snapshot();
-        if history.contains(&snapshot) {
+        history.add(&simulation);
+        if history.found_loop() {
+            println!("found loop!");
             break;
         }
-        history.add(snapshot);
     }
-    return simulation;
+    return history.steps_until_repeat();
 }
 
 fn construct_simulation(contents: String) -> Simulation {
@@ -67,8 +67,6 @@ fn parse_line(line: &str) -> Moon {
     println!("{:?}", moon);
     return moon;
 }
-
-type Snapshot = Vec<Moon>;
 
 #[derive(Debug)]
 pub struct Simulation {
@@ -104,9 +102,9 @@ impl Simulation {
     }
 
     fn gravitate(&mut self, i1: usize, i2: usize) {
-        let other_px = self.moons[i2].px;
-        let other_py = self.moons[i2].py;
-        let other_pz = self.moons[i2].pz;
+        let other_px = self.moons[i2].x.p;
+        let other_py = self.moons[i2].y.p;
+        let other_pz = self.moons[i2].z.p;
         let moon = &mut self.moons[i1];
         moon.gravitate(other_px, other_py, other_pz);
     }
@@ -114,66 +112,71 @@ impl Simulation {
     pub fn total_energy(&self) -> i16 {
         return self.moons.iter().map(|moon| moon.total_energy()).sum();
     }
+}
 
-    pub fn snapshot(&self) -> Vec<Moon> {
-        return self.moons.clone();
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+pub struct Coordinate {
+    p: i16,
+    v: i16,
+}
+
+impl Coordinate {
+    pub fn new(p: i16) -> Coordinate {
+        return Coordinate {
+            p: p,
+            v: 0,
+        };
     }
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Moon {
-    px: i16,
-    py: i16,
-    pz: i16,
-    vx: i16,
-    vy: i16,
-    vz: i16,
+    x: Coordinate,
+    y: Coordinate,
+    z: Coordinate,
 }
 
 impl Moon {
     pub fn new(px: i16, py: i16, pz: i16) -> Moon {
         return Moon {
-            px: px,
-            py: py,
-            pz: pz,
-            vx: 0,
-            vy: 0,
-            vz: 0,
+            x: Coordinate::new(px),
+            y: Coordinate::new(py),
+            z: Coordinate::new(pz),
         };
     }
 
     pub fn gravitate(&mut self, other_px: i16, other_py: i16, other_pz: i16) {
-        if self.px < other_px {
-            self.vx += 1;
-        } else if self.px > other_px {
-            self.vx -= 1;
+        if self.x.p < other_px {
+            self.x.v += 1;
+        } else if self.x.p > other_px {
+            self.x.v -= 1;
         }
 
-        if self.py < other_py {
-            self.vy += 1;
-        } else if self.py > other_py {
-            self.vy -= 1;
+        if self.y.p < other_py {
+            self.y.v += 1;
+        } else if self.y.p > other_py {
+            self.y.v -= 1;
         }
 
-        if self.pz < other_pz {
-            self.vz += 1;
-        } else if self.pz > other_pz {
-            self.vz -= 1;
+        if self.z.p < other_pz {
+            self.z.v += 1;
+        } else if self.z.p > other_pz {
+            self.z.v -= 1;
         }
     }
 
     pub fn apply_velocity(&mut self) {
-        self.px += self.vx;
-        self.py += self.vy;
-        self.pz += self.vz;
+        self.x.p += self.x.v;
+        self.y.p += self.y.v;
+        self.z.p += self.z.v;
     }
 
     pub fn potential_energy(&self) -> i16 {
-        return self.px.abs() + self.py.abs() + self.pz.abs();
+        return self.x.p.abs() + self.y.p.abs() + self.z.p.abs();
     }
 
     pub fn kinetic_energy(&self) -> i16 {
-        return self.vx.abs() + self.vy.abs() + self.vz.abs();
+        return self.x.v.abs() + self.y.v.abs() + self.z.v.abs();
     }
 
     pub fn total_energy(&self) -> i16 {
@@ -181,28 +184,94 @@ impl Moon {
     }
 
     pub fn values(&self) -> Vec<i16> {
-        return vec![self.px, self.py, self.pz, self.vx, self.vy, self.vz];
+        return vec![self.x.p, self.y.p, self.z.p, self.x.v, self.y.v, self.z.v];
     }
 }
 
 #[derive(Debug)]
 pub struct History {
-    data: HashSet<Snapshot>,
+    data: Vec<CoordinateHistory>,
 }
 
 impl History {
-    pub fn new(initial_capacity: usize) -> History {
+    pub fn new(num_moons: usize) -> History {
+        let mut data = vec![];
+        for _ in 0..(num_moons * 3) {
+            data.push(CoordinateHistory::new());
+        }
         return History {
-            data: HashSet::with_capacity(initial_capacity),
+            data: data,
         }
     }
 
-    pub fn add(&mut self, snapshot: Snapshot) {
-        self.data.insert(snapshot);
+    pub fn add(&mut self, simulation: &Simulation) {
+        for (moon_index, moon) in simulation.moons.iter().enumerate() {
+            let i = moon_index * 3;
+            self.data[i].add(moon.x, simulation.steps);
+            self.data[i+1].add(moon.y, simulation.steps);
+            self.data[i+2].add(moon.z, simulation.steps);
+        }
     }
 
-    pub fn contains(&self, snapshot: &Snapshot) -> bool {
-        return self.data.contains(snapshot);
+    pub fn found_loop(&self) -> bool {
+        return self.data.iter().all(|h| h.found_loop());
+    }
+
+    pub fn steps_until_repeat(&self) -> usize {
+        for c in self.data.iter() {
+            println!("{:?}", c.loop_info);
+        }
+        return 0;
+    }
+}
+
+#[derive(Debug)]
+pub struct CoordinateHistory {
+    data: HashMap<Coordinate, usize>,
+    loop_info: Option<LoopInfo>,
+}
+
+impl CoordinateHistory {
+    pub fn new() -> CoordinateHistory {
+        return CoordinateHistory {
+            data: HashMap::new(),
+            loop_info: None,
+        }
+    }
+
+    pub fn found_loop(&self) -> bool {
+        return self.loop_info.is_some();
+    }
+
+    pub fn add(&mut self, coord: Coordinate, steps: usize) {
+        if self.found_loop() {
+            return;
+        }
+
+        match self.data.get(&coord) {
+            Some(prior_steps) => {
+                let size = steps - prior_steps;
+                self.loop_info = Some(LoopInfo::new(prior_steps.clone(), size));
+            },
+            None => {
+                self.data.insert(coord, steps);
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct LoopInfo {
+    offset: usize,
+    size: usize,
+}
+
+impl LoopInfo {
+    pub fn new(offset: usize, size: usize) -> LoopInfo {
+        return LoopInfo {
+            offset: offset,
+            size: size,
+        }
     }
 }
 
@@ -253,22 +322,22 @@ mod tests {
 
     #[test]
     fn test_part2_example1() {
-        let simulation = run_simulation_until_repeat(
+        let steps_until_repeat = run_simulation_until_repeat(
             "<x=-1, y=0, z=2>\n<x=2, y=-10, z=-7>\n<x=4, y=-8, z=8>\n<x=3, y=5, z=-1>".to_string(),
             3000,
         );
-        assert_eq!(simulation.steps, 2772);
+        assert_eq!(steps_until_repeat, 2772);
     }
 
     // #[test]
     // fn test_part2_example2() {
     //     let simulation = run_simulation_until_repeat(
-    //     //let simulation = run_simulation(
+    //     //let steps_until_repeat = run_simulation(
     //         "<x=-8, y=-10, z=0>\n<x=5, y=5, z=10>\n<x=2, y=-7, z=3>\n<x=9, y=-8, z=-3>".to_string(),
     //         10000000, // 10M
     //         //100000000, // 100M
     //         // 4,686,774,924
     //     );
-    //     //assert_eq!(simulation.steps, 4686774924);
+    //     //assert_eq!(steps_until_repeat, 4686774924);
     // }    
 }
