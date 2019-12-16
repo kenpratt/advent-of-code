@@ -49,8 +49,6 @@ def simulate_until_repeat(moon_positions, max_steps)
   steps
 end
 
-AXES = [:x, :y, :z]
-
 class History
   attr_reader :data
 
@@ -104,18 +102,23 @@ class Simulation
 end
 
 class Moon
-  attr_reader :data
+  attr_accessor :px, :py, :pz, :vx, :vy, :vz
 
   def initialize(position)
-    @data = [position[:x], position[:y], position[:z], 0, 0, 0]
+    @px = position[:x]
+    @py = position[:y]
+    @pz = position[:z]
+    @vx = 0
+    @vy = 0
+    @vz = 0
   end
     
   def potential_energy
-    @data[0].abs + @data[1].abs + @data[2].abs
+    @px.abs + @py.abs + @pz.abs
   end
 
   def kinetic_energy
-    @data[3].abs + @data[4].abs + @data[5].abs
+    @vx.abs + @vy.abs + @vz.abs
   end
 
   def total_energy
@@ -124,43 +127,43 @@ class Moon
 
   def gravitate!(other)
     # x
-    p1 = @data[0]
-    p2 = other.data[0]
+    p1 = @px
+    p2 = other.px
     if p1 < p2
-      @data[3] += 1
-      other.data[3] -= 1
+      @vx += 1
+      other.vx -= 1
     elsif p1 > p2
-      @data[3] -= 1
-      other.data[3] += 1
+      @vx -= 1
+      other.vx += 1
     end
 
     # y
-    p1 = @data[1]
-    p2 = other.data[1]
+    p1 = @py
+    p2 = other.py
     if p1 < p2
-      @data[4] += 1
-      other.data[4] -= 1
+      @vy += 1
+      other.vy -= 1
     elsif p1 > p2
-      @data[4] -= 1
-      other.data[4] += 1
+      @vy -= 1
+      other.vy += 1
     end
 
     # z
-    p1 = @data[2]
-    p2 = other.data[2]
+    p1 = @pz
+    p2 = other.pz
     if p1 < p2
-      @data[5] += 1
-      other.data[5] -= 1
+      @vz += 1
+      other.vz -= 1
     elsif p1 > p2
-      @data[5] -= 1
-      other.data[5] += 1
+      @vz -= 1
+      other.vz += 1
     end
   end
 
   def apply_velocity!
-    @data[0] += @data[3] # x
-    @data[1] += @data[4] # y
-    @data[2] += @data[5] # z
+    @px += @vx # x
+    @py += @vy # y
+    @pz += @vz # z
   end
 
   def dump_state
@@ -168,7 +171,7 @@ class Moon
   end
 
   def to_s
-    sprintf("pos=<x=%3d, y=%3d, z=%3d>, vel=<x=%3d, y=%3d, z=%3d>", *@data)
+    sprintf("pos=<x=%3d, y=%3d, z=%3d>, vel=<x=%3d, y=%3d, z=%3d>", @px, @py, @pz, @vx, @vy, @vz)
   end
 
   def energy_to_s
