@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::HashSet;
 use std::fs;
 use regex::Regex;
 
@@ -187,13 +187,13 @@ impl Moon {
 
 #[derive(Debug)]
 pub struct History {
-    data: BTreeSet<Snapshot>,
+    data: HashSet<Snapshot>,
 }
 
 impl History {
     pub fn new() -> History {
         return History {
-            data: BTreeSet::new(),
+            data: HashSet::new(),
         }
     }
 
