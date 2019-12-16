@@ -126,44 +126,23 @@ class Moon
   end
 
   def gravitate!(other)
-    # x
-    p1 = @px
-    p2 = other.px
-    if p1 < p2
-      @vx += 1
-      other.vx -= 1
-    elsif p1 > p2
-      @vx -= 1
-      other.vx += 1
-    end
+    dx = (@px <=> other.px)
+    @vx -= dx
+    other.vx += dx
 
-    # y
-    p1 = @py
-    p2 = other.py
-    if p1 < p2
-      @vy += 1
-      other.vy -= 1
-    elsif p1 > p2
-      @vy -= 1
-      other.vy += 1
-    end
+    dy = (@py <=> other.py)
+    @vy -= dy
+    other.vy += dy
 
-    # z
-    p1 = @pz
-    p2 = other.pz
-    if p1 < p2
-      @vz += 1
-      other.vz -= 1
-    elsif p1 > p2
-      @vz -= 1
-      other.vz += 1
-    end
+    dz = (@pz <=> other.pz)
+    @vz -= dz
+    other.vz += dz
   end
 
   def apply_velocity!
-    @px += @vx # x
-    @py += @vy # y
-    @pz += @vz # z
+    @px += @vx
+    @py += @vy
+    @pz += @vz
   end
 
   def dump_state
