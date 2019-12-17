@@ -2,9 +2,9 @@ require 'pry'
 
 require_relative '../utils/log'
 require_relative '../utils/profile'
-require_relative '../utils/grid'
 
 require_relative 'computer'
+require_relative 'grid'
 
 INPUT_FILE = File.join(__dir__, 'input.txt')
 

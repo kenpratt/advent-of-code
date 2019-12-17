@@ -1,5 +1,6 @@
 require_relative '../utils/log'
-require_relative '../utils/grid'
+
+require_relative 'grid'
 
 INPUT_FILE = File.join(__dir__, 'input.txt')
 
