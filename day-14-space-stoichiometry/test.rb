@@ -37,22 +37,27 @@ class TestPart1 < Minitest::Test
   end
 end
 
-# class TestPart2 < Minitest::Test
-#   EXAMPLES = [
-#   ]
+class TestPart2 < Minitest::Test
+  EXAMPLES = [
+    [EXAMPLE3_INPUT_FILE, 82892753],
+    [EXAMPLE4_INPUT_FILE, 5586022],
+    [EXAMPLE5_INPUT_FILE, 460664],
+  ]
 
-#   def test_examples
-#     EXAMPLES.each do |input_str, expected_output|
-#       input = process_input(input_str)
-#       res = part2(input)
-#       assert_equal(expected_output, res)
-#     end
-#   end
+  def test_examples
+    EXAMPLES.each do |input_file, expected_output|
+      log.debug("")
+      input_str = File.read(input_file)
+      recipes = process_input(input_str)
+      fuel = calculate_max_fuel_for_ore(recipes, 1_000_000_000_000)
+      assert_equal(expected_output, fuel)
+    end
+  end
 
-#   def test_input
-#     input_str = File.read(INPUT_FILE)
-#     input = process_input(input_str)
-#     res = part2(input)
-#     assert_equal(nil, res)
-#   end
-# end
+  def test_input
+    input_str = File.read(INPUT_FILE)
+    recipes = process_input(input_str)
+    fuel = calculate_max_fuel_for_ore(recipes, 1_000_000_000_000)
+    assert_equal(2910558, fuel)
+  end
+end

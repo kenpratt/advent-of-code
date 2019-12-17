@@ -25,8 +25,34 @@ def parse_component(str)
 end
 
 def calculate_ore_necessary_for_one_fuel(recipes)
-  calc = InputCalculator.new(recipes, 'ORE', 'FUEL', 1)
-  calc.run
+  InputCalculator.run(recipes, 'ORE', 'FUEL', 1)
+end
+
+def calculate_max_fuel_for_ore(recipes, ore_amount)
+  ore_for_one_fuel = calculate_ore_necessary_for_one_fuel(recipes)
+  lower_bound = (ore_amount / ore_for_one_fuel.to_f).floor
+  upper_bound = lower_bound * 2
+  test = lambda do |fuel_quantity|
+    InputCalculator.run(recipes, 'ORE', 'FUEL', fuel_quantity) <= ore_amount
+  end
+  raise "bad lower bound" if !test.call(lower_bound)
+  raise "bad upper bound" if test.call(upper_bound)
+  binary_search(lower_bound, upper_bound, &test)
+end
+
+def binary_search(lower_bound, upper_bound, &test)
+  while lower_bound < (upper_bound - 1)
+    diff = upper_bound - lower_bound
+    to_try = lower_bound + diff / 2
+    passed = test.call(to_try)
+    log.debug "lower: #{lower_bound}, upper: #{upper_bound}, try: #{to_try}, passed: #{passed}"
+    if passed
+      lower_bound = to_try
+    else
+      upper_bound = to_try
+    end
+  end
+  lower_bound
 end
 
 Recipe = Struct.new(:inputs, :output)
@@ -58,6 +84,11 @@ class InputCalculator
     @ingredients[output_name] = output_quantity
   end
 
+  def self.run(*args)
+    calc = self.new(*args)
+    calc.run
+  end
+
   def run
     while !finished?
       step
@@ -73,10 +104,10 @@ class InputCalculator
     name = choose_ingredient_to_deconstruct
     return nil unless name
 
-    log.debug "have: " + @ingredients.map {|k, v| "#{v} #{k}"}.join(', ')
+    #log.debug "have: " + @ingredients.map {|k, v| "#{v} #{k}"}.join(', ')
     quantity = @ingredients.delete(name)
     necessary_inputs = calculate_inputs(name, quantity)
-    log.debug "convert: #{quantity} #{name} => " + necessary_inputs.map {|k, v| "#{v} #{k}"}.join(', ')
+    #log.debug "convert: #{quantity} #{name} => " + necessary_inputs.map {|k, v| "#{v} #{k}"}.join(', ')
     if @processed.include?(name)
       raise "Processing the same name twice: #{name}"
     end
