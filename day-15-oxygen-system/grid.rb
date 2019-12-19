@@ -1,4 +1,6 @@
 Bounds = Struct.new(:left, :right, :top, :bottom) do
+  include Enumerable
+  
   def &(other)
     Bounds.new(
       [self.left, other.left].min,
@@ -37,7 +39,15 @@ Bounds = Struct.new(:left, :right, :top, :bottom) do
   def rendered_cells(&proc)
     (top..bottom).map do |y|
       (left..right).map do |x|
-        yield Coordinate.new(x, y)
+        proc.call(Coordinate.new(x, y))
+      end
+    end
+  end
+
+  def each_cell(&proc)
+    (top..bottom).each do |y|
+      (left..right).each do |x|
+        proc.call(Coordinate.new(x, y))
       end
     end
   end
@@ -58,9 +68,9 @@ class GrowableGrid
     log.debug "paint #{coord} #{value}"
     @cells[coord.clone] = value
   end
-  
-  def num_painted(&proc)
-    @cells.size
+
+  def fully_painted?
+    @cells.size == bounds.width * bounds.height
   end
 
   def bounds
@@ -74,6 +84,19 @@ class GrowableGrid
     )
   end
 
+  def top_left_corner
+    b = bounds
+    Coordinate.new(b.left, b.top)
+  end
+
+  def cells_with_value(target) 
+    res = []
+    bounds.each_cell do |c| 
+      res << c if value(c) == target
+    end
+    res
+  end  
+
   def to_s(&proc)
     bounds.render_grid(borders: true) do |c|
       proc.call(c, @cells[c])
@@ -82,6 +105,8 @@ class GrowableGrid
 end
 
 Coordinate = Struct.new(:x, :y) do
+  DIRECTIONS = [:left, :right, :up, :down]
+
   def move(direction, amount)
     case direction
     when :left
@@ -120,7 +145,82 @@ Coordinate = Struct.new(:x, :y) do
   def move_up!(amount); move!(:up, amount); end
   def move_down!(amount); move!(:down, amount); end
 
+  def neighbours
+    DIRECTIONS.map do |direction|
+      [direction, move(direction, 1)]
+    end.to_h
+  end
+
   def manhattan_distance(other)
     (other.x - self.x).abs + (other.y - self.y).abs
+  end
+
+  def path_to(other, &is_coord_visitable)
+    AStar.find_path(self, other, &is_coord_visitable)
+  end
+end
+
+class AStar
+  def self.find_path(from_coord, to_coord, &is_coord_visitable)
+    astar = self.new(from_coord, to_coord, &is_coord_visitable)
+    astar.run
+  end
+
+  def initialize(from_coord, to_coord, &is_coord_visitable)
+    @from_coord = from_coord
+    @to_coord = to_coord
+    @is_coord_visitable = is_coord_visitable
+    @open_set = Set.new()
+    @came_from = {}
+    @direction_to = {}
+    @f_score = Hash.new(1_000_000) # guessed distance from node to end
+    @g_score = Hash.new(1_000_000) # known distance from start to node
+  end
+
+  def run
+    @open_set << @from_coord
+    @f_score[@from_coord] = heuristic(@from_coord)
+    @g_score[@from_coord] = 0
+
+    while !@open_set.empty?
+      current = @open_set.min_by {|c| @f_score[c]}
+
+      if current == @to_coord
+        return reconstruct_path(current)
+      end
+      
+      @open_set.delete(current)
+      visitable_neighbours(current).each do |direction, neighbour|
+        tentative_g_score = @g_score[current] + 1
+        if tentative_g_score < @g_score[neighbour]
+          # This path to neighbor is better than any previous one. Record it!
+          @came_from[neighbour] = current
+          @direction_to[neighbour] = direction
+          @g_score[neighbour] = tentative_g_score
+          @f_score[neighbour] = tentative_g_score + heuristic(neighbour)
+          @open_set << neighbour
+        end
+      end
+    end
+
+    nil
+  end
+
+  def heuristic(coord)
+    coord.manhattan_distance(@to_coord)
+  end
+
+  def visitable_neighbours(coord)
+    coord.neighbours.select {|dir, c| @is_coord_visitable.call(c)}
+  end
+
+  def reconstruct_path(coord)
+    path = []
+    while coord
+      direction = @direction_to[coord]
+      path << direction if direction
+      coord = @came_from[coord]
+    end
+    return path.reverse
   end
 end

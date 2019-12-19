@@ -13,8 +13,7 @@ end
 
 def find_shortest_path_to_oxygen_system(program)
   map = explore_map(program)
-  binding.pry
-  0
+  map.path_to_oxygen_system
 end
 
 def explore_map(program)
