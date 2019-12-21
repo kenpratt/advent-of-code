@@ -11,4 +11,11 @@ class TestDay15 < Minitest::Test
     path = find_shortest_path_to_oxygen_system(program)
     assert_equal(246, path.size)
   end
+
+  def test_part_2
+    program_str = File.read(INPUT_FILE)
+    program = parse_program(program_str)
+    path = find_furthest_point_from_oxygen_system(program)
+    assert_equal(376, path.size)
+  end  
 end

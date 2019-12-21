@@ -66,6 +66,16 @@ class Map
     calculate_path_between(@origin, oxygen_system_cells.first)
   end
 
+  def path_to_furthest_point_from_oxygen_system
+    oxygen_system_cells = @screen.cells_with_value(:oxygen_system)
+    return nil unless oxygen_system_cells.size == 1
+    oxygen_system = oxygen_system_cells.first
+
+    to_fill = @screen.cells_with_value(:empty)
+    fill_paths = to_fill.map {|c| calculate_path_between(oxygen_system, c)}
+    fill_paths.max_by {|p| p.size}
+  end
+
   def render
     puts "\n"
     puts @screen.to_s {|c, v| c == @droid.position ? 'D' : value_to_s(v)}

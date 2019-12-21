@@ -16,6 +16,11 @@ def find_shortest_path_to_oxygen_system(program)
   map.path_to_oxygen_system
 end
 
+def find_furthest_point_from_oxygen_system(program)
+  map = explore_map(program)
+  map.path_to_furthest_point_from_oxygen_system
+end
+
 def explore_map(program)
   map = Map.new(program)
   map.explore!
