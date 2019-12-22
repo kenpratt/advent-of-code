@@ -10,58 +10,45 @@ def process_input(input_str)
 end
 
 PATTERN = [0, 1, 0, -1]
-$pattern_cache = {}
+PATTERN_SIZE = PATTERN.size
 
-def get_pattern(position)
-  $pattern_cache[position] ||= PATTERN.flat_map do |v|
-    [v] * (position + 1)
+def warm_cache(input_size)
+  log.debug 'warming cache'
+  $pattern_values = Array.new(input_size)
+  (0...input_size).each do |position|
+    log.debug "warming cache for position #{position}"
+    inner = Array.new(input_size)
+    (0...input_size).each do |index|
+      inner[index] = calculate_pattern_value(position, index)
+    end
+    $pattern_values[position] = inner
   end
+  log.debug 'warmed cache'
 end
 
-def get_pattern_value(pattern, pattern_index)
-  i = pattern_index % pattern.size
-  pattern[i]
+def calculate_pattern_value(position, index)
+  pattern_index = ((index + 1) / (position + 1)) % PATTERN_SIZE
+  PATTERN[pattern_index]
 end
 
 def run_phase(input)
-  input.each_index.map do |i|
-    calculate_phase_for_position(input, i)
+  warm_cache(input.size) unless $pattern_values
+  input.each_index.map do |position|
+    #log.debug "run_phase #{position}"
+    calculate_phase_for_position(input, position)
   end
 end
 
 def calculate_phase_for_position(input, position)
-  pattern = get_pattern(position)
-  #log.debug "calc: #{input.inspect} #{position.inspect} #{pattern.inspect}"
+  #log.debug "calc: #{input.inspect} #{position.inspect}"
+  pattern_values = $pattern_values[position]
 
   val = input.each_with_index.map do |element, i|
-    multiplier = get_pattern_value(pattern, i + 1)
+    multiplier = pattern_values[i]
     res = element * multiplier
     #log.debug "mult: #{element} * #{multiplier} = #{res}"
     res
   end.sum
 
   val.abs % 10
-end
-
-def part1(input)
-  nil
-end
-
-def part2(input)
-  nil
-end
-
-def main
-  input_str = File.read(INPUT_FILE)
-  input = process_input(input_str)
-
-  log.info "Part 1:"
-  log.info measure{part1(input)}
-
-  log.info "Part 2:"
-  log.info measure{part2(input)}
-end
-
-if __FILE__ == $0
-  main
 end

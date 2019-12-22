@@ -50,29 +50,28 @@ class TestPart1 < Minitest::Test
       output = run_phase(input)
       input = output
     end
-    assert_equal(
-      '50053207',
-      output[0, 8].join(''),
-    )
+    assert_equal('50053207', output[0, 8].join(''))
   end
 end
 
 class TestPart2 < Minitest::Test
-  EXAMPLES = [
-  ]
+  def test_input2
+    input_str = File.read(INPUT_FILE)
+    input = process_input(input_str)
+    input = input * 10000
+    result_offset = input[0, 7].join('').to_i
 
-  # def test_examples
-  #   EXAMPLES.each do |input_str, expected_output|
-  #     input = process_input(input_str)
-  #     res = part2(input)
-  #     assert_equal(expected_output, res)
-  #   end
-  # end
+    output = nil
+    # cache_patterns(input.size)
+    # log.debug 'cached patterns'
+    100.times do |i|
+      log.debug "run #{i}"
+      output = run_phase(input)
+      input = output
+    end
 
-  # def test_input
-  #   input_str = File.read(INPUT_FILE)
-  #   input = process_input(input_str)
-  #   res = part2(input)
-  #   assert_equal(nil, res)
-  # end
+    result = output[result_offset, 8]
+    binding.pry
+    assert_equal('00000000', result.join(''))
+  end
 end
