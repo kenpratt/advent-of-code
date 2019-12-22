@@ -66,7 +66,7 @@ class TestPart2 < Minitest::Test
     # log.debug 'cached patterns'
     1.times do |i|
       log.debug "run #{i}"
-      output = profile{run_phase(input)}
+      output = profile{run_phase(input, 10)}
       input = output
     end
 

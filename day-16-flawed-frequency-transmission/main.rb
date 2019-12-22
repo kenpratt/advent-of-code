@@ -9,30 +9,37 @@ def process_input(input_str)
   input_str.each_char.map(&:to_i)
 end
 
-PATTERN = [0, 1, 0, -1]
-PATTERN_SIZE = PATTERN.size
-
-def calculate_pattern_value(position, index)
-  pattern_index = ((index + 1) / (position + 1)) % PATTERN_SIZE
-  PATTERN[pattern_index]
-end
-
-def run_phase(input)
+def run_phase(input, stop_at=nil)
   input.each_index.map do |position|
-    next if position > 9
-    log.debug "run_phase #{position}"
+    next if stop_at && position >= stop_at
+    #log.debug "run_phase #{position}"
     calculate_phase_for_position(input, position)
   end
 end
 
 def calculate_phase_for_position(input, position)
-  #log.debug "calc: #{input.inspect} #{position.inspect}"
-  val = 0
-  input.each_with_index do |element, i|
-    multiplier = calculate_pattern_value(position, i)
-    res = element * multiplier
-    #log.debug "mult: #{element} * #{multiplier} = #{res}"
-    val += res
+  index = position # skip first pos-1 elements
+  length = input.size
+  num_repeats = position + 1
+  negative_values_offset = num_repeats * 2
+  chunk_size = num_repeats * 4
+  sum = 0
+
+  while index < length
+    #log.debug "length: #{length}, chunk_size: #{chunk_size}, index: #{index}"
+    negative_values_index = index + negative_values_offset
+    
+    num_repeats.times do |offset|
+      i = index + offset
+      sum += input[i] if i < length
+    end
+    num_repeats.times do |offset|
+      i = negative_values_index + offset
+      sum -= input[i] if i < length
+    end    
+    index += chunk_size
   end
-  val.abs % 10
+
+  sum.abs % 10
 end
+
