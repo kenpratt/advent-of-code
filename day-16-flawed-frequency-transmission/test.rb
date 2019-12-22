@@ -55,23 +55,39 @@ class TestPart1 < Minitest::Test
 end
 
 class TestPart2 < Minitest::Test
+  FINAL_OUTPUT_EXAMPLES = [
+    ['03036732577212944063491565474664', 10000, 100, '84462026'],
+    ['02935109699940807407585447034323', 10000, 100, '78725270'],
+    ['03081770884921959731165446850517', 10000, 100, '53553731'],
+  ]
+
+  def test_final_output_examples2
+    FINAL_OUTPUT_EXAMPLES.each do |input_str, input_repeat, num_phases, expected_output_prefix|
+      input = process_input(input_str)
+      result = run_phases_with_output_offset(
+        input,
+        input_repeat,
+        num_phases,
+        expected_output_prefix.size,
+      )
+      assert_equal(expected_output_prefix, result.join(''))
+    end
+  end
+
   def test_input2
     input_str = File.read(INPUT_FILE)
     input = process_input(input_str)
+
+    result = run_phases_with_output_offset(
+      input,
+      input_repeat,
+      1, # 100
+      expected_output_prefix.size,
+      100, # nil
+    )    
     input = input * 10000
     result_offset = input[0, 7].join('').to_i
 
-    output = nil
-    # cache_patterns(input.size)
-    # log.debug 'cached patterns'
-    1.times do |i|
-      log.debug "run #{i}"
-      output = profile{run_phase(input, 10)}
-      input = output
-    end
-
-    result = output[result_offset, 8]
-    binding.pry
     assert_equal('00000000', result.join(''))
   end
 end
