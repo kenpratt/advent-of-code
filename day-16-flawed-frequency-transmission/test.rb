@@ -64,9 +64,9 @@ class TestPart2 < Minitest::Test
     output = nil
     # cache_patterns(input.size)
     # log.debug 'cached patterns'
-    100.times do |i|
+    1.times do |i|
       log.debug "run #{i}"
-      output = run_phase(input)
+      output = profile{run_phase(input)}
       input = output
     end
 
