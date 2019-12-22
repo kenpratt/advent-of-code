@@ -20,7 +20,7 @@ class TestPart1 < Minitest::Test
       input = process_input(input_str)
       expected_phase_outputs.each do |expected_output|
         output = run_phase(input)
-        assert_equal(expected_output, output.join(''))
+        assert_equal(process_input(expected_output), output)
         input = output
       end
     end
@@ -34,16 +34,27 @@ class TestPart1 < Minitest::Test
         output = run_phase(input)
         input = output
       end
-      assert_equal(output[0, expected_output_prefix.size].join(''), expected_output_prefix)
+      assert_equal(
+        process_input(expected_output_prefix),
+        output[0, expected_output_prefix.size],
+      )
     end
   end
 
-  # def test_input
-  #   input_str = File.read(INPUT_FILE)
-  #   input = process_input(input_str)
-  #   res = part1(input)
-  #   assert_equal(nil, res)
-  # end
+  def test_input
+    input_str = File.read(INPUT_FILE)
+    input = process_input(input_str)
+    output = nil
+    100.times do |i|
+      log.debug "run #{i}"
+      output = run_phase(input)
+      input = output
+    end
+    assert_equal(
+      '50053207',
+      output[0, 8].join(''),
+    )
+  end
 end
 
 class TestPart2 < Minitest::Test

@@ -6,11 +6,41 @@ require_relative '../utils/profile'
 INPUT_FILE = File.join(__dir__, 'input.txt')
 
 def process_input(input_str)
-  input_str.each_char.to_a
+  input_str.each_char.map(&:to_i)
+end
+
+PATTERN = [0, 1, 0, -1]
+$pattern_cache = {}
+
+def get_pattern(position)
+  $pattern_cache[position] ||= PATTERN.flat_map do |v|
+    [v] * (position + 1)
+  end
+end
+
+def get_pattern_value(pattern, pattern_index)
+  i = pattern_index % pattern.size
+  pattern[i]
 end
 
 def run_phase(input)
-  input.clone
+  input.each_index.map do |i|
+    calculate_phase_for_position(input, i)
+  end
+end
+
+def calculate_phase_for_position(input, position)
+  pattern = get_pattern(position)
+  #log.debug "calc: #{input.inspect} #{position.inspect} #{pattern.inspect}"
+
+  val = input.each_with_index.map do |element, i|
+    multiplier = get_pattern_value(pattern, i + 1)
+    res = element * multiplier
+    #log.debug "mult: #{element} * #{multiplier} = #{res}"
+    res
+  end.sum
+
+  val.abs % 10
 end
 
 def part1(input)
