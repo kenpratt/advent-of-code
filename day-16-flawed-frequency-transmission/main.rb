@@ -12,27 +12,29 @@ end
 def run_phases_with_output_offset(input, input_repeat, num_phases, result_size)
   result_offset = input[0, 7].join('').to_i
   repeated_input = input * input_repeat
+  offsetted_input = repeated_input[result_offset..-1]
 
-  log.debug "running phases with input size #{repeated_input.size}, #{num_phases} phases, result offset: #{result_offset}, result size: #{result_size}"
-  output = nil
+  log.debug "running phases with input size #{repeated_input.size}, #{num_phases} phases, result offset: #{result_offset}, result size: #{result_size}, offsetted_input size #{offsetted_input.size}"
+
+  phase_input = offsetted_input
+  phase_output = nil
   num_phases.times do |i|
     log.debug "phase #{i}"
-    output = run_phase(repeated_input)
-    input = output
+    phase_output = run_phase(phase_input, result_offset)
+    phase_input = phase_output
   end
-  output[result_offset, result_size]
+  phase_output[0, result_size] # pre-offsetted
 end
 
-def run_phase(input, stop_at=nil)
-  input.each_index.map do |position|
-    next if stop_at && position >= stop_at
-    #log.debug "run_phase position: #{position}"
-    calculate_phase_for_position(input, position)
+def run_phase(input, position_offset=0)
+  input.each_index.map do |index|
+    log.debug "run_phase position: #{index} #{position_offset}" if index % 1000 == 0
+    calculate_phase_for_position(input, index, position_offset)
   end
 end
 
-def calculate_phase_for_position(input, position)
-  index = position # skip first pos-1 elements
+def calculate_phase_for_position(input, index, position_offset)
+  position = index + position_offset
   length = input.size
   num_repeats = position + 1
   negative_values_offset = num_repeats * 2
