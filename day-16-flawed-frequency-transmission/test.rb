@@ -77,17 +77,12 @@ class TestPart2 < Minitest::Test
   def test_input2
     input_str = File.read(INPUT_FILE)
     input = process_input(input_str)
-
     result = calculate_result_with_offset_output(
       input,
-      input_repeat,
-      1, # 100
-      expected_output_prefix.size,
-      100, # nil
+      10000,
+      100,
+      8,
     )    
-    input = input * 10000
-    result_offset = input[0, 7].join('').to_i
-
-    assert_equal('00000000', result.join(''))
+    assert_equal('32749588', result.join(''))
   end
 end
