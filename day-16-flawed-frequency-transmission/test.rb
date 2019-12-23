@@ -64,7 +64,7 @@ class TestPart2 < Minitest::Test
   def test_final_output_examples2
     FINAL_OUTPUT_EXAMPLES.each do |input_str, input_repeat, num_phases, expected_output_prefix|
       input = process_input(input_str)
-      result = run_phases_with_output_offset(
+      result = calculate_result_with_offset_output(
         input,
         input_repeat,
         num_phases,
@@ -78,7 +78,7 @@ class TestPart2 < Minitest::Test
     input_str = File.read(INPUT_FILE)
     input = process_input(input_str)
 
-    result = run_phases_with_output_offset(
+    result = calculate_result_with_offset_output(
       input,
       input_repeat,
       1, # 100
