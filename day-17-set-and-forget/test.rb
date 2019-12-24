@@ -29,6 +29,6 @@ class TestDay15 < Minitest::Test
     program_str = File.read(INPUT_FILE)
     program = parse_program(program_str)
     result = explore_whole_scaffold(program)
-    assert_equal([0], result)
+    assert_equal(1113108, result)
   end
 end
