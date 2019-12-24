@@ -91,34 +91,47 @@ class Solver
     # recursive solution?
 
     initial_pointer = @screen.find_vacuuum_robot
-    initial_path = Path.new(initial_pointer, [])
+    initial_path = Path.initial(initial_pointer, Set.new(screen.scaffold_locations))
 
     completed_paths = []
-    in_progress_paths = [initial_path]
+    in_progress_paths = SortedSet.new([initial_path])
 
     i = 0
     while in_progress_paths.any?
       log.info "path discovery iteration #{i} - #{in_progress_paths.size} in progress, #{completed_paths.size} completed"
       new_in_progress_paths = []
 
-      in_progress_paths.each do |path|
-        options = path.forward_directions
-        valid_options = options.select do |next_path|
-          next_position = next_path.current_position
-          screen.in_bounds?(next_position) && screen.value(next_position) == '#'
-        end
-    
-        if valid_options.any?
-          new_in_progress_paths += valid_options
-        else
-          completed_paths << path
-        end    
+      path = in_progress_paths.first
+      in_progress_paths.delete(path)
+
+      branches = path.branches
+      if branches.any?
+        in_progress_paths += branches
+      else
+        completed_paths << path
       end
+
+      # in_progress_paths.each do |path|
+
+      #   path.branches
+
+      #   options = path.forward_directions
+      #   valid_options = options.select do |next_path|
+      #     next_position = next_path.current_position
+      #     screen.in_bounds?(next_position) && screen.value(next_position) == '#'
+      #   end
+    
+      #   if valid_options.any?
+      #     new_in_progress_paths += valid_options
+      #   else
+      #     completed_paths << path
+      #   end    
+      # end
 
       # try to avoid already visited nodes -- todo need to track visited nodes in path...
 
       #binding.pry
-      in_progress_paths = new_in_progress_paths
+      #in_progress_paths = new_in_progress_paths
       i += 1
     end
 
@@ -126,18 +139,74 @@ class Solver
   end
 end
 
-Path = Struct.new(:pointer, :instructions) do
+class Path
+  include Comparable
+
+  def self.initial(pointer, to_visit)
+    self.new(pointer, Set.new(to_visit), Set.new, [])
+  end
+
+  def initialize(pointer, to_visit, visited, instructions)
+    @pointer = pointer
+    @to_visit = to_visit
+    @visited = visited
+    @instructions = instructions
+  end
+
   def current_position
     pointer.position
   end
 
-  def forward_directions
-    [
-      Path.new(pointer.advance, instructions + [:advance]),
-      Path.new(pointer.turn_left.advance, instructions + [:turn_left, :advance]),
-      Path.new(pointer.turn_right.advance, instructions + [:turn_right, :advance]),
+  def branches
+    options = [
+      [:advance, @pointer.advance],
+      [:left, @pointer.turn_left.advance],
+      [:right, @pointer.turn_right.advance],
     ]
+    valid_options = options.select do |instruction, next_pointer|
+      @to_visit.include?(next_pointer.position)
+    end
+    valid_options.map do |instruction, next_pointer|
+      clone_and_move(instruction, next_pointer)
+    end
   end
+
+  # def move!(instruction, next_pointer)
+  #   @pointer = next_pointer
+  #   @visited << next_pointer.position
+  #   @instructions << instruction
+  # end
+
+  def clone_and_move(instruction, next_pointer)
+    self.class.new(
+      next_pointer,
+      @to_visit,
+      @visited.clone + [next_pointer.position], 
+      @instructions + [instruction],
+    )
+  end
+
+  def score
+    # num instructions so far + how many places remaining
+    @instructions.size + @to_visit.size - @visited.size
+  end
+
+  def <=>(other)
+    self.score <=> other.score
+  end
+
+  # def try_move(new_pointer, instruction)
+  #   if @to_visit.include?(new_pointer.location)
+  #     Path.new()
+  #   end
+  # end
+
+  #   [
+  #     Path.new(pointer.advance, instructions + [:advance]),
+  #     Path.new(pointer.turn_left.advance, instructions + [:turn_left, :advance]),
+  #     Path.new(pointer.turn_right.advance, instructions + [:turn_right, :advance]),
+  #   ]
+  # end
 end
 
 class Screen
@@ -148,8 +217,12 @@ class Screen
     @grid = StaticGrid.from_rows(rows)
   end
 
+  def scaffold_locations
+    @grid.cells_with_value('#')
+  end
+
   def scaffold_intersections
-    @grid.cells_with_value('#').select do |coord|
+    scaffold_locations.select do |coord|
       coord.neighbours.all? {|_, n| @grid.value(n) == '#'}
     end
   end
