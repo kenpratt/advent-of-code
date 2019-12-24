@@ -98,40 +98,34 @@ class Solver
 
     i = 0
     while in_progress_paths.any?
-      log.info "path discovery iteration #{i} - #{in_progress_paths.size} in progress, #{completed_paths.size} completed"
+      log.info "path discovery iteration #{i} - #{in_progress_paths.size} in progress, #{completed_paths.size} completed" if i % 100 == 0
       new_in_progress_paths = []
 
       path = in_progress_paths.first
       in_progress_paths.delete(path)
 
-      branches = path.branches
-      if branches.any?
-        in_progress_paths += branches
-      else
-        completed_paths << path
+      follow_path = true
+      while follow_path
+        if path.complete?
+          log.info "completed a path! #{path}"
+          completed_paths << path
+          follow_path = false
+        else
+          branches = path.branches
+          case branches.size
+          when 0
+            log.info "incomplete path: #{path.visited.size} #{path.pointer.position}"
+            follow_path = false
+          when 1
+            path.follow_branch!(*branches[0])
+            follow_path = true
+          else
+            in_progress_paths += path.clone_branches(branches)
+            follow_path = false
+          end
+        end
       end
 
-      # in_progress_paths.each do |path|
-
-      #   path.branches
-
-      #   options = path.forward_directions
-      #   valid_options = options.select do |next_path|
-      #     next_position = next_path.current_position
-      #     screen.in_bounds?(next_position) && screen.value(next_position) == '#'
-      #   end
-    
-      #   if valid_options.any?
-      #     new_in_progress_paths += valid_options
-      #   else
-      #     completed_paths << path
-      #   end    
-      # end
-
-      # try to avoid already visited nodes -- todo need to track visited nodes in path...
-
-      #binding.pry
-      #in_progress_paths = new_in_progress_paths
       i += 1
     end
 
@@ -142,19 +136,26 @@ end
 class Path
   include Comparable
 
+  attr_reader :pointer, :to_visit, :visited, :instructions, :repeats
+
   def self.initial(pointer, to_visit)
-    self.new(pointer, Set.new(to_visit), Set.new, [])
+    self.new(pointer, Set.new(to_visit), Set.new, [], 0)
   end
 
-  def initialize(pointer, to_visit, visited, instructions)
+  def initialize(pointer, to_visit, visited, instructions, repeats)
     @pointer = pointer
     @to_visit = to_visit
     @visited = visited
     @instructions = instructions
+    @repeats = 0
   end
 
   def current_position
     pointer.position
+  end
+
+  def complete?
+    @to_visit == @visited
   end
 
   def branches
@@ -163,50 +164,73 @@ class Path
       [:left, @pointer.turn_left.advance],
       [:right, @pointer.turn_right.advance],
     ]
-    valid_options = options.select do |instruction, next_pointer|
-      @to_visit.include?(next_pointer.position)
-    end
-    valid_options.map do |instruction, next_pointer|
-      clone_and_move(instruction, next_pointer)
+    options.select do |instruction, next_pointer|
+      want_to_visit?(next_pointer)
     end
   end
 
-  # def move!(instruction, next_pointer)
-  #   @pointer = next_pointer
-  #   @visited << next_pointer.position
-  #   @instructions << instruction
-  # end
+  EXIT_NODE = Coordinate.new(28, 37)
+  NUM_IN_EXIT = 10
+  BACK_TO_START = Coordinate.new(20, 23)
+
+  def want_to_visit?(next_pointer)
+    next_position = next_pointer.position
+    next_orientation = next_pointer.orientation
+    return false unless @to_visit.include?(next_position)
+
+    if next_position == EXIT_NODE && @visited.size < (@to_visit.size - NUM_IN_EXIT)
+      log.info "not ready for exit: #{@visited.size} #{@repeats.size}"
+      false
+    elsif next_position == BACK_TO_START && next_orientation == :up
+      log.info "avoiding going back to entrance"
+      false
+    else
+      true
+    end
+  end
+
+  def follow_branch!(instruction, next_pointer)
+    @pointer = next_pointer
+    if @visited.include?(next_pointer.position)
+      @repeats += 1
+    else
+      @visited << next_pointer.position
+    end
+    @instructions << instruction
+  end
+
+  def clone_branches(branches)
+    branches.each_with_index.map do |branch, i|
+      if i < (branches.size - 1)
+        clone_and_move(*branch)
+      else
+        follow_branch!(*branch)
+        self
+      end
+    end
+  end
 
   def clone_and_move(instruction, next_pointer)
+    already_visited = @visited.include?(next_pointer.position)
     self.class.new(
       next_pointer,
       @to_visit,
-      @visited.clone + [next_pointer.position], 
+      already_visited ? @visited.clone : @visited.clone + [next_pointer.position],
       @instructions + [instruction],
+      already_visited ? @repeats + 1 : @repeats,
     )
   end
 
   def score
     # num instructions so far + how many places remaining
-    @instructions.size + @to_visit.size - @visited.size
+    # but weight instructions heigher than nodes left to visit,
+    # to try to avoid loops
+    @instructions.size + @to_visit.size - @visited.size + @repeats * 5
   end
 
   def <=>(other)
     self.score <=> other.score
   end
-
-  # def try_move(new_pointer, instruction)
-  #   if @to_visit.include?(new_pointer.location)
-  #     Path.new()
-  #   end
-  # end
-
-  #   [
-  #     Path.new(pointer.advance, instructions + [:advance]),
-  #     Path.new(pointer.turn_left.advance, instructions + [:turn_left, :advance]),
-  #     Path.new(pointer.turn_right.advance, instructions + [:turn_right, :advance]),
-  #   ]
-  # end
 end
 
 class Screen
