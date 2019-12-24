@@ -128,6 +128,11 @@ class IntcodeComputer
     @blocked = false
   end
 
+  def add_input_arr(input_arr)
+    @input += input_arr
+    @blocked = false
+  end
+
   def clear_output
     res = @output
     @output = []

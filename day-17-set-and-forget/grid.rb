@@ -26,6 +26,11 @@ Bounds = Struct.new(:left, :right, :top, :bottom) do
     self
   end
 
+  def inside?(point)
+    point.x >= self.left && point.x <= self.right &&
+      point.y >= self.top && point.y <= self.bottom
+  end
+
   def render_grid(borders:, &proc)
     rows = rendered_cells(&proc)
     if borders
@@ -86,10 +91,22 @@ class StaticGrid
     @cells[coord.clone] = value
   end
 
+  def in_bounds?(coord)
+    @bounds.inside?(coord)
+  end
+
   def cells_with_value(target) 
     res = []
     bounds.each_cell do |c| 
       res << c if value(c) == target
+    end
+    res
+  end
+
+  def cells_with_values(targets)
+    res = []
+    bounds.each_cell do |c| 
+      res << c if targets.include?(value(c))
     end
     res
   end  
@@ -155,7 +172,7 @@ end
 Coordinate = Struct.new(:x, :y) do
   DIRECTIONS = [:left, :right, :up, :down]
 
-  def move(direction, amount)
+  def move(direction, amount = 1)
     case direction
     when :left
       Coordinate.new(self.x - amount, y)
@@ -169,10 +186,10 @@ Coordinate = Struct.new(:x, :y) do
       raise "Unknown direction: #{direction}"
     end
   end
-  def move_left(amount); move(:left, amount); end
-  def move_right(amount); move(:right, amount); end
-  def move_up(amount); move(:up, amount); end
-  def move_down(amount); move(:down, amount); end
+  def move_left(amount = 1); move(:left, amount); end
+  def move_right(amount = 1); move(:right, amount); end
+  def move_up(amount = 1); move(:up, amount); end
+  def move_down(amount = 1); move(:down, amount); end
 
   def move!(direction, amount)
     case direction
@@ -205,6 +222,45 @@ Coordinate = Struct.new(:x, :y) do
 
   def path_to(other, &is_coord_visitable)
     AStar.find_path(self, other, &is_coord_visitable)
+  end
+end
+
+Pointer = Struct.new(:position, :orientation) do
+  def turn_left
+    new_orientation = case orientation
+    when :up
+      :left
+    when :left
+      :down
+    when :down
+      :right
+    when :right
+      :up
+    else
+      raise "Unknown orientation: #{orientation}"
+    end
+    Pointer.new(position, new_orientation)
+  end
+
+  def turn_right
+    new_orientation = case orientation
+    when :up
+      :right
+    when :right
+      :down
+    when :down
+      :left
+    when :left
+      :up
+    else
+      raise "Unknown orientation: #{orientation}"
+    end
+    Pointer.new(position, new_orientation)
+  end
+
+  def advance(amount = 1)
+    new_position = position.move(orientation, amount)
+    Pointer.new(new_position, orientation)
   end
 end
 
