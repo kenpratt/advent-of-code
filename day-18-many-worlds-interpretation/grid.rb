@@ -111,6 +111,15 @@ class StaticGrid
     res
   end  
 
+  def select_cells_with_values
+    res = []
+    bounds.each_cell do |c|
+      v = value(c)
+      res << [c, v] if yield(c, v)
+    end
+    res
+  end
+
   def to_s(&proc)
     bounds.render_grid(borders: true) do |c|
       proc.call(c, @cells[c])
@@ -221,7 +230,7 @@ Coordinate = Struct.new(:x, :y) do
   end
 
   def path_to(other, &is_coord_visitable)
-    AStar.find_path(self, other, &is_coord_visitable)
+    PathfindingAStar.find_path(self, other, &is_coord_visitable)
   end
 end
 
@@ -264,7 +273,7 @@ Pointer = Struct.new(:position, :orientation) do
   end
 end
 
-class AStar
+class PathfindingAStar
   def self.find_path(from_coord, to_coord, &is_coord_visitable)
     astar = self.new(from_coord, to_coord, &is_coord_visitable)
     astar.run
@@ -277,8 +286,11 @@ class AStar
     @open_set = Set.new()
     @came_from = {}
     @direction_to = {}
-    @f_score = Hash.new(1_000_000) # guessed distance from node to end
-    @g_score = Hash.new(1_000_000) # known distance from start to node
+    # f(n) = g(n) + h(n)
+    # g(n) = known distance from start to node
+    # h(n) = guessed distance from node to end (must be <= actual distance)
+    @f_score = Hash.new(1_000_000)
+    @g_score = Hash.new(1_000_000)
   end
 
   def run

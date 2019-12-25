@@ -1,0 +1,14 @@
+For path, store:
+- position
+- path so far
+- keys visited in order
+- keys left to visit
+- doors left to visit
+
+For score: path length minus num keys and doors visited
+
+For hueristic: Manhattan distance to furthest key/door?
+
+Doors treated as inaccessible until have key.
+- Factor into hueristic? I think no, just do path to furthest item, best path could happen to be through all doors.
+- Maybe instead of Manhattan distance should do astar distance assuming all doors are open, though?
