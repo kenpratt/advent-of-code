@@ -75,6 +75,8 @@ class Map
     @entrance = grid.cells.values.find {|tile| tile.is_a?(Entrance)}
     @keys = Set.new(grid.cells.values.select {|tile| tile.is_a?(Key)})
     @doors = Set.new(grid.cells.values.select {|tile| tile.is_a?(Door)})
+
+    @distance_cache = Hash.new {|h, k| h[k] = {}}
   end
 
   def self.parse_tile(s)
@@ -101,7 +103,22 @@ class Map
     @keys + @doors
   end
 
-  def location_visitable?(location, have_keys, pretend_all_keys_collected)
-    @grid.cells[location].visitable?(have_keys, pretend_all_keys_collected)
+  def location_visitable_with_keys?(location, have_keys)
+    @grid.cells[location].visitable?(have_keys, false)
+  end
+
+  def location_visitable_assuming_all_keys?(location)
+    @grid.cells[location].visitable?(nil, true)
+  end
+
+  def distance_assuming_all_keys(from_location, to_location)
+    distance = @distance_cache[from_location][to_location]
+    if distance.nil?
+      route = from_location.path_to(to_location) {|l| location_visitable_assuming_all_keys?(l)}
+      raise "Couldn't find route between locations - unexpected" if route.nil?
+      distance = route.size
+      @distance_cache[from_location][to_location] = distance
+    end
+    distance
   end
 end

@@ -39,18 +39,36 @@ class Path
     @steps
   end
 
-  def calculate_h_score
-    @to_visit.size
-  end
+  # def calculate_h_score
+  #   @to_visit.size
+  # end
 
-  def calculate_h_score_old
+  def calculate_h_score
     return 0 if @to_visit.empty?
 
-    @to_visit.map do |tile|
-      route = @location.path_to(tile.location) {|l| location_visitable?(l, pretend_all_keys_collected: true)}
-      raise "Couldn't find route to tile - unexpected" if route.nil?
-      route.size
-    end.max
+    if @to_visit.size == 1
+      tile = @to_visit.first
+      return @map.distance_assuming_all_keys(@location, tile.location)
+    end
+
+    furthest_pair = nil
+    distance_between_furthest_pair = 0
+
+    @to_visit.each do |from_tile|
+      @to_visit.each do |to_tile|
+        next if from_tile == to_tile
+        distance = @map.distance_assuming_all_keys(from_tile.location, to_tile.location)
+        binding.pry if distance.nil?
+        if distance > distance_between_furthest_pair
+          distance_between_furthest_pair = distance
+          furthest_pair = [from_tile, to_tile]
+        end
+      end
+    end
+
+    distance_to_closer_one = furthest_pair.map {|tile| @map.distance_assuming_all_keys(@location, tile.location)}.min
+
+    distance_to_closer_one + distance_between_furthest_pair    
   end
 
   def next_paths
@@ -59,7 +77,7 @@ class Path
     out = []
 
     @to_visit.each do |tile|
-      route = @location.path_to(tile.location) {|l| location_visitable?(l)}
+      route = @location.path_to(tile.location) {|l| @map.location_visitable_with_keys?(l, @collected_keys)}
       
       # if route is nil, it's blocked by a door, so filter out
       if route
@@ -90,10 +108,6 @@ class Path
     end
 
     self.class.new(@map, next_location, next_to_visit, next_visited, next_collected_keys, next_steps)
-  end
-  
-  def location_visitable?(location, pretend_all_keys_collected: false)
-    @map.location_visitable?(location, @collected_keys, pretend_all_keys_collected)
   end
 
   def <=>(other)
@@ -146,13 +160,5 @@ class Solver
     end
 
     nil
-  end
-
-  def heuristic(coord)
-    coord.manhattan_distance(@to_coord)
-  end
-
-  def visitable_neighbours(coord)
-    coord.neighbours.select {|dir, c| @is_coord_visitable.call(c)}
   end
  end
