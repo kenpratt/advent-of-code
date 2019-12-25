@@ -9,41 +9,45 @@ class Tile
 end
 
 class Corridor < Tile
-  def visitable?(have_keys)
+  def visitable?(have_keys, pretend_all_keys_collected)
     true
   end
 end
 
 class Wall < Tile
-  def visitable?(have_keys)
+  def visitable?(have_keys, pretend_all_keys_collected)
     false
   end
 end
 
 class Entrance < Tile
-  def visitable?(have_keys)
+  def visitable?(have_keys, pretend_all_keys_collected)
     true
   end
 end
 
 class Key < Tile
+  attr_reader :value
+
   def initialize(value)
-    @value = value.downcase.to_sym
+    @value = value
   end
 
-  def visitable?(have_keys)
+  def visitable?(have_keys, pretend_all_keys_collected)
     true
   end
 end
 
 class Door < Tile
+  attr_reader :value
+
   def initialize(value)
-    @value = value.to_sym
-    @key_value = value.downcase.to_sym
+    @value = value
+    @key_value = value.downcase
   end
 
-  def visitable?(have_keys)
-    have_keys.include?(@key_value)
+  def visitable?(have_keys, pretend_all_keys_collected)
+    pretend_all_keys_collected || have_keys.include?(@key_value)
   end
 end
 
@@ -97,7 +101,7 @@ class Map
     @keys + @doors
   end
 
-  def location_visitable?(location, have_keys)
-    @grid.cells[location].visitable?(have_keys)
+  def location_visitable?(location, have_keys, pretend_all_keys_collected)
+    @grid.cells[location].visitable?(have_keys, pretend_all_keys_collected)
   end
 end

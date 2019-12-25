@@ -12,7 +12,7 @@ def process_input(input_str)
   Map.new(input_str)
 end
 
-def find_shortest_paths_to_collect_all_keys(map)
+def find_shortest_path_to_collect_all_keys(map)
   Solver.run(map)
 end
 
