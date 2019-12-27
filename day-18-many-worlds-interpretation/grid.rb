@@ -334,7 +334,7 @@ class PathfindingAStar
     path = []
     while coord
       direction = @direction_to[coord]
-      path << direction if direction
+      path << [direction, coord] if direction
       coord = @came_from[coord]
     end
     return path.reverse

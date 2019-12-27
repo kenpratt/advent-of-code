@@ -8,12 +8,8 @@ require_relative 'solver'
 
 INPUT_FILE = File.join(__dir__, 'input.txt')
 
-def process_input(input_str)
-  Map.new(input_str)
-end
-
-def find_shortest_path_to_collect_all_keys(map)
-  Solver.run(map)
+def find_shortest_path_to_collect_all_keys(map_file)
+  Solver.run(map_file)
 end
 
 if __FILE__ == $0
