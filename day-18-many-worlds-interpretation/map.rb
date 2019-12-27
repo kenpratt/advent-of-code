@@ -178,7 +178,7 @@ class Map
       raise 'Unknown to_val'
     end
 
-    if (reverse_route = routes.lookup(from_val, to_val))
+    if (reverse_route = routes.get(from_val, to_val))
       # shortcut
       route = reverse_route.flip
       routes.add(route)
@@ -202,14 +202,14 @@ class Map
     routes.add(route)
 
     # check for routes with not all required keys (in case of cycles etc)
-    # if necessary_keys.size > 1
-    #   to_check = [[]] + (1..(necessary_keys.size - 1)).flat_map {|n| necessary_keys.combination(n).to_a}
-    #   to_check.each do |with_keys|
-    #     route_with_keys = from_location.path_to(to_location) {|l| location_visitable_with_keys?(l, with_keys)}
-    #     if route_with_keys
-    #       raise "Did not expect to find route with subset of keys #{from_location} #{to_location} #{with_keys}"
-    #     end
-    #   end
-    # end
+    if necessary_keys.size > 1
+      to_check = [[]] + (1..(necessary_keys.size - 1)).flat_map {|n| necessary_keys.combination(n).to_a}
+      to_check.each do |with_keys|
+        route_with_keys = from_location.path_to(to_location) {|l| location_visitable_with_keys?(l, with_keys)}
+        if route_with_keys
+          raise "Did not expect to find route with subset of keys #{from_location} #{to_location} #{with_keys}"
+        end
+      end
+    end
   end
 end

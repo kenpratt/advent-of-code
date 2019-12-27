@@ -3,6 +3,14 @@ Route = Struct.new(:from, :to, :distance, :necessary_keys, :keys_along_route) do
     self.class.new(to, from, distance, necessary_keys, keys_along_route)
   end
 
+  def have_necessary_keys?(have_keys)
+    necessary_keys.subset?(have_keys)
+  end
+
+  def have_all_keys_along_route?(have_keys)
+    keys_along_route.subset?(have_keys)
+  end
+
   def <=>(other)
     self.distance <=> other.distance
   end
@@ -46,12 +54,20 @@ class Routes
     routes.each {|route| add(route)}
   end
 
-  def lookup(from, to)
+  def get(from, to)
     @lookup_map[from][to]
   end
 
   def add(route)
     @routes_set << route
     @lookup_map[route.from][route.to] = route
+  end
+
+  def starting_value
+    'E'
+  end
+
+  def to_visit
+    @lookup_map.keys.sort - [starting_value]
   end
 end

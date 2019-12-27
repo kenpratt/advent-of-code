@@ -23,7 +23,7 @@ class TestPart1 < Minitest::Test
     EXAMPLES.each do |input_file, expected_distance, expected_key_order|
       log.debug "running #{input_file}"
       path = find_shortest_path_to_collect_all_keys(input_file)
-      assert_equal(expected_distance, path.steps)
+      assert_equal(expected_distance, path.distance)
       #assert_equal(expected_key_order, path.collected_keys.to_a)
     end
   end

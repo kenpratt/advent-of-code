@@ -2,19 +2,19 @@ require_relative 'map'
 require_relative 'grid'
 
 class Path
-  attr_reader :map, :location, :to_visit, :collected_keys, :steps, :f_score, :g_score, :h_score
+  attr_reader :routes, :location, :to_visit, :collected_keys, :distance, :f_score, :g_score, :h_score
 
-  def self.initial(map, location, to_visit)
-    self.new(map, location, to_visit, Set.new, 0)
+  def self.initial(routes, location, to_visit)
+    self.new(routes, location, to_visit, Set.new, 0)
   end
 
-  def initialize(map, location, to_visit, collected_keys, steps)
-    @map = map
+  def initialize(routes, location, to_visit, collected_keys, distance)
+    @routes = routes
     @location = location
     @to_visit = to_visit
 
     @collected_keys = collected_keys
-    @steps = steps
+    @distance = distance
 
     update_scores
   end
@@ -33,59 +33,31 @@ class Path
   end
 
   def calculate_g_score
-    @steps
+    @distance
   end
 
   def calculate_h_score
-    return 0
+    if @to_visit.empty?
+      return 0
+    end
 
-    #return 0 if @to_visit.empty?
+    if @to_visit.size == 1
+      return routes.get(@location, @to_visit.first).distance
+    end
 
-    #raise "TODO"
-
-    # return @to_visit.size
-
-    # if @to_visit.size == 1
-    #   tile = @to_visit.first
-    #   return @map.distance_assuming_all_keys(@location, tile.location)
-    # end
-
-    # furthest_pair = nil
-    # distance_between_furthest_pair = 0
-
-    # @to_visit.each do |from_tile|
-    #   @to_visit.each do |to_tile|
-    #     next if from_tile == to_tile
-    #     distance = @map.distance_assuming_all_keys(from_tile.location, to_tile.location)
-    #     binding.pry if distance.nil?
-    #     if distance > distance_between_furthest_pair
-    #       distance_between_furthest_pair = distance
-    #       furthest_pair = [from_tile, to_tile]
-    #     end
-    #   end
-    # end
-
-    # distance_to_closer_one = furthest_pair.map {|tile| @map.distance_assuming_all_keys(@location, tile.location)}.min
-
-    # distance_to_closer_one + distance_between_furthest_pair
+    # TODO MST
+    @to_visit.map {|to| routes.get(@location, to).distance}.max
   end
 
   def next_paths
-    # calculate possible path to each unvisited item (door/key) that is reachable
+    # calculate possible path to each unvisited key that is reachable
     # and return new paths including the distance walked to them
     out = []
 
-    @to_visit.each do |tile|
-      route = @location.path_to(tile.location) {|l| @map.location_visitable_with_keys?(l, @collected_keys)}
-
-      # if route is nil, it's blocked by a door, so filter out
-      if route
-        # TODO consruct a new Path at the tile location:
-        # - adding the steps to get there
-        # - marking the new location as visited (removing from to_visit)
-        # - and recalculating scores
-        # - (need a clone func)
-        new_path = move_to_tile(tile, route)
+    @to_visit.each do |next_location|
+      route = routes.get(@location, next_location)
+      if should_follow_route?(route)
+        new_path = follow_route(route)
         out << new_path
       end
     end
@@ -93,19 +65,24 @@ class Path
     out
   end
 
-  def move_to_tile(tile, route)
-    next_location = tile.location
-    next_steps = @steps + route.size
+  def should_follow_route?(route)
+    # if we have all the necessary keys *and* we've visited
+    # everything along the way (otherwise we should stop at those)
+    route.have_necessary_keys?(@collected_keys) &&
+      route.have_all_keys_along_route?(@collected_keys)
+  end
 
-    next_to_visit = @to_visit - [tile]
-
-    if tile.is_a?(Key)
-      next_collected_keys = @collected_keys + [tile.value]
-    else
-      next_collected_keys = @collected_keys
-    end
-
-    self.class.new(@map, next_location, next_to_visit, next_collected_keys, next_steps)
+  # TODO consruct a new Path at the next_location location:
+  # - adding the distance to get there
+  # - marking the new location as visited (removing from to_visit)
+  # - and recalculating scores
+  # - (need a clone func)
+  def follow_route(route)
+    next_location = route.to
+    next_to_visit = @to_visit - [next_location]
+    next_collected_keys = @collected_keys + [next_location]
+    next_distance = @distance + route.distance
+    self.class.new(@routes, next_location, next_to_visit, next_collected_keys, next_distance)
   end
 
   def <=>(other)
@@ -145,11 +122,7 @@ class Solver
   def run
     log.debug "Running solver"
 
-    binding.pry
-
-    # TODO update to not need map!
-
-    starting_path = Path.initial(map, map.starting_location, map.keys)
+    starting_path = Path.initial(@routes, @routes.starting_value, @routes.to_visit)
     @open_set = SortedSet.new([starting_path])
     @best_for_location_and_collected_keys = Hash.new {|h, key| h[key] = {}}
 
@@ -157,7 +130,7 @@ class Solver
     while !@open_set.empty?
       current_path = @open_set.first
 
-      log.debug "Iteration #{i}, #{@open_set.size} paths, first one size #{current_path.steps} with #{current_path.collected_keys.size} collected keys"
+      log.debug "Iteration #{i}, #{@open_set.size} paths, first one size #{current_path.distance} with #{current_path.collected_keys.size} collected keys"
 
       binding.pry if i == 200
 
@@ -167,10 +140,8 @@ class Solver
 
       @open_set.delete(current_path)
 
-      # TODO(maybe) re-incorporate something from algorithm about only tracking one item per "location"
-      # (where here "location" is maybe the set of seen items, or set of seen items + location?)
-
-      current_path.next_paths.each do |next_path|
+      next_paths = current_path.next_paths
+      next_paths.each do |next_path|
         current_best = @best_for_location_and_collected_keys[next_path.location][next_path.collected_keys]
 
         if current_best.nil? || next_path.g_score < current_best.g_score
@@ -182,6 +153,7 @@ class Solver
       i += 1
     end
 
+    binding.pry
     nil
   end
 end
