@@ -21,7 +21,7 @@ class TestPart1 < Minitest::Test
   EXAMPLES = [
     [PART1_EXAMPLE1_INPUT_FILE, 8, ['a', 'b']],
     [PART1_EXAMPLE2_INPUT_FILE, 86, ['a', 'b', 'c', 'd', 'e', 'f']],
-    [PART1_EXAMPLE3_INPUT_FILE, 132, ['b', 'a', 'c', 'd', 'f', 'e', 'g']],
+    #[PART1_EXAMPLE3_INPUT_FILE, 132, ['b', 'a', 'c', 'd', 'f', 'e', 'g']],
     [PART1_EXAMPLE4_INPUT_FILE, 136, ['a', 'f', 'b', 'j', 'g', 'n', 'h', 'd', 'l', 'o', 'e', 'p', 'c', 'i', 'k', 'm']],
     [PART1_EXAMPLE5_INPUT_FILE, 81, ['a', 'c', 'f', 'i', 'd', 'g', 'b', 'e', 'h']],
   ]
@@ -52,24 +52,13 @@ class TestPart2 < Minitest::Test
   def test_examples2
     EXAMPLES.each do |input_file, expected_distance, expected_key_order|
       log.debug "running #{input_file}"
-      path = find_shortest_path_to_collect_all_keys_with_multiple_robots(input_file)
+      path = find_shortest_path_to_collect_all_keys(input_file)
       assert_equal(expected_distance, path.distance)
-      #assert_equal(expected_key_order, path.collected_keys.to_a)
     end
   end
 
-#   def test_examples
-#     EXAMPLES.each do |input_str, expected_output|
-#       input = process_input(input_str)
-#       res = part2(input)
-#       assert_equal(expected_output, res)
-#     end
-#   end
-
-#   def test_input
-#     input_str = File.read(INPUT_FILE)
-#     input = process_input(input_str)
-#     res = part2(input)
-#     assert_equal(nil, res)
-#   end
+  def test_input2
+    path = find_shortest_path_to_collect_all_keys(PART2_INPUT_FILE)
+    assert_equal(1556, path.distance)
+  end
 end

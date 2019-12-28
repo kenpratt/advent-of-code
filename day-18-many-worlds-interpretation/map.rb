@@ -34,6 +34,12 @@ class Wall < Tile
 end
 
 class Entrance < Tile
+  attr_reader :value
+
+  def initialize(value)
+    @value = value
+  end
+  
   def visitable_assuming_all_keys?
     true
   end
@@ -88,8 +94,13 @@ class Map
   def initialize(map_str)
     rows_with_chars = map_str.split("\n").map {|s| s.split('')}
 
+    next_entrance_value = 1
     rows = rows_with_chars.map do |row|
-      row.map {|s| Map.parse_tile(s)}
+      row.map do |s|
+        tile = Map.parse_tile(s, next_entrance_value)
+        next_entrance_value += 1 if tile.is_a?(Entrance)
+        tile
+      end
     end
 
     @grid = StaticGrid.from_rows(rows)
@@ -103,13 +114,13 @@ class Map
     self.new(map_str)
   end
 
-  def self.parse_tile(s)
+  def self.parse_tile(s, next_entrance_value)
     if s == WALL
       Wall.new
     elsif s == CORRIDOR
       Corridor.new
     elsif s == ENTRANCE
-      Entrance.new
+      Entrance.new(next_entrance_value)
     elsif POSSIBLE_KEYS.include?(s)
       Key.new(s)
     elsif POSSIBLE_DOORS.include?(s)
@@ -119,16 +130,12 @@ class Map
     end
   end
 
-  def starting_location
-    entrance.location
-  end
-
-  def entrance
-    grid.cells.values.find {|tile| tile.is_a?(Entrance)}
+  def entrances
+    Set.new(@grid.cells.values.select {|tile| tile.is_a?(Entrance)})
   end
 
   def keys
-    Set.new(grid.cells.values.select {|tile| tile.is_a?(Key)})
+    Set.new(@grid.cells.values.select {|tile| tile.is_a?(Key)})
   end
 
   def location_visitable_with_keys?(location, keys)
@@ -142,15 +149,17 @@ class Map
   def build_routes(filename)
     routes = Routes.new(filename, [])
 
+    #log.debug "caching routes (#{keys.size} key locations) = #{(keys.size + 1) * (key_locations.size - 1)} expected routes"
+
     i = 1
-    key_locations = keys.map(&:location)
-    log.debug "caching routes (#{key_locations.size} key locations) = #{(key_locations.size + 1) * (key_locations.size - 1)} expected routes"
-    ([entrance.location] + key_locations).each do |from_tile|
-      key_locations.each do |to_tile|
-        if from_tile != to_tile
-          log.debug "caching route #{i}"
-          add_route(routes, from_tile, to_tile)
-          i += 1
+    entrances.each do |entrance|
+      (Set.new([entrance]) + keys).each do |from_tile|
+        keys.each do |to_tile|
+          if from_tile != to_tile
+            log.debug "caching route #{i}"
+            add_route(routes, entrance, from_tile, to_tile)
+            i += 1
+          end
         end
       end
     end
@@ -158,35 +167,33 @@ class Map
     routes
   end
 
-  def add_route(routes, from_location, to_location)
-    from_tile = @grid.cells[from_location]
-    to_tile = @grid.cells[to_location]
-
-    from_val = case from_tile
+  def tile_value_for_route(tile)
+    case tile
     when Entrance
-      'E'
+      "@#{tile.value}"
     when Key
-      from_tile.value
+      tile.value
     else
       raise 'Unknown from_val'
     end
+  end
 
-    to_val = case to_tile
-    when Key
-      to_tile.value
-    else
-      raise 'Unknown to_val'
-    end
+  def add_route(routes, entrance, from_tile, to_tile)
+    entrance_val = tile_value_for_route(entrance)
+    from_val = tile_value_for_route(from_tile)
+    to_val = tile_value_for_route(to_tile)
 
-    if (reverse_route = routes.get(from_val, to_val))
+    if (reverse_route = routes.get(entrance_val, from_val, to_val))
       # shortcut
       route = reverse_route.flip
       routes.add(route)
       return  
     end
 
-    raw_route = from_location.path_to(to_location) {|l| location_visitable_assuming_all_keys?(l)}
-    raise "Couldn't find route between locations - unexpected" if raw_route.nil?
+    raw_route = from_tile.location.path_to(to_tile.location) {|l| location_visitable_assuming_all_keys?(l)}
+    if raw_route.nil?
+      return
+    end
 
     distance = raw_route.size
 
@@ -198,18 +205,18 @@ class Map
 
     necessary_keys = doors_along_route.map(&:key_value)
     
-    route = Route.new(from_val, to_val, distance, Set.new(necessary_keys), Set.new(keys_along_route))
+    route = Route.new(entrance_val, from_val, to_val, distance, Set.new(necessary_keys), Set.new(keys_along_route))
     routes.add(route)
 
-    # check for routes with not all required keys (in case of cycles etc)
-    if necessary_keys.size > 1
-      to_check = [[]] + (1..(necessary_keys.size - 1)).flat_map {|n| necessary_keys.combination(n).to_a}
-      to_check.each do |with_keys|
-        route_with_keys = from_location.path_to(to_location) {|l| location_visitable_with_keys?(l, with_keys)}
-        if route_with_keys
-          raise "Did not expect to find route with subset of keys #{from_location} #{to_location} #{with_keys}"
-        end
-      end
-    end
+    # # check for routes with not all required keys (in case of cycles etc)
+    # if necessary_keys.size > 1
+    #   to_check = [[]] + (1..(necessary_keys.size - 1)).flat_map {|n| necessary_keys.combination(n).to_a}
+    #   to_check.each do |with_keys|
+    #     route_with_keys = from_location.path_to(to_location) {|l| location_visitable_with_keys?(l, with_keys)}
+    #     if route_with_keys
+    #       raise "Did not expect to find route with subset of keys #{from_location} #{to_location} #{with_keys}"
+    #     end
+    #   end
+    # end
   end
 end

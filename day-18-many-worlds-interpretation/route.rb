@@ -1,6 +1,6 @@
-Route = Struct.new(:from, :to, :distance, :necessary_keys, :keys_along_route) do
+Route = Struct.new(:entrance, :from, :to, :distance, :necessary_keys, :keys_along_route) do
   def flip
-    self.class.new(to, from, distance, necessary_keys, keys_along_route)
+    self.class.new(entrance, to, from, distance, necessary_keys, keys_along_route)
   end
 
   def have_necessary_keys?(have_keys)
@@ -17,6 +17,7 @@ Route = Struct.new(:from, :to, :distance, :necessary_keys, :keys_along_route) do
 
   def to_array
     [
+      entrance,
       from,
       to,
       distance,
@@ -26,13 +27,13 @@ Route = Struct.new(:from, :to, :distance, :necessary_keys, :keys_along_route) do
   end
   
   def self.from_array(arr)
-    from, to, distance, necessary_keys, keys_along_route = *arr
-    self.new(from, to, distance, Set.new(necessary_keys), Set.new(keys_along_route))
+    entrance, from, to, distance, necessary_keys, keys_along_route = *arr
+    self.new(entrance, from, to, distance, Set.new(necessary_keys), Set.new(keys_along_route))
   end
 end
 
 class Routes
-  attr_reader :routes_set, :lookup_map
+  attr_reader :routes_set, :lookup_map, :to_visit #, :entrance_for_destination
 
   def self.load(filename)
     routes_str = File.read(filename)
@@ -49,26 +50,26 @@ class Routes
   def initialize(filename, routes)
     @filename = filename
     @routes_set = Set.new
-    @lookup_map = Hash.new {|h, k| h[k] = {}}
+    @lookup_map = Hash.new {|h, k| h[k] = Hash.new {|h2, k2| h2[k2] = {}}}
+    #@entrance_for_destination = {}
+    @to_visit = Set.new
 
     routes.each {|route| add(route)}
   end
 
-  def get(from, to)
-    @lookup_map[from][to]
+  def get(entrance, from, to)
+    @lookup_map[entrance][from][to]
   end
-
+  
   def add(route)
     @routes_set << route
-    @lookup_map[route.from][route.to] = route
+    @lookup_map[route.entrance][route.from][route.to] = route
+    #@entrance_for_destination[route.to] = route.entrance
+    @to_visit << route.to
   end
 
-  def starting_value
-    'E'
-  end
-
-  def to_visit
-    @lookup_map.keys.sort - [starting_value]
+  def entrances
+    @lookup_map.keys.sort
   end
 
   def minimum_spanning_tree_distance(keys_to_include)

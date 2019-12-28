@@ -2,15 +2,17 @@ require_relative 'map'
 require_relative 'grid'
 
 class Path
-  attr_reader :routes, :location, :to_visit, :collected_keys, :distance, :f_score, :g_score, :h_score
+  attr_reader :routes, :robot_locations, :to_visit, :collected_keys, :distance, :f_score, :g_score, :h_score
 
-  def self.initial(routes, location, to_visit)
-    self.new(routes, location, to_visit, Set.new, 0)
+  def self.initial(routes, entrances, to_visit)
+    # start each robot at the entrance
+    robot_locations = entrances.map {|e| [e, e]}.to_h
+    self.new(routes, robot_locations, to_visit, Set.new, 0)
   end
 
-  def initialize(routes, location, to_visit, collected_keys, distance)
+  def initialize(routes, robot_locations, to_visit, collected_keys, distance)
     @routes = routes
-    @location = location
+    @robot_locations = robot_locations
     @to_visit = to_visit
 
     @collected_keys = collected_keys
@@ -62,7 +64,16 @@ class Path
     #routes.minimum_spanning_tree_distance([location] + @to_visit)
 
     # faster heuristic
-    @to_visit.map {|to| routes.get(@location, to).distance}.max
+    max_per_entrance = Hash.new(0)
+    @robot_locations.each do |entrance, location|
+      @to_visit.each do |to|
+        route = routes.get(entrance, location, to)
+        if route && route.distance < max_per_entrance[entrance]
+          max_per_entrance[entrance] = route.distance
+        end
+      end
+    end
+    @robot_locations.map {|entrance, _| max_per_entrance[entrance]}.sum
   end
 
   def next_paths
@@ -70,11 +81,13 @@ class Path
     # and return new paths including the distance walked to them
     out = []
 
-    @to_visit.each do |next_location|
-      route = routes.get(@location, next_location)
-      if should_follow_route?(route)
-        new_path = follow_route(route)
-        out << new_path
+    @robot_locations.each do |entrance, location|
+      @to_visit.each do |next_location|
+        route = routes.get(entrance, location, next_location)
+        if route && should_follow_route?(route)
+          new_path = follow_route(entrance, route)
+          out << new_path
+        end
       end
     end
 
@@ -93,12 +106,12 @@ class Path
   # - marking the new location as visited (removing from to_visit)
   # - and recalculating scores
   # - (need a clone func)
-  def follow_route(route)
-    next_location = route.to
-    next_to_visit = @to_visit - [next_location]
-    next_collected_keys = @collected_keys + [next_location]
+  def follow_route(entrance, route)
+    next_robot_locations = robot_locations.merge(entrance => route.to)
+    next_to_visit = @to_visit - [route.to]
+    next_collected_keys = @collected_keys + [route.to]
     next_distance = @distance + route.distance
-    self.class.new(@routes, next_location, next_to_visit, next_collected_keys, next_distance)
+    self.class.new(@routes, next_robot_locations, next_to_visit, next_collected_keys, next_distance)
   end
 
   def <=>(other)
@@ -138,7 +151,7 @@ class Solver
   def run
     log.debug "Running solver"
 
-    starting_path = Path.initial(@routes, @routes.starting_value, @routes.to_visit)
+    starting_path = Path.initial(@routes, @routes.entrances, @routes.to_visit)
     @open_set = SortedSet.new([starting_path])
     @best_for_location_and_collected_keys = Hash.new {|h, key| h[key] = {}}
 
@@ -158,11 +171,11 @@ class Solver
 
       next_paths = current_path.next_paths
       next_paths.each do |next_path|
-        current_best = @best_for_location_and_collected_keys[next_path.location][next_path.collected_keys]
+        current_best = @best_for_location_and_collected_keys[next_path.robot_locations][next_path.collected_keys]
 
         if current_best.nil? || next_path.g_score < current_best.g_score
           @open_set << next_path
-          @best_for_location_and_collected_keys[next_path.location][next_path.collected_keys] = next_path
+          @best_for_location_and_collected_keys[next_path.robot_locations][next_path.collected_keys] = next_path
         end
       end
 
