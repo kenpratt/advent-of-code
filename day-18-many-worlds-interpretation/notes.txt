@@ -73,3 +73,12 @@ end
 
 #   distance + distance_map[to_tile][starting_tile]
 # end
+
+
+D, [2019-12-27T13:50:39.127051 #61227] DEBUG -- : Iteration 14600, 116 paths, first one size 112 with 14 collected keys
+.
+
+Finished in 10.083271s, 0.0992 runs/s, 0.0992 assertions/s.
+
+1 runs, 1 assertions, 0 failures, 0 errors, 0 skips
+bundle exec ruby day-18-many-worlds-interpretation/test.rb --name   10.47s user 0.17s system 99% cpu 10.679 total

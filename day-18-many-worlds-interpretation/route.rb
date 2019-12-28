@@ -70,4 +70,34 @@ class Routes
   def to_visit
     @lookup_map.keys.sort - [starting_value]
   end
+
+  def minimum_spanning_tree_distance(keys_to_include)
+    starting_key = keys_to_include[0]
+    seen = Set.new([starting_key])
+    left = Set.new(keys_to_include[1..-1])
+    
+    distance = 0
+    cheapest_route = {}
+
+    left.map do |next_key|
+      cheapest_route[next_key] = get(starting_key, next_key)
+    end
+
+    while left.any?
+      next_key = left.min_by {|k| cheapest_route[k].distance}
+      route = cheapest_route[next_key]
+
+      distance += route.distance
+      seen << next_key
+      left.delete(next_key)
+
+      @lookup_map[next_key].map do |to_key, maybe_route|
+        if left.include?(to_key) && maybe_route.distance < cheapest_route[to_key].distance
+          cheapest_route[to_key] = maybe_route
+        end
+      end
+    end
+
+    distance
+  end
 end

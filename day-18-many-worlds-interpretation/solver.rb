@@ -41,11 +41,27 @@ class Path
       return 0
     end
 
-    if @to_visit.size == 1
-      return routes.get(@location, @to_visit.first).distance
-    end
+    # if @to_visit.size == 1
+    #   return routes.get(@location, @to_visit.first).distance
+    # end
+
+    # if @to_visit.size == 2
+    #   loc1 = @to_visit[0]
+    #   loc2 = @to_visit[1]
+    #   dist1 = routes.get(@location, loc1).distance
+    #   dist2 = routes.get(@location, loc2).distance
+    #   dist_between = routes.get(loc1, loc2).distance
+    #   return dist_between + (dist1 < dist2 ? dist1 : dist2)
+    # end
 
     # TODO MST
+    #mst_distance = routes.minimum_spanning_tree_distance(@to_visit)
+    #connections = @to_visit.map {|to| routes.get(@location, to).distance}.sort
+    #mst_distance + connections[0] + connections[1]
+
+    #routes.minimum_spanning_tree_distance([location] + @to_visit)
+
+    # faster heuristic
     @to_visit.map {|to| routes.get(@location, to).distance}.max
   end
 
@@ -130,9 +146,9 @@ class Solver
     while !@open_set.empty?
       current_path = @open_set.first
 
-      log.debug "Iteration #{i}, #{@open_set.size} paths, first one size #{current_path.distance} with #{current_path.collected_keys.size} collected keys"
+      log.debug "Iteration #{i}, #{@open_set.size} paths, first one size #{current_path.distance} with #{current_path.collected_keys.size} collected keys" if i % 100 == 0
 
-      binding.pry if i == 200
+      #binding.pry if i == 200
 
       if current_path.complete?
         return current_path
