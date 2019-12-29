@@ -2,7 +2,7 @@ require 'minitest/autorun'
 
 require_relative './main'
 
-log.level = Logger::DEBUG
+log.level = Logger::INFO
 
 INPUT_FILE = File.join(__dir__, 'input.txt')
 
@@ -16,21 +16,17 @@ class TestPart1 < Minitest::Test
 end
 
 class TestPart2 < Minitest::Test
-  EXAMPLES = [
-  ]
-
-  def test_examples2
-    EXAMPLES.each do |input_str, expected_output|
-      program = parse_program(input_str)
-      res = run_program(program)
-      assert_equal(expected_output, res)
-    end
+  def test_example2
+    input_str = File.read(INPUT_FILE)
+    program = parse_program(input_str)
+    res = find_point_where_ship_fits_in_tractor_beam(program, 10)
+    assert_equal(990038, res.x * 10000 + res.y)
   end
 
   def test_input2
     input_str = File.read(INPUT_FILE)
     program = parse_program(input_str)
-    res = run_program(program)
-    assert_equal(nil, res)
+    res = find_point_where_ship_fits_in_tractor_beam(program, 100)
+    assert_equal(10730411, res.x * 10000 + res.y)
   end
 end

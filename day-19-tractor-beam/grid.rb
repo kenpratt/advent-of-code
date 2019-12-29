@@ -125,6 +125,10 @@ class GrowableGrid
     @cells = {}
   end
 
+  def painted?(coord)
+    @cells.has_key?(coord)
+  end
+
   def value(coord)
     @cells[coord]
   end
