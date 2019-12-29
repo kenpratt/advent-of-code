@@ -1,0 +1,6 @@
+Part 2:
+- First, need to know if label is innermost (+1 level), outermost (-1 level), or entrance/exit.
+- Next, need to track which level a Path is on
+- Need to only make Entrance/Exit available on Level 1
+- Tweak heuristic to account for other levels?
+ - (eg if on level 1, min distance to any other label, if on level N, same but adding something for each level (min between any two labels?)
