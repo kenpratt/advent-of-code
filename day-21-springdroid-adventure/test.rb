@@ -20,6 +20,6 @@ class TestPart2 < Minitest::Test
     input_str = File.read(INPUT_FILE)
     program = parse_program(input_str)
     res = survey_damage_with_springdroid_running(program)
-    assert_equal(0, res)
+    assert_equal(1140450681, res)
   end
 end

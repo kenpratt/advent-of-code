@@ -24,16 +24,15 @@ def survey_damage_with_springdroid_walking(program)
 end
 
 def survey_damage_with_springdroid_running(program)
-  jump_analysis
+  #jump_analysis
 
   # D && (!A || !B || (!C && (!X || Y))
   # X = (!E && F)
-  # Y = (!G && H && I)
+  # Y = (!G && H)
   springscript = [
     # Y => J
     'NOT G J',
     'AND H J',
-    'AND I J',
 
     # !X => T
     # !X = !(!E && F) = E || !F
@@ -128,7 +127,7 @@ def jump_analysis
 
   with_best_soln = alive_sols_per_combo.map {|tiles, sols| [tiles, sols.first]};
 
-  heuristic = lambda {|t| t[3] && (!t[0] || !t[1] || (!t[2] && ((t[4] || !t[5]) || (!t[6] && t[7] && t[8]))))}
+  heuristic = lambda {|t| t[3] && (!t[0] || !t[1] || (!t[2] && ((t[4] || !t[5]) || (!t[6] && t[7]))))}
 
   analysis = (0..LOOKAHEAD).map do |jump_offset|
     res = with_best_soln.select do |t, s|
