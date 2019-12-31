@@ -1,0 +1,9 @@
+[package]
+name = "day-22-slam-shuffle"
+version = "0.1.0"
+authors = ["Ken Pratt <ken@kenpratt.net>"]
+edition = "2018"
+
+[dependencies]
+lazy_static = "1"
+regex = "1"
