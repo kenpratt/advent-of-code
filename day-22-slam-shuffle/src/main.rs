@@ -23,15 +23,18 @@ fn part2() {
     let collapsed_instructions = instructions.collapse();
     println!("collapsed: {:?}", collapsed_instructions);
 
-    let mut foo = collapsed_instructions;
-    for i in (0..(101741582076661 as i128)) {
-        if i % 1000000 == 0 {
-            println!("i: {}", i);
-        }
-        let bar = foo.double().collapse_rest();
-        //println!("adding instructions: {}, {:?}", i, bar);
-        foo = bar;
-    }
+    // let mut foo = collapsed_instructions;
+    // for i in (0..(101741582076661 as i128)) {
+    //     if i % 1000000 == 0 {
+    //         println!("i: {}", i);
+    //     }
+    //     let bar = foo.double().collapse_rest();
+    //     //println!("adding instructions: {}, {:?}", i, bar);
+    //     foo = bar;
+    // }
+    // println!("foo: {:?}", foo);
+
+    let foo = collapsed_instructions.multiply(3);
     println!("foo: {:?}", foo);
 
     // let composite_instruction = CompositeShuffleInstruction::from_instructions(&instructions, 119315717514047);
@@ -46,7 +49,7 @@ fn shuffle(deck_size: usize, input_str: &str) -> Deck {
     let collapsed_instructions = instructions.collapse();
     println!("collapsed: {:?}", collapsed_instructions);
     let mut deck2 = Deck::new(deck_size);
-    deck2.shuffle(&collapsed_instructions);
+    deck2.shuffle(&collapsed_instructions.materialize());
     assert_eq!(deck.cards, deck2.cards);
 
     // let composite_instruction = CompositeShuffleInstruction::from_instructions(&instructions, deck_size);
@@ -94,6 +97,26 @@ impl ShuffleInstruction {
     }
 }
 
+fn pow_with_modulus(base: i128, exponent: i128, modulus: i128) -> i128 {
+    if (base < 1) || (exponent < 0) || (modulus < 1) {
+        panic!("invalid");
+    }
+
+    let mut result = 1;
+    let mut curr_base = base;
+    let mut curr_exponent = exponent;
+
+    while curr_exponent > 0 {
+        if (curr_exponent % 2) == 1 {
+            result = (result * curr_base) % modulus;
+        }
+        curr_base = (curr_base * curr_base) % modulus;
+        curr_exponent = curr_exponent / 2;
+    }
+
+    result
+}
+
 #[derive(Debug)]
 struct ShuffleInstructions {
     deck_size: i128,
@@ -113,9 +136,8 @@ impl ShuffleInstructions {
         }
     }
 
-    fn collapse(&self) -> ShuffleInstructions {
-        let normalized = self.normalize();
-        normalized.collapse_rest()
+    fn collapse(&self) -> CollapsedShuffleInstructions {
+        self.normalize().fully_collapse()
     }
 
     fn normalize(&self) -> ShuffleInstructions {
@@ -144,7 +166,7 @@ impl ShuffleInstructions {
         ShuffleInstructions::new(self.deck_size, new_instructions)
     }
 
-    fn collapse_rest(&self) -> ShuffleInstructions {
+    fn fully_collapse(&self) -> CollapsedShuffleInstructions {
         let mut acc_increment = 1;
         let mut acc_cut = 0;
 
@@ -168,17 +190,38 @@ impl ShuffleInstructions {
             }
         }
 
-        let new_instructions = vec![
-            ShuffleInstruction::DealWithIncrement(acc_increment),
-            ShuffleInstruction::Cut(acc_cut),
-        ];
-        ShuffleInstructions::new(self.deck_size, new_instructions)
+        CollapsedShuffleInstructions::new(self.deck_size, acc_increment, acc_cut)
+    }
+}
+
+#[derive(Debug)]
+struct CollapsedShuffleInstructions {
+    deck_size: i128,
+    increment_value: i128,
+    cut_value: i128,
+}
+
+impl CollapsedShuffleInstructions {
+    fn new(deck_size: i128, increment_value: i128, cut_value: i128) -> CollapsedShuffleInstructions {
+        CollapsedShuffleInstructions {
+            deck_size: deck_size,
+            increment_value: increment_value,
+            cut_value: cut_value,
+        }
     }
 
-    fn double(&self) -> ShuffleInstructions {
-        let mut new_instructions = self.instructions.clone();
-        new_instructions.append(&mut self.instructions.clone());
-        ShuffleInstructions::new(self.deck_size, new_instructions)
+    fn multiply(&self, n: i128) -> CollapsedShuffleInstructions {
+        let new_increment_value = pow_with_modulus(self.increment_value, n, self.deck_size);
+        let new_cut_value = (self.cut_value * (new_increment_value - 1)) % self.deck_size;
+        CollapsedShuffleInstructions::new(self.deck_size, new_increment_value, new_cut_value)
+    }
+
+    fn materialize(&self) -> ShuffleInstructions {
+        let instructions = vec![
+            ShuffleInstruction::DealWithIncrement(self.increment_value),
+            ShuffleInstruction::Cut(self.cut_value),
+        ];
+        ShuffleInstructions::new(self.deck_size, instructions)
     }
 }
 
