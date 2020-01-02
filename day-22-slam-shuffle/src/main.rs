@@ -8,29 +8,7 @@ use regex::Regex;
 
 fn main() {
     part1();
-    //part2();
-
-// TODO reduce multiplier && offset as I go. is it as simple as:
-// -(-multiplier % deck_size)
-// -(-offset % deck_size)
-// ??
-
-// multiplier doesn't seem quite right maybe...
-
-// eg 
-
-// mult 3
-// mult 5
-// deck size 10
-// pos 2 -> 2 * 3 * 5 = 2 * 15 = 30 % 10 = 0
-// pos 2 -> 2 * 5 = 10 % 10 = 0
-
-// pos 5 -> 5 * 3 * 5 = 5 * 15 = 75 % 10 = 5
-// pos 5 -> 5 * 5 = 25 % 10 = 5
-
-// hmm...that seems to work, but try a different deck size...
-
-    //part2();
+    part2();
 }
 
 fn part1() {
@@ -42,9 +20,22 @@ fn part1() {
 fn part2() {
     let input_str = fs::read_to_string("input.txt").expect("Something went wrong reading the file");
     let instructions = ShuffleInstructions::parse(119315717514047, &input_str);
+    let collapsed_instructions = instructions.collapse();
+    println!("collapsed: {:?}", collapsed_instructions);
 
-    let composite_instruction = CompositeShuffleInstruction::from_instructions(&instructions, 119315717514047);
-    println!("composite: {:?}", composite_instruction);
+    let mut foo = collapsed_instructions;
+    for i in (0..(101741582076661 as i128)) {
+        if i % 1000000 == 0 {
+            println!("i: {}", i);
+        }
+        let bar = foo.double().collapse_rest();
+        //println!("adding instructions: {}, {:?}", i, bar);
+        foo = bar;
+    }
+    println!("foo: {:?}", foo);
+
+    // let composite_instruction = CompositeShuffleInstruction::from_instructions(&instructions, 119315717514047);
+    // println!("composite: {:?}", composite_instruction);
 }
 
 fn shuffle(deck_size: usize, input_str: &str) -> Deck {
@@ -181,6 +172,12 @@ impl ShuffleInstructions {
             ShuffleInstruction::DealWithIncrement(acc_increment),
             ShuffleInstruction::Cut(acc_cut),
         ];
+        ShuffleInstructions::new(self.deck_size, new_instructions)
+    }
+
+    fn double(&self) -> ShuffleInstructions {
+        let mut new_instructions = self.instructions.clone();
+        new_instructions.append(&mut self.instructions.clone());
         ShuffleInstructions::new(self.deck_size, new_instructions)
     }
 }
