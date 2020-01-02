@@ -4,6 +4,7 @@ extern crate regex;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::fs;
+use mod_exp::mod_exp;
 use regex::Regex;
 
 fn main() {
@@ -20,25 +21,14 @@ fn part1() {
 fn part2() {
     let input_str = fs::read_to_string("input.txt").expect("Something went wrong reading the file");
     let instructions = ShuffleInstructions::parse(119315717514047, &input_str);
+
     let collapsed_instructions = instructions.collapse();
     println!("collapsed: {:?}", collapsed_instructions);
 
-    // let mut foo = collapsed_instructions;
-    // for i in (0..(101741582076661 as i128)) {
-    //     if i % 1000000 == 0 {
-    //         println!("i: {}", i);
-    //     }
-    //     let bar = foo.double().collapse_rest();
-    //     //println!("adding instructions: {}, {:?}", i, bar);
-    //     foo = bar;
-    // }
-    // println!("foo: {:?}", foo);
+    let repeated_instructions = collapsed_instructions.multiply(101741582076661);
+    println!("repeated_instructions: {:?}", foo);
 
-    let foo = collapsed_instructions.multiply(3);
-    println!("foo: {:?}", foo);
-
-    // let composite_instruction = CompositeShuffleInstruction::from_instructions(&instructions, 119315717514047);
-    // println!("composite: {:?}", composite_instruction);
+    // TODO now I just need to figure out what index will end up at position 2020!
 }
 
 fn shuffle(deck_size: usize, input_str: &str) -> Deck {
@@ -97,25 +87,25 @@ impl ShuffleInstruction {
     }
 }
 
-fn pow_with_modulus(base: i128, exponent: i128, modulus: i128) -> i128 {
-    if (base < 1) || (exponent < 0) || (modulus < 1) {
-        panic!("invalid");
-    }
+// fn pow_with_modulus(base: i128, exponent: i128, modulus: i128) -> i128 {
+//     if (base < 1) || (exponent < 0) || (modulus < 1) {
+//         panic!("invalid");
+//     }
 
-    let mut result = 1;
-    let mut curr_base = base;
-    let mut curr_exponent = exponent;
+//     let mut result = 1;
+//     let mut curr_base = base;
+//     let mut curr_exponent = exponent;
 
-    while curr_exponent > 0 {
-        if (curr_exponent % 2) == 1 {
-            result = (result * curr_base) % modulus;
-        }
-        curr_base = (curr_base * curr_base) % modulus;
-        curr_exponent = curr_exponent / 2;
-    }
+//     while curr_exponent > 0 {
+//         if (curr_exponent % 2) == 1 {
+//             result = (result * curr_base) % modulus;
+//         }
+//         curr_base = (curr_base * curr_base) % modulus;
+//         curr_exponent = curr_exponent / 2;
+//     }
 
-    result
-}
+//     result
+// }
 
 #[derive(Debug)]
 struct ShuffleInstructions {
@@ -211,7 +201,7 @@ impl CollapsedShuffleInstructions {
     }
 
     fn multiply(&self, n: i128) -> CollapsedShuffleInstructions {
-        let new_increment_value = pow_with_modulus(self.increment_value, n, self.deck_size);
+        let new_increment_value = mod_exp(self.increment_value, n, self.deck_size);
         let new_cut_value = (self.cut_value * (new_increment_value - 1)) % self.deck_size;
         CollapsedShuffleInstructions::new(self.deck_size, new_increment_value, new_cut_value)
     }
