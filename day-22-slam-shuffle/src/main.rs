@@ -7,8 +7,29 @@ use std::fs;
 use regex::Regex;
 
 fn main() {
-    part1();
     part2();
+
+// TODO reduce multiplier && offset as I go. is it as simple as:
+// -(-multiplier % deck_size)
+// -(-offset % deck_size)
+// ??
+
+// multiplier doesn't seem quite right maybe...
+
+// eg 
+
+// mult 3
+// mult 5
+// deck size 10
+// pos 2 -> 2 * 3 * 5 = 2 * 15 = 30 % 10 = 0
+// pos 2 -> 2 * 5 = 10 % 10 = 0
+
+// pos 5 -> 5 * 3 * 5 = 5 * 15 = 75 % 10 = 5
+// pos 5 -> 5 * 5 = 25 % 10 = 5
+
+// hmm...that seems to work, but try a different deck size...
+
+    //part2();
 }
 
 fn part1() {
@@ -20,8 +41,10 @@ fn part1() {
 fn part2() {
     let input_str = fs::read_to_string("input.txt").expect("Something went wrong reading the file");
     let instructions = ShuffleInstruction::parse_instructions(&input_str);
-    let res = Solver::run(119315717514047, 101741582076661, 2020, instructions);
-    assert_eq!(res, 1);
+    // let res = Solver::run(119315717514047, 101741582076661, 2020, instructions);
+
+    let composite_instruction = CompositeShuffleInstruction::from_instructions(&instructions, 119315717514047);
+    println!("composite: {:?}", composite_instruction);
 }
 
 fn shuffle(deck_size: usize, input_str: &str) -> Deck {
@@ -38,7 +61,7 @@ fn shuffle(deck_size: usize, input_str: &str) -> Deck {
         composite_cards[to_index] = i;
     }
     //println!("composite res: {:?}", composite_cards);
-    assert_eq!(deck.cards, composite_cards);
+    //assert_eq!(deck.cards, composite_cards);
 
     deck
 }
@@ -80,14 +103,14 @@ impl ShuffleInstruction {
 
 #[derive(Debug)]
 struct CompositeShuffleInstruction {
-    deck_size: i64,
-    multiplier: i64,
-    offset: i64,
+    deck_size: i128,
+    multiplier: i128,
+    offset: i128,
     reversed: bool,
 }
 
 impl CompositeShuffleInstruction {
-    pub fn new(deck_size: i64) -> CompositeShuffleInstruction {
+    pub fn new(deck_size: i128) -> CompositeShuffleInstruction {
         return CompositeShuffleInstruction {
             deck_size: deck_size,
             multiplier: 1,
@@ -97,7 +120,7 @@ impl CompositeShuffleInstruction {
     }
 
     fn from_instructions(instructions: &[ShuffleInstruction], deck_size: usize) -> CompositeShuffleInstruction {
-        let mut res = CompositeShuffleInstruction::new(deck_size as i64);
+        let mut res = CompositeShuffleInstruction::new(deck_size as i128);
         res.apply_all(instructions);
         res
     }
@@ -111,25 +134,35 @@ impl CompositeShuffleInstruction {
     fn apply(&mut self, instruction: &ShuffleInstruction) {
         match instruction {
             ShuffleInstruction::Cut(n) => {
-                let x = *n as i64;
+                let x = *n as i128;
                 if !self.reversed {
-                    self.offset -= x;
+                    self.offset = self.normalize(self.offset - x);
                 } else {
-                    self.offset += x;
+                    self.offset = self.normalize(self.offset + x);
                 }
             },
             ShuffleInstruction::DealWithIncrement(n) => {
-                let x = *n as i64;
-                self.multiplier *= x;
-                self.offset *= x; // offset is scaled
+                let x = *n as i128;
+                self.multiplier = self.normalize(self.multiplier * x);
+                self.offset = self.normalize(self.offset * x); // offset is scaled
             },
             ShuffleInstruction::DealNewStack => {
                 self.reversed = !self.reversed;
-                // don't adjust offset -- offset is "virtual offset"
-                // pretending it's from the "front"
+                //self.offset *= -1; // offset is relative to reversal
             },
         }
         println!("{:?}", self);
+    }
+
+    fn normalize(&self, x: i128) -> i128 {
+        if x < 0 {
+            //-(-x % self.deck_size)
+            println!("normalize neg {} {}", x, -(-x % self.deck_size) + self.deck_size - 1);
+            -(-x % self.deck_size) + self.deck_size
+             //TODO + self.deck_size - 1 (?)
+        } else {
+            x % self.deck_size
+        }
     }
 
     fn run(&self, from_index: usize) -> usize {
@@ -137,13 +170,14 @@ impl CompositeShuffleInstruction {
         //     panic!("Don't know how to run a reversed composite shuffle");
         // }
 
-        let mut to_index = from_index as i64;
+        let mut to_index = from_index as i128;
 
         println!("run from_index = {}, X to_index = {}", from_index, to_index);
 
-        if self.reversed {
-            to_index = -(to_index + 1);
-        }
+        // if still reversed, index into right side
+        // if self.reversed {
+        //     to_index = -(to_index + 1);
+        // }
 
         println!("run from_index = {}, A to_index = {}", from_index, to_index);
 
@@ -154,6 +188,11 @@ impl CompositeShuffleInstruction {
 
         // add offset
         to_index += self.offset;
+        // if !self.reversed {
+        //     to_index += self.offset;
+        // } else {
+        //     to_index -= self.offset;
+        // }
 
         println!("run from_index = {}, C to_index = {}", from_index, to_index);
 
@@ -169,6 +208,10 @@ impl CompositeShuffleInstruction {
         to_index = to_index % self.deck_size;
 
         println!("run from_index = {}, E to_index = {}", from_index, to_index);
+
+        if self.reversed {
+           to_index = self.deck_size - to_index - 1;
+        }
 
         // safety checks to ensure in bounds
         if to_index < 0 {
@@ -275,7 +318,7 @@ impl Solver {
             } else {
                 seen.insert(foo, i);
             }
-            //println!("{}, {}, {}", result_index, foo, (result_index as i64) - (foo as i64));
+            //println!("{}, {}, {}", result_index, foo, (result_index as i128) - (foo as i128));
             result_index = foo;
         }
         result_index
@@ -334,7 +377,7 @@ impl Solver {
     fn run_instruction(&self, to_index: usize, instruction: &ShuffleInstruction) -> usize {
         match instruction {
             ShuffleInstruction::Cut(n) => {
-                let from_index = ((to_index as i64) + (*n as i64)) as usize;
+                let from_index = ((to_index as i128) + (*n as i128)) as usize;
                 //println!("Cut: to_index = {}, n = {}, from_index = {}", to_index, n, from_index);
                 from_index
             },
@@ -413,6 +456,84 @@ mod tests {
         // 8 => 1 (-9) * 3 = -27 + 30 = 3
         // 9 => 0 (-10) * 3 = -30 + 30 = 0
         assert_eq!(deck.cards, vec![9, 2, 5, 8, 1, 4, 7, 0, 3, 6]);
+
+        let mut deck2 = shuffle(10, "cut -1\ndeal with increment 9\ndeal with increment 3");
+        assert_eq!(deck2.cards, deck.cards);
+
+        deck2 = shuffle(10, "cut -1\ndeal with increment 27");
+        assert_eq!(deck2.cards, deck.cards);
+
+        deck2 = shuffle(10, "cut -1\ndeal with increment 7");
+        assert_eq!(deck2.cards, deck.cards);
+
+        deck2 = shuffle(10, "cut 9\ndeal with increment 7");
+        assert_eq!(deck2.cards, deck.cards);
+
+        deck2 = shuffle(10, "deal with increment 7\ncut -7");
+        assert_eq!(deck2.cards, deck.cards);
+
+        deck2 = shuffle(10, "deal with increment 7\ncut 3");
+        assert_eq!(deck2.cards, deck.cards);
+
+        deck2 = shuffle(10, "deal with increment 3\ndeal into new stack\ncut 2");
+        assert_eq!(deck2.cards, deck.cards);
+
+        deck2 = shuffle(10, "deal with increment 3\ncut -2\ndeal into new stack");
+        assert_eq!(deck2.cards, deck.cards);
+
+        //TODO can't ignore reversals when dealing with increments...
+        //maybe can get rid of reversals with a transform though
+    }
+
+    #[test]
+    fn test_increment_reverse() {
+        let deck = shuffle(10, "deal with increment 3\ndeal into new stack");
+        assert_eq!(deck.cards, vec![3, 6, 9, 2, 5, 8, 1, 4, 7, 0]);
+
+        let mut deck2 = shuffle(10, "deal with increment 7\ncut 1");
+        assert_eq!(deck2.cards, deck.cards);
+    }
+
+    #[test]
+    fn test_reverse_increment_reverse() {
+        let deck = shuffle(10, "deal into new stack\ndeal with increment 3\ndeal into new stack");
+        assert_eq!(deck.cards, vec![6, 3, 0, 7, 4, 1, 8, 5, 2, 9]);
+
+        let mut deck2 = shuffle(10, "cut -1\ndeal with increment 7\ndeal into new stack");
+        assert_eq!(deck2.cards, deck.cards);
+
+        deck2 = shuffle(10, "cut -1\ndeal with increment 3\ncut 1");
+        assert_eq!(deck2.cards, deck.cards);
+
+        deck2 = shuffle(10, "deal with increment 3\ncut -2");
+        assert_eq!(deck2.cards, deck.cards);
+    }
+
+    #[test]
+    fn test_foo() {
+        let deck = shuffle(10, "deal into new stack");
+        assert_eq!(deck.cards, vec![9, 8, 7, 6, 5, 4, 3, 2, 1, 0]);
+        
+        let mut deck2 = shuffle(10, "cut -1\ndeal with increment 9");
+        assert_eq!(deck2.cards, deck.cards);
+        
+        deck2 = shuffle(10, "deal with increment 9\ncut -9");
+        assert_eq!(deck2.cards, deck.cards);
+        
+        deck2 = shuffle(10, "deal with increment 9\ncut 1");
+        assert_eq!(deck2.cards, deck.cards);
+    }
+
+    #[test]
+    fn test_increment_reverse_increment() {
+        let deck = shuffle(10, "deal with increment 3\ndeal into new stack\ndeal with increment 3");
+        assert_eq!(deck.cards, vec![3, 4, 5, 6, 7, 8, 9, 0, 1, 2]);
+        
+        let mut deck2 = shuffle(10, "cut 3");
+        assert_eq!(deck2.cards, deck.cards);
+        
+        deck2 = shuffle(10, "cut 3");
+        assert_eq!(deck2.cards, deck.cards);
     }
 
     #[test]
@@ -440,6 +561,34 @@ mod tests {
     }
 
     #[test]
+    fn test_part1_example2b() {
+        let deck = shuffle(
+            10,
+            "cut 6\ndeal with increment 7",
+        );
+        assert_eq!(deck.cards, vec![6, 9, 2, 5, 8, 1, 4, 7, 0, 3]);
+        //assert_eq!(deck.cards, vec![9, 2, 5, 8, 1, 4, 7, 0, 3, 6]);
+    }    
+
+    #[test]
+    fn test_part1_example2c() {
+        let deck = shuffle(
+            10,
+            "cut 6\ndeal into new stack",
+        );
+        assert_eq!(deck.cards, vec![5, 4, 3, 2, 1, 0, 9, 8, 7, 6]);
+    }
+
+    #[test]
+    fn test_part1_example2d() {
+        let deck = shuffle(
+            10,
+            "deal with increment 7\ndeal into new stack",
+        );
+        assert_eq!(deck.cards, vec![7, 4, 1, 8, 5, 2, 9, 6, 3, 0]);
+    }
+
+    #[test]
     fn test_part1_example3() {
         let deck = shuffle(
             10,
@@ -453,15 +602,6 @@ mod tests {
         let deck = shuffle(
             10,
             "deal into new stack\ncut -2\ndeal with increment 7\ncut 8\ncut -4\ndeal with increment 7\ncut 3\ndeal with increment 9\ndeal with increment 3\ncut -1",
-        );
-        assert_eq!(deck.cards, vec![9, 2, 5, 8, 1, 4, 7, 0, 3, 6]);
-    }
-
-    #[test]
-    fn test_part1_example5() {
-        let deck = shuffle(
-            10,
-            "deal into new stack\ndeal with increment 3",
         );
         assert_eq!(deck.cards, vec![9, 2, 5, 8, 1, 4, 7, 0, 3, 6]);
     }
