@@ -1,0 +1,67 @@
+Part 2:
+- Need to run shuffle instructions backwards, calculating what slot to change to for each one.
+- Cut is easy -- move slot left or right N (wrapping around)
+- Deal new stack is easy too -- just size - N. (maybe +/- 1)
+- Deal with increment is harder -- I think it's multiply by size, divide by N?
+  - to_index = (from_index * n) % size)
+  - from_index = (to_index * size) / n ??? not quite right...
+    - maybe don't need to multiply by size? just divide by N?
+    - offset = (to_index % n); from_index = (to_index + (offset * size)) / n
+    - basically, reverse % by figuring out the amount thrown away.
+- Try running through one shuffle instruction sequence in reverse,
+  and then a second & third one, and see if the diffs between are the same,
+  or if not, if there is some sort of pattern... otherwise could probably
+  brute force it.
+
+
+Running solver:
+  deck_size = 119315717514047
+  to_index = 2020
+
+DealWithIncrement:
+  to_index = 2020
+  increment = 48
+  base = 477262870056188
+  from_index = 9942976459546
+
+  2020 % 48 = 4
+  4 * 119315717514047 = 477262870056188
+  (2020 + 477262870056188) / 48 = 9942976459546
+  9942976459546 * 48 % 119315717514047 = 2020
+
+Cut:
+  to_index = 9942976459546
+  n = -8758
+  from_index = 9942976450788
+
+  9942976450788 + 8758 = 9942976459546
+
+DealNewStack:
+  to_index = 31849298810992
+  from_index = 87466418703055
+
+  size 10: from_index 0 = to_index 9, to_index 9 = from_index 0. 1 => 8, 8 => 1.
+  (10 - index - 1)
+ 
+  119315717514047 - 31849298810992 - 1 = 87466418703054
+  119315717514047 - 87466418703054 - 1 = 31849298810992
+
+
+revsize = deck_size - 1
+
+cut 3334
+=> x - 3334
+
+deal into new stack
+=> size - (x - 3334) - 1
+=> size - x + 3334 - 1
+=> size - x + 3333
+
+deal with increment 4
+=> ((size - x + 3333) * 4) % size
+=> (4 * size - 4 * x + 4 * 3333) % size
+=> (-4 * x + 4 * 3333) % size
+
+cut -342
+deal with increment 30
+cut -980

@@ -2,3 +2,4 @@
 */target
 *.log
 profile*.txt
+output*.txt
