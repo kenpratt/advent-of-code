@@ -80,14 +80,14 @@ impl ShuffleInstruction {
 
 #[derive(Debug)]
 struct CompositeShuffleInstruction {
-    deck_size: usize,
-    multiplier: usize,
+    deck_size: i64,
+    multiplier: i64,
     offset: i64,
     reversed: bool,
 }
 
 impl CompositeShuffleInstruction {
-    pub fn new(deck_size: usize) -> CompositeShuffleInstruction {
+    pub fn new(deck_size: i64) -> CompositeShuffleInstruction {
         return CompositeShuffleInstruction {
             deck_size: deck_size,
             multiplier: 1,
@@ -97,7 +97,7 @@ impl CompositeShuffleInstruction {
     }
 
     fn from_instructions(instructions: &[ShuffleInstruction], deck_size: usize) -> CompositeShuffleInstruction {
-        let mut res = CompositeShuffleInstruction::new(deck_size);
+        let mut res = CompositeShuffleInstruction::new(deck_size as i64);
         res.apply_all(instructions);
         res
     }
@@ -111,72 +111,79 @@ impl CompositeShuffleInstruction {
     fn apply(&mut self, instruction: &ShuffleInstruction) {
         match instruction {
             ShuffleInstruction::Cut(n) => {
-                /*
                 let x = *n as i64;
                 if !self.reversed {
                     self.offset -= x;
                 } else {
                     self.offset += x;
                 }
-                */
-                self.offset -= (*n as i64);
             },
             ShuffleInstruction::DealWithIncrement(n) => {
-                self.multiplier *= *n as usize;
-                self.offset *= *n as i64;
+                let x = *n as i64;
+                self.multiplier *= x;
+                self.offset *= x; // offset is scaled
             },
             ShuffleInstruction::DealNewStack => {
                 self.reversed = !self.reversed;
-                self.offset = -(self.offset + 1);
+                // don't adjust offset -- offset is "virtual offset"
+                // pretending it's from the "front"
             },
         }
         println!("{:?}", self);
     }
 
     fn run(&self, from_index: usize) -> usize {
-        let deck_size = self.deck_size as i64;
+        // if self.reversed {
+        //     panic!("Don't know how to run a reversed composite shuffle");
+        // }
 
         let mut to_index = from_index as i64;
 
-        println!("run from_index = {}, A to_index = {}", from_index, to_index);
+        println!("run from_index = {}, X to_index = {}", from_index, to_index);
 
-        // if reversed, index into right side of array: 0 as -1, 1 as -2, etc
         if self.reversed {
             to_index = -(to_index + 1);
         }
 
-        println!("run from_index = {}, B to_index = {}", from_index, to_index);
+        println!("run from_index = {}, A to_index = {}", from_index, to_index);
 
         // scale up index by current multiplier
-        to_index *= (self.multiplier as i64);
+        to_index *= self.multiplier;
 
-        println!("run from_index = {}, C to_index = {}", from_index, to_index);
+        println!("run from_index = {}, B to_index = {}", from_index, to_index);
 
         // add offset
         to_index += self.offset;
 
-        println!("run from_index = {}, D to_index = {}", from_index, to_index);
+        println!("run from_index = {}, C to_index = {}", from_index, to_index);
 
         // if negative (due to offsets), convert to a positive index
+        // by adding enough multiples of deck size
         if to_index < 0 {
-            to_index += 1;
-            to_index += ((-to_index / deck_size) + 1) * deck_size;
+            to_index += ((-to_index / self.deck_size) + 1) * self.deck_size;
         }
 
-        println!("run from_index = {}, E to_index = {}", from_index, to_index);
+        println!("run from_index = {}, D to_index = {}", from_index, to_index);
 
         // normalize by deck size
-        to_index = to_index % deck_size;
+        to_index = to_index % self.deck_size;
 
-        println!("run from_index = {}, final to_index = {}", from_index, to_index);
+        println!("run from_index = {}, E to_index = {}", from_index, to_index);
 
         // safety checks to ensure in bounds
         if to_index < 0 {
             panic!("index below 0. from_index: {}, to_index: {}", from_index, to_index);
-        } else if to_index >= deck_size {
+        } else if to_index >= self.deck_size {
             panic!("index above deck size. from_index: {}, to_index: {}", from_index, to_index);
         } 
-        
+
+        // if reversed, index into right side of array
+        // if self.reversed {
+        //     to_index = self.deck_size - to_index - 1;
+        // }
+
+        println!("run from_index = {}, final to_index = {}", from_index, to_index);
+
         to_index as usize
     }
 
