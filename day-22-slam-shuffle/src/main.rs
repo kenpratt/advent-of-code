@@ -7,7 +7,8 @@ use std::fs;
 use regex::Regex;
 
 fn main() {
-    part2();
+    part1();
+    //part2();
 
 // TODO reduce multiplier && offset as I go. is it as simple as:
 // -(-multiplier % deck_size)
@@ -40,44 +41,45 @@ fn part1() {
 
 fn part2() {
     let input_str = fs::read_to_string("input.txt").expect("Something went wrong reading the file");
-    let instructions = ShuffleInstruction::parse_instructions(&input_str);
-    // let res = Solver::run(119315717514047, 101741582076661, 2020, instructions);
+    let instructions = ShuffleInstructions::parse(119315717514047, &input_str);
 
     let composite_instruction = CompositeShuffleInstruction::from_instructions(&instructions, 119315717514047);
     println!("composite: {:?}", composite_instruction);
 }
 
 fn shuffle(deck_size: usize, input_str: &str) -> Deck {
-    let instructions = ShuffleInstruction::parse_instructions(input_str);
+    let instructions = ShuffleInstructions::parse(deck_size, input_str);
     let mut deck = Deck::new(deck_size);
     deck.shuffle(&instructions);
 
-    let composite_instruction = CompositeShuffleInstruction::from_instructions(&instructions, deck_size);
-    println!("composite: {:?}", composite_instruction);
+    let collapsed_instructions = instructions.collapse();
+    println!("collapsed: {:?}", collapsed_instructions);
+    let mut deck2 = Deck::new(deck_size);
+    deck2.shuffle(&collapsed_instructions);
+    assert_eq!(deck.cards, deck2.cards);
 
-    let mut composite_cards = vec![0; deck_size];
-    for i in 0..deck_size {
-        let to_index = composite_instruction.run(i);
-        composite_cards[to_index] = i;
-    }
+    // let composite_instruction = CompositeShuffleInstruction::from_instructions(&instructions, deck_size);
+    // println!("composite: {:?}", composite_instruction);
+
+    // let mut composite_cards = vec![0; deck_size];
+    // for i in 0..deck_size {
+    //     let to_index = composite_instruction.run(i);
+    //     composite_cards[to_index] = i;
+    // }
     //println!("composite res: {:?}", composite_cards);
     //assert_eq!(deck.cards, composite_cards);
 
     deck
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 enum ShuffleInstruction {
-    Cut(i16),
-    DealWithIncrement(u8),
+    Cut(i128),
+    DealWithIncrement(i128),
     DealNewStack,
 }
 
 impl ShuffleInstruction { 
-    fn parse_instructions(input: &str) -> Vec<ShuffleInstruction> {
-        input.lines().map(|line| ShuffleInstruction::parse(line)).collect()
-    }
-
     fn parse(line: &str) -> ShuffleInstruction {
         lazy_static! {
             static ref RE_CUT: Regex = Regex::new(r"^cut (\-?\d+)$").unwrap();
@@ -87,17 +89,99 @@ impl ShuffleInstruction {
 
         if RE_CUT.is_match(line) {
             let captures = RE_CUT.captures(line).unwrap();
-            let n = captures.get(1).unwrap().as_str().parse::<i16>().unwrap();
+            let n = captures.get(1).unwrap().as_str().parse::<i128>().unwrap();
             return ShuffleInstruction::Cut(n);
         } else if RE_DEAL_WITH_INCREMENT.is_match(line) {
             let captures = RE_DEAL_WITH_INCREMENT.captures(line).unwrap();
-            let increment = captures.get(1).unwrap().as_str().parse::<u8>().unwrap();
+            let increment = captures.get(1).unwrap().as_str().parse::<i128>().unwrap();
             return ShuffleInstruction::DealWithIncrement(increment);
         } else if RE_DEAL_NEW_STACK.is_match(line) {
             return ShuffleInstruction::DealNewStack;
         } else {
             panic!("cannot parse line: {}", line);
         }
+    }
+}
+
+#[derive(Debug)]
+struct ShuffleInstructions {
+    deck_size: i128,
+    instructions: Vec<ShuffleInstruction>,
+}
+
+impl ShuffleInstructions {
+    fn parse(deck_size: usize, input: &str) -> ShuffleInstructions {
+        let instructions = input.lines().map(|line| ShuffleInstruction::parse(line)).collect();
+        ShuffleInstructions::new(deck_size as i128, instructions)
+    }
+    
+    fn new(deck_size: i128, instructions: Vec<ShuffleInstruction>) -> ShuffleInstructions {
+        return ShuffleInstructions {
+            deck_size: deck_size,
+            instructions: instructions,
+        }
+    }
+
+    fn collapse(&self) -> ShuffleInstructions {
+        let normalized = self.normalize();
+        normalized.collapse_rest()
+    }
+
+    fn normalize(&self) -> ShuffleInstructions {
+        let mut new_instructions = vec![];
+        for instruction in &self.instructions {
+            match instruction {
+                ShuffleInstruction::Cut(n) => {
+                    if *n < 0 {
+                        // negative cuts can be converted to positive cut
+                        // eg for deck size 10, cut -3 == cut 7
+                        new_instructions.push(ShuffleInstruction::Cut(self.deck_size + *n));
+                    } else {
+                        new_instructions.push(*instruction);
+                    }
+                },
+                ShuffleInstruction::DealWithIncrement(_) => {
+                    new_instructions.push(*instruction);
+                },
+                ShuffleInstruction::DealNewStack => {
+                    // can be substituted with cut -1, deal with increment {deck size - 1}
+                    new_instructions.push(ShuffleInstruction::Cut(self.deck_size - 1));
+                    new_instructions.push(ShuffleInstruction::DealWithIncrement(self.deck_size - 1));
+                },
+            }
+        }
+        ShuffleInstructions::new(self.deck_size, new_instructions)
+    }
+
+    fn collapse_rest(&self) -> ShuffleInstructions {
+        let mut acc_increment = 1;
+        let mut acc_cut = 0;
+
+        // iterate in reverse since cuts are multiplied by increments *after* them,
+        // and since increments are multiplied by each other, order doesn't matter
+        for instruction in self.instructions.iter().rev() {
+            match instruction {
+                ShuffleInstruction::Cut(n) => {
+                    // cut is scaled by current increment and then added to current cut value
+                    let cut_value = *n * acc_increment;
+                    acc_cut = (acc_cut + cut_value) % self.deck_size;
+                },
+                ShuffleInstruction::DealWithIncrement(n) => {
+                    // incrument is scaled
+                    let increment_value = *n;
+                    acc_increment = (acc_increment * increment_value) % self.deck_size;
+                },
+                ShuffleInstruction::DealNewStack => {
+                    panic!("Unreachable");
+                },
+            }
+        }
+
+        let new_instructions = vec![
+            ShuffleInstruction::DealWithIncrement(acc_increment),
+            ShuffleInstruction::Cut(acc_cut),
+        ];
+        ShuffleInstructions::new(self.deck_size, new_instructions)
     }
 }
 
@@ -119,14 +203,14 @@ impl CompositeShuffleInstruction {
         }
     }
 
-    fn from_instructions(instructions: &[ShuffleInstruction], deck_size: usize) -> CompositeShuffleInstruction {
+    fn from_instructions(instructions: &ShuffleInstructions, deck_size: usize) -> CompositeShuffleInstruction {
         let mut res = CompositeShuffleInstruction::new(deck_size as i128);
         res.apply_all(instructions);
         res
     }
 
-    fn apply_all(&mut self, instructions: &[ShuffleInstruction]) {
-        for instruction in instructions {
+    fn apply_all(&mut self, instructions: &ShuffleInstructions) {
+        for instruction in &instructions.instructions {
             self.apply(instruction);
         }
     }
@@ -230,9 +314,9 @@ impl CompositeShuffleInstruction {
         to_index as usize
     }
 
-    fn run_reverse(&self, to_index: usize) -> usize {
-        0
-    }
+    // fn run_reverse(&self, to_index: usize) -> usize {
+    //     0
+    // }
 }
 
 #[derive(Debug)]
@@ -253,20 +337,20 @@ impl Deck {
         }
     }
 
-    fn shuffle(&mut self, instructions: &[ShuffleInstruction]) {
-        for instruction in instructions {
-            println!("shuffle step: {:?}", instruction);
+    fn shuffle(&mut self, instructions: &ShuffleInstructions) {
+        for instruction in &instructions.instructions {
+            //println!("shuffle step: {:?}", instruction);
             match instruction {
                 ShuffleInstruction::Cut(n) => self.cut(*n),
                 ShuffleInstruction::DealWithIncrement(n) => self.deal_with_increment(*n),
                 ShuffleInstruction::DealNewStack => self.deal_new_stack(),
             }
-            println!("after step: {:?}", self.cards);
+            //println!("after step: {:?}", self.cards);
         }
     }
 
-    fn cut(&mut self, n: i16) {
-        println!("cut: {:?}", n);
+    fn cut(&mut self, n: i128) {
+        //println!("cut: {:?}", n);
         if n > 0 {
             self.cards.rotate_left(n.try_into().unwrap());
         } else {
@@ -274,8 +358,8 @@ impl Deck {
         }
     }
 
-    fn deal_with_increment(&mut self, n: u8) {
-        println!("deal_with_increment: {:?}", n);
+    fn deal_with_increment(&mut self, n: i128) {
+        //println!("deal_with_increment: {:?}", n);
         for from_index in 0..self.size {
             let to_index = ((from_index as usize) * (n as usize)) % (self.size as usize);
             self.table[to_index] = self.cards[(from_index as usize)];
@@ -284,7 +368,7 @@ impl Deck {
     }
 
     fn deal_new_stack(&mut self) {
-        println!("deal_new_stack");
+        //println!("deal_new_stack");
         self.cards.reverse();
     }
 }
