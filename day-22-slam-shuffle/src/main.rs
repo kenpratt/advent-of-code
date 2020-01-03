@@ -14,9 +14,9 @@ fn main() {
 
 fn part1() {
     let input_str = fs::read_to_string("input.txt").expect("Something went wrong reading the file");
-    let deck = shuffle(10007, &input_str);
+    let deck = shuffle_(10007, &input_str, true);
     assert_eq!(deck.cards.iter().position(|&c| c == 2019), Some(2558));
-    test_repeated(10007, 10, &input_str);
+    test_repeated(10007, 10, &input_str, true);
 }
 
 fn part2() {
@@ -30,10 +30,14 @@ fn part2() {
     println!("repeated_instructions: {:?}", repeated_instructions);
 
     let from_index = repeated_instructions.calculate_from_index(2020);
-    assert_eq!(from_index, 1);
+    assert_eq!(from_index, 63967243502561);
 }
 
 fn shuffle(deck_size: usize, input_str: &str) -> Deck {
+    shuffle_(deck_size, input_str, false)
+}
+
+fn shuffle_(deck_size: usize, input_str: &str, check_backwards: bool) -> Deck {
     let instructions = ShuffleInstructions::parse(deck_size, input_str);
     let mut deck = Deck::new(deck_size);
     deck.shuffle(&instructions);
@@ -44,10 +48,15 @@ fn shuffle(deck_size: usize, input_str: &str) -> Deck {
     deck2.shuffle(&collapsed_instructions.materialize());
     assert_eq!(deck.cards, deck2.cards);
 
+    if check_backwards {
+        let cards: Vec<usize> = (0..deck_size).map(|i| collapsed_instructions.calculate_from_index(i)).collect();
+        assert_eq!(deck.cards, cards);
+    }
+
     deck
 }
 
-fn test_repeated(deck_size: usize, times: i128, input_str: &str) {
+fn test_repeated(deck_size: usize, times: i128, input_str: &str, check_backwards: bool) {
     let instructions = ShuffleInstructions::parse(deck_size, input_str);
 
     println!("---- repeated test ----");
@@ -85,6 +94,11 @@ fn test_repeated(deck_size: usize, times: i128, input_str: &str) {
 
     assert_eq!(deck1.cards, deck2.cards);
     assert_eq!(deck1.cards, deck3.cards);
+
+    if check_backwards {
+        let cards: Vec<usize> = (0..deck_size).map(|i| virtually_repeated.calculate_from_index(i)).collect();
+        assert_eq!(deck1.cards, cards);
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -199,6 +213,7 @@ impl ShuffleInstructions {
 struct CollapsedShuffleInstructions {
     deck_size: i128,
     increment_value: i128,
+    inverse_increment_value: Option<i128>,
     cut_value: i128,
 }
 
@@ -207,6 +222,7 @@ impl CollapsedShuffleInstructions {
         CollapsedShuffleInstructions {
             deck_size: deck_size,
             increment_value: increment_value,
+            inverse_increment_value: modinverse(increment_value, deck_size),
             cut_value: cut_value,
         }
     }
@@ -250,12 +266,15 @@ impl CollapsedShuffleInstructions {
     }
 
     fn calculate_from_index(&self, to_index: usize) -> usize {
-        // let mut from_index = to_index as i128;
+        let mut from_index = to_index as i128;
 
-        // // apply cut (positive since going in reverse)
-        // from_index = (from_index + self.cut_value) % self.deck_size;
+        // apply cut (positive since going in reverse)
+        from_index = (from_index + self.cut_value) % self.deck_size;
 
-        // // apply increment
+        // apply increment
+        //println!("inverse_increment: {:?}", self.inverse_increment_value);
+        from_index = (from_index * self.inverse_increment_value.unwrap()) % self.deck_size;
+
         // let offset = from_index % self.increment_value;
         // println!("want to reverse increment... from_index {}, increment value {}, offset {}, deck_size {}", from_index, self.increment_value, offset, self.deck_size);
 
@@ -276,10 +295,10 @@ impl CollapsedShuffleInstructions {
         // println!("reverse increment... from_index {}, increment value {}, offset {}, multiple {}, deck_size {}, base {}", from_index, self.increment_value, offset, multiple, self.deck_size, base);
         // from_index = (from_index + base) / self.increment_value;
 
-        let x = modinverse(self.increment_value, self.deck_size);
-        println!("modinverse: {:?}", x);
+        // let x = modinverse(self.increment_value, self.deck_size);
+        // println!("modinverse: {:?}", x);
 
-        to_index as usize
+        from_index as usize
     }
 }
 
