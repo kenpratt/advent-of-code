@@ -4,6 +4,7 @@ extern crate regex;
 use std::convert::TryInto;
 use std::fs;
 use mod_exp::mod_exp;
+use modinverse::modinverse;
 use regex::Regex;
 
 fn main() {
@@ -15,6 +16,7 @@ fn part1() {
     let input_str = fs::read_to_string("input.txt").expect("Something went wrong reading the file");
     let deck = shuffle(10007, &input_str);
     assert_eq!(deck.cards.iter().position(|&c| c == 2019), Some(2558));
+    test_repeated(10007, 10, &input_str);
 }
 
 fn part2() {
@@ -42,13 +44,12 @@ fn shuffle(deck_size: usize, input_str: &str) -> Deck {
     deck2.shuffle(&collapsed_instructions.materialize());
     assert_eq!(deck.cards, deck2.cards);
 
-    // test repeated
-    test_repeated(deck_size, instructions, 3);
-
     deck
 }
 
-fn test_repeated(deck_size: usize, instructions: ShuffleInstructions, times: i128) {
+fn test_repeated(deck_size: usize, times: i128, input_str: &str) {
+    let instructions = ShuffleInstructions::parse(deck_size, input_str);
+
     println!("---- repeated test ----");
     let mut basic_manually_repeated_vec = vec![];
     for _ in 0..times {
@@ -213,8 +214,9 @@ impl CollapsedShuffleInstructions {
     fn multiply(&self, n: i128) -> CollapsedShuffleInstructions {
         // new increment value is:
         // (i0 * i1 * i2 * ... * in) % deck_size
-        // (increment_value ^ n) % deck_size
+        // (i^n) % deck_size
         let new_increment_value = mod_exp(self.increment_value, n, self.deck_size);
+        println!("new increment(i={}, n={}, m={}) = {}", self.increment_value, n, self.deck_size, new_increment_value);
 
         // virtual goes increment, cut, increment, cut, increment, cut, ...
         // new cut value is:
@@ -222,11 +224,47 @@ impl CollapsedShuffleInstructions {
         // ((c * i^0) + (c * i^1) + (c * i^2) + ... + (c * i^n-1)) % deck_size
         // (c * (i^0 + i^1 + i^2 + ... + i^n-1)) % deck_size
         // (c * ((i^n - 1) / (i - 1))) % deck_size
+        // ((c % deck_size) * (((i^n - 1) / (i - 1))) % deck_size) % deck_size
+
+        // breaking out ((i^n - 1) / (i - 1))) % deck_size
+        // from https://www.quora.com/Is-there-a-fast-way-to-compute-the-sum-of-a-geometric-series-modulo-a-given-integer-i-e-1-a-a-2-ldots-a-n-mod-m-where-a-m-and-n-are-integers
+        //        
+        // ((i^n - 1) * mod_inverse(i - i)) % deck_size
+
+
+        //let foo = (cut_value * ((new_increment_value - 1) / (i - 1))) % deck_size;
+        // cut_multiple = ((new_increment_value - 1) / (i - 1)))
+
         let cut_multiple = if new_increment_value > 1 {
-            (self.increment_value.pow(n.try_into().unwrap()) - 1) / (self.increment_value - 1) 
+            println!("calculating cut multiple {} {} {}", new_increment_value, self.increment_value, self.deck_size);
+            // ((i^n - 1) * mod_inverse(i - i)) % deck_size
+
+            // (i^n - 1)
+            let x = new_increment_value - 1;
+            println!("x = {}", x);
+
+            // mod_inverse(i - 1)
+            let inverse = modinverse(self.increment_value - 1, self.deck_size);
+            println!("y = {:?}", inverse);
+            let y = inverse.unwrap();
+
+            println!("cut_multiple = {}", (x * y) % self.deck_size);
+            (x * y) % self.deck_size
         } else {
             n
         };
+
+
+        // i=7, n=3
+        // (c * 1 + c * 7 + c * 49) % 10
+        // c * (1 + 7 + 49) % 10
+        // c * 57 % 10
+        // ((c % 10) * (57 % 10)) % 10
+        // (c * 7) % 10
+
+        // (7^3 - 1) / (7 - 1) = (343 - 1) / (7 - 1) = 342/6 = 57, % 10 = 7
+
+
         let new_cut_value = (self.cut_value * cut_multiple) % self.deck_size;
 
         println!("multiply n: {}, increment: {}, cut: {}, deck_size: {} => new increment value: {}, new cut value: {}, cut_multiple: {}", n, self.increment_value, self.cut_value, self.deck_size, new_increment_value, new_cut_value, cut_multiple);
@@ -242,14 +280,14 @@ impl CollapsedShuffleInstructions {
     }
 
     fn calculate_from_index(&self, to_index: usize) -> usize {
-        let mut from_index = to_index as i128;
+        // let mut from_index = to_index as i128;
 
-        // apply cut (positive since going in reverse)
-        from_index = (from_index + self.cut_value) % self.deck_size;
+        // // apply cut (positive since going in reverse)
+        // from_index = (from_index + self.cut_value) % self.deck_size;
 
-        // apply increment
-        let offset = from_index % self.increment_value;
-        println!("want to reverse increment... from_index {}, increment value {}, offset {}, deck_size {}", from_index, self.increment_value, offset, self.deck_size);
+        // // apply increment
+        // let offset = from_index % self.increment_value;
+        // println!("want to reverse increment... from_index {}, increment value {}, offset {}, deck_size {}", from_index, self.increment_value, offset, self.deck_size);
 
         // TODO need to do inverse of:
         // let to_index = (from_index * self.increment_value) % self.deck_size;
@@ -268,7 +306,10 @@ impl CollapsedShuffleInstructions {
         // println!("reverse increment... from_index {}, increment value {}, offset {}, multiple {}, deck_size {}, base {}", from_index, self.increment_value, offset, multiple, self.deck_size, base);
         // from_index = (from_index + base) / self.increment_value;
 
-        from_index as usize
+        let x = modinverse(self.increment_value, self.deck_size);
+        println!("modinverse: {:?}", x);
+
+        to_index as usize
     }
 }
 
