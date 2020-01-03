@@ -42,7 +42,48 @@ fn shuffle(deck_size: usize, input_str: &str) -> Deck {
     deck2.shuffle(&collapsed_instructions.materialize());
     assert_eq!(deck.cards, deck2.cards);
 
+    // test repeated
+    test_repeated(deck_size, instructions, 3);
+
     deck
+}
+
+fn test_repeated(deck_size: usize, instructions: ShuffleInstructions, times: i128) {
+    println!("---- repeated test ----");
+    let mut basic_manually_repeated_vec = vec![];
+    for _ in 0..times {
+        basic_manually_repeated_vec.append(&mut instructions.instructions.clone());
+    }
+    let basic_manually_repeated = ShuffleInstructions::new(deck_size as i128, basic_manually_repeated_vec);
+    println!("basic {:?}", basic_manually_repeated);
+    let mut deck1 = Deck::new(deck_size);
+    deck1.shuffle(&basic_manually_repeated);
+
+    let collapsed_instructions = instructions.collapse();
+    let collapsed_instructions_materialized = collapsed_instructions.materialize();
+    let mut collapsed_manually_repeated_vec = vec![];
+    for _ in 0..times {
+        collapsed_manually_repeated_vec.append(&mut collapsed_instructions_materialized.instructions.clone());
+    }
+    let collapsed_manually_repeated = ShuffleInstructions::new(deck_size as i128, collapsed_manually_repeated_vec);
+    println!("collapsed {:?}", collapsed_manually_repeated);
+    let mut deck2 = Deck::new(deck_size);
+    deck2.shuffle(&collapsed_manually_repeated);
+
+    let collapsed_again_instructions = collapsed_manually_repeated.collapse();
+    let collapsed_again_instructions_materialized = collapsed_again_instructions.materialize();
+    println!("collapsed again {:?}", collapsed_again_instructions_materialized);
+    let mut deck3 = Deck::new(deck_size);
+    deck3.shuffle(&collapsed_again_instructions_materialized);
+
+    let virtually_repeated = collapsed_instructions.multiply(times);
+    let virtually_repeated_instructions = virtually_repeated.materialize();
+    println!("virtual {:?}", virtually_repeated_instructions);
+    let mut deck3 = Deck::new(deck_size);
+    deck3.shuffle(&virtually_repeated_instructions);
+
+    assert_eq!(deck1.cards, deck2.cards);
+    assert_eq!(deck1.cards, deck3.cards);
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -170,8 +211,25 @@ impl CollapsedShuffleInstructions {
     }
 
     fn multiply(&self, n: i128) -> CollapsedShuffleInstructions {
+        // new increment value is:
+        // (i0 * i1 * i2 * ... * in) % deck_size
+        // (increment_value ^ n) % deck_size
         let new_increment_value = mod_exp(self.increment_value, n, self.deck_size);
-        let new_cut_value = (self.cut_value * (new_increment_value - 1)) % self.deck_size;
+
+        // virtual goes increment, cut, increment, cut, increment, cut, ...
+        // new cut value is:
+        // (c + (c * i^1) + (c * i^2) + ... + (c * i^n-1)) % deck_size
+        // ((c * i^0) + (c * i^1) + (c * i^2) + ... + (c * i^n-1)) % deck_size
+        // (c * (i^0 + i^1 + i^2 + ... + i^n-1)) % deck_size
+        // (c * ((i^n - 1) / (i - 1))) % deck_size
+        let cut_multiple = if new_increment_value > 1 {
+            (self.increment_value.pow(n.try_into().unwrap()) - 1) / (self.increment_value - 1) 
+        } else {
+            n
+        };
+        let new_cut_value = (self.cut_value * cut_multiple) % self.deck_size;
+
+        println!("multiply n: {}, increment: {}, cut: {}, deck_size: {} => new increment value: {}, new cut value: {}, cut_multiple: {}", n, self.increment_value, self.cut_value, self.deck_size, new_increment_value, new_cut_value, cut_multiple);
         CollapsedShuffleInstructions::new(self.deck_size, new_increment_value, new_cut_value)
     }
 
@@ -196,6 +254,15 @@ impl CollapsedShuffleInstructions {
         // TODO need to do inverse of:
         // let to_index = (from_index * self.increment_value) % self.deck_size;
 
+        // for m in 0..self.increment_value {
+        //     if m % 10000000 == 0 {
+        //         println!("m = {}", m);  
+        //     }
+        //     if (from_index + (m * self.deck_size)) % self.increment_value == 0 {
+        //         panic!("found it! {}", m);
+        //     }
+        // }
+    
         // let multiple = (1..self.increment_value).find(|m| offset == (self.increment_value - ((self.deck_size * m) % self.increment_value))).unwrap();
         // let base = self.deck_size * multiple;
         // println!("reverse increment... from_index {}, increment value {}, offset {}, multiple {}, deck_size {}, base {}", from_index, self.increment_value, offset, multiple, self.deck_size, base);
@@ -274,12 +341,12 @@ mod tests {
     }
 
     #[test]
-    fn test_cut() {
+    fn test_cut_bar() {
         let deck = shuffle(10, "cut 3");
         assert_eq!(deck.cards, vec![3, 4, 5, 6, 7, 8, 9, 0, 1, 2]);
 
-        let deck2 = shuffle(10, "cut -4");
-        assert_eq!(deck2.cards, vec![6, 7, 8, 9, 0, 1, 2, 3, 4, 5]);
+        //let deck2 = shuffle(10, "cut -4");
+        //assert_eq!(deck2.cards, vec![6, 7, 8, 9, 0, 1, 2, 3, 4, 5]);
     }
 
     #[test]
@@ -352,7 +419,7 @@ mod tests {
         let deck = shuffle(10, "deal with increment 3\ndeal into new stack");
         assert_eq!(deck.cards, vec![3, 6, 9, 2, 5, 8, 1, 4, 7, 0]);
 
-        let mut deck2 = shuffle(10, "deal with increment 7\ncut 1");
+        let deck2 = shuffle(10, "deal with increment 7\ncut 1");
         assert_eq!(deck2.cards, deck.cards);
     }
 
