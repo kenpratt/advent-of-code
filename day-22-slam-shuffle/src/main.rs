@@ -216,58 +216,28 @@ impl CollapsedShuffleInstructions {
         // (i0 * i1 * i2 * ... * in) % deck_size
         // (i^n) % deck_size
         let new_increment_value = mod_exp(self.increment_value, n, self.deck_size);
-        println!("new increment(i={}, n={}, m={}) = {}", self.increment_value, n, self.deck_size, new_increment_value);
+        //println!("new increment(i={}, n={}, m={}) = {}", self.increment_value, n, self.deck_size, new_increment_value);
 
         // virtual goes increment, cut, increment, cut, increment, cut, ...
         // new cut value is:
-        // (c + (c * i^1) + (c * i^2) + ... + (c * i^n-1)) % deck_size
         // ((c * i^0) + (c * i^1) + (c * i^2) + ... + (c * i^n-1)) % deck_size
         // (c * (i^0 + i^1 + i^2 + ... + i^n-1)) % deck_size
         // (c * ((i^n - 1) / (i - 1))) % deck_size
-        // ((c % deck_size) * (((i^n - 1) / (i - 1))) % deck_size) % deck_size
 
-        // breaking out ((i^n - 1) / (i - 1))) % deck_size
-        // from https://www.quora.com/Is-there-a-fast-way-to-compute-the-sum-of-a-geometric-series-modulo-a-given-integer-i-e-1-a-a-2-ldots-a-n-mod-m-where-a-m-and-n-are-integers
-        //        
+        // breaking out ((i^n - 1) / (i - 1)) % deck_size:
         // ((i^n - 1) * mod_inverse(i - i)) % deck_size
 
-
-        //let foo = (cut_value * ((new_increment_value - 1) / (i - 1))) % deck_size;
-        // cut_multiple = ((new_increment_value - 1) / (i - 1)))
-
         let cut_multiple = if new_increment_value > 1 {
-            println!("calculating cut multiple {} {} {}", new_increment_value, self.increment_value, self.deck_size);
             // ((i^n - 1) * mod_inverse(i - i)) % deck_size
-
-            // (i^n - 1)
             let x = new_increment_value - 1;
-            println!("x = {}", x);
-
-            // mod_inverse(i - 1)
-            let inverse = modinverse(self.increment_value - 1, self.deck_size);
-            println!("y = {:?}", inverse);
-            let y = inverse.unwrap();
-
-            println!("cut_multiple = {}", (x * y) % self.deck_size);
+            let y = modinverse(self.increment_value - 1, self.deck_size).unwrap();
             (x * y) % self.deck_size
         } else {
             n
         };
-
-
-        // i=7, n=3
-        // (c * 1 + c * 7 + c * 49) % 10
-        // c * (1 + 7 + 49) % 10
-        // c * 57 % 10
-        // ((c % 10) * (57 % 10)) % 10
-        // (c * 7) % 10
-
-        // (7^3 - 1) / (7 - 1) = (343 - 1) / (7 - 1) = 342/6 = 57, % 10 = 7
-
-
         let new_cut_value = (self.cut_value * cut_multiple) % self.deck_size;
 
-        println!("multiply n: {}, increment: {}, cut: {}, deck_size: {} => new increment value: {}, new cut value: {}, cut_multiple: {}", n, self.increment_value, self.cut_value, self.deck_size, new_increment_value, new_cut_value, cut_multiple);
+        //println!("multiply n: {}, increment: {}, cut: {}, deck_size: {} => new increment value: {}, new cut value: {}, cut_multiple: {}", n, self.increment_value, self.cut_value, self.deck_size, new_increment_value, new_cut_value, cut_multiple);
         CollapsedShuffleInstructions::new(self.deck_size, new_increment_value, new_cut_value)
     }
 
