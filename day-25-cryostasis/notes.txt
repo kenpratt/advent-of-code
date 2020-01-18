@@ -7,6 +7,11 @@
 - Should ensure that there's no:
   - Duplicate items (array removal and set won't work)
   - Doors that lead to paths that aren't on the grid (eg left-down-right leads to a different room than down)
+    - There are! east-east-down-east-north-west is != east-east
+    - So, I need to get rid of coords I guess and just do neighbours? That's gonna make the printer harder...
+      - Or I could relabel coords when this happens, eg shift all x values from that point to the right one,
+        but that doesn't totally solve it as then my current visiting neighbours code breaks.
+    - Maybe better to just get rid of grid? Renderer will be harder though.
 
 - Tell the bot to explore, by keeping a list of unexplored rooms
   - Use A* to navigate there
