@@ -7,6 +7,25 @@ class Simulation
     @neighbours = @map.coords.map {|c| [c, c.neighbours.values]}.to_h
   end
 
+  def run_until_repeat
+    history = Set.new
+    history << self.to_s
+
+    found_duplicate = false
+    while !found_duplicate
+      tick
+
+      s = self.to_s
+      if history.include?(s)
+        found_duplicate = true
+      else
+        history << s
+      end
+    end
+
+    self
+  end
+
   def tick
     new_cells = @map.coords.map do |c|
       [c, new_value(c)]
@@ -39,5 +58,15 @@ class Simulation
 
   def to_s
     @map.to_s(borders: false) {|_, alive| alive ? '#' : '.'}
+  end
+
+  def biodiversity_rating
+    output = 0
+    x = 1
+    @map.cells.each do |_, v|
+      output += x if v
+      x *= 2
+    end
+    output
   end
 end
