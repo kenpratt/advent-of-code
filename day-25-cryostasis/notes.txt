@@ -1,0 +1,14 @@
+- Write a method to render a fancier version of the map. Maybe an ascii map with:
+  - Borders between the cells
+  - Room name
+  - Items in room
+  - ...I wonder if it may be easier to output HTML?
+
+- Should ensure that there's no:
+  - Duplicate items (array removal and set won't work)
+  - Doors that lead to paths that aren't on the grid (eg left-down-right leads to a different room than down)
+
+- Tell the bot to explore, by keeping a list of unexplored rooms
+  - Use A* to navigate there
+
+- TODO pressure sensitive rooms
