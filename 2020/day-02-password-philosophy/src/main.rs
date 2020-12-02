@@ -3,7 +3,7 @@ use regex::Regex;
 
 fn main() {
     println!("part 1 result: {:?}", part1(read_input_file()));
-    //println!("part 2 result: {:?}", part2(read_input_file()));
+    println!("part 2 result: {:?}", part2(read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -17,8 +17,8 @@ fn parse_input(input: String) -> Vec<PasswordWithPolicy> {
 #[derive(Debug)]
 struct PasswordWithPolicy {
     target_character: char,
-    minimum: u8,
-    maximum: u8,
+    minimum: usize,
+    maximum: usize,
     password: String,
 }
 
@@ -26,8 +26,8 @@ impl PasswordWithPolicy {
     fn parse(line: &str) -> PasswordWithPolicy {
         let re = Regex::new(r"^(\d+)\-(\d+) ([a-z]): ([a-z]+)$").unwrap();
         let captures = re.captures(line).unwrap();
-        let minimum = captures.get(1).unwrap().as_str().parse::<u8>().unwrap();
-        let maximum = captures.get(2).unwrap().as_str().parse::<u8>().unwrap();
+        let minimum = captures.get(1).unwrap().as_str().parse::<usize>().unwrap();
+        let maximum = captures.get(2).unwrap().as_str().parse::<usize>().unwrap();
         let target_character = captures.get(3).unwrap().as_str().parse::<char>().unwrap();
         let password = captures.get(4).unwrap().as_str().into();
         return PasswordWithPolicy {
@@ -38,20 +38,26 @@ impl PasswordWithPolicy {
         };        
     }
 
-    fn valid(&self) -> bool {
+    fn valid_using_count_policy(&self) -> bool {
         let num_matches = self.password.chars().filter(|&c| c == self.target_character).count();
-        return num_matches >= self.minimum.into() && num_matches <= self.maximum.into();
+        return num_matches >= self.minimum && num_matches <= self.maximum;
+    }
+
+    fn valid_using_index_policy(&self) -> bool {
+        let pass1 = self.password.chars().nth(self.minimum - 1) == Some(self.target_character);
+        let pass2 = self.password.chars().nth(self.maximum - 1) == Some(self.target_character);
+        return (pass1 || pass2) && !(pass1 && pass2);
     }
 }
 
 fn part1(input: String) -> usize {
     let entries = parse_input(input);
-    return entries.iter().filter(|&e| e.valid()).count();
+    return entries.iter().filter(|&e| e.valid_using_count_policy()).count();
 }
 
-fn part2(input: String) -> u64 {
+fn part2(input: String) -> usize {
     let entries = parse_input(input);
-    panic!("Error parsing input");
+    return entries.iter().filter(|&e| e.valid_using_index_policy()).count();
 }
 
 #[cfg(test)]
@@ -74,19 +80,19 @@ mod tests {
         assert_eq!(result, 636);
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(
-    //         "".to_string()
-    //     );
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example1() {
+        let result = part2(
+            "1-3 a: abcde\n1-3 b: cdefg\n2-9 c: ccccccccc".to_string()
+        );
+        assert_eq!(result, 1);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(
-    //         read_input_file()
-    //     );
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(
+            read_input_file()
+        );
+        assert_eq!(result, 588);
+    }
 }
