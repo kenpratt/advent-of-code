@@ -1,5 +1,5 @@
 .DS_Store
-*/target
+*/*/target
 *.log
 profile*.txt
 output*.txt
