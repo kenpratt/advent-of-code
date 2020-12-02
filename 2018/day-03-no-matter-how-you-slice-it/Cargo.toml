@@ -1,0 +1,8 @@
+[package]
+name = "day-03-no-matter-how-you-slice-it"
+version = "0.1.0"
+authors = ["Ken Pratt <ken@stripe.com>"]
+edition = "2018"
+
+[dependencies]
+regex = "1"

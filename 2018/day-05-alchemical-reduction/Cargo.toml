@@ -1,0 +1,7 @@
+[package]
+name = "day-05-alchemical-reduction"
+version = "0.1.0"
+authors = ["Ken Pratt <ken@stripe.com>"]
+edition = "2018"
+
+[dependencies]
