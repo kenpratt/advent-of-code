@@ -9,23 +9,37 @@ fn read_input_file() -> String {
     return fs::read_to_string("input.txt").expect("Something went wrong reading the file");
 }
 
-fn parse_input(input: String) -> Vec<u64> {
-    return input.lines().map(|line| parse_line(line)).collect();
+#[derive(Debug)]
+struct Data {
+    lines: Vec<usize>,
 }
 
-fn parse_line(line: &str) -> u64 {
-    return line.parse::<u64>().unwrap();
+impl Data {
+    fn parse(input: String) -> Data {
+        let lines = input.lines().map(|line| Data::parse_line(line)).collect();
+        return Data {
+            lines: lines,
+        }
+    }
+    
+    fn parse_line(line: &str) -> usize {
+        return line.parse::<usize>().unwrap();
+    }
+
+    fn execute(&self) -> usize {
+        return 0;
+    }
 }
 
-fn part1(input: String) -> u64 {
-    let entries = parse_input(input);
-    panic!("Error parsing input");
+fn part1(input: String) -> usize {
+    let data = Data::parse(input);
+    return data.execute();
 }
 
-fn part2(input: String) -> u64 {
-    let entries = parse_input(input);
-    panic!("Error parsing input");
-}
+// fn part2(input: String) -> usize {
+//     let data = Data::parse(input);
+//     return data.execute();
+// }
 
 #[cfg(test)]
 mod tests {
