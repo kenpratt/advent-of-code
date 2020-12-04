@@ -2,7 +2,7 @@ use std::fs;
 
 fn main() {
     println!("part 1 result: {:?}", part1(read_input_file()));
-    //println!("part 2 result: {:?}", part2(read_input_file()));
+    println!("part 2 result: {:?}", part2(read_input_file()));
 }
 
 fn read_input_file() -> String {
