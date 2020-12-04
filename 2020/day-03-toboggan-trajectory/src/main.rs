@@ -38,7 +38,7 @@ impl Map {
         };
     }
 
-    fn count_trees(&self, right: usize, down: usize) -> usize {
+    fn check_slope(&self, right: usize, down: usize) -> usize {
         let mut x = 0;
         let mut y = 0;
         let mut trees = 0;
@@ -62,12 +62,21 @@ impl Map {
 
 fn part1(input: String) -> usize {
     let map = Map::parse(input);
-    return map.count_trees(3, 1);
+    return map.check_slope(3, 1);
 }
 
 fn part2(input: String) -> usize {
-    let entries = Map::parse(input);
-    panic!("Error parsing input");
+    let map = Map::parse(input);
+
+    let slopes = vec![
+        (1, 1),
+        (3, 1),
+        (5, 1),
+        (7, 1),
+        (1, 2),
+    ];
+
+    return slopes.iter().map(|(r, d)| map.check_slope(*r, *d)).fold(1, |acc, x| acc * x);
 }
 
 #[cfg(test)]
@@ -90,19 +99,19 @@ mod tests {
         assert_eq!(result, 294);
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(
-    //         "".to_string()
-    //     );
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example1() {
+        let result = part2(
+            "..##.......\n#...#...#..\n.#....#..#.\n..#.#...#.#\n.#...##..#.\n..#.##.....\n.#.#.#....#\n.#........#\n#.##...#...\n#...##....#\n.#..#...#.#".to_string()
+        );
+        assert_eq!(result, 336);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(
-    //         read_input_file()
-    //     );
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(
+            read_input_file()
+        );
+        assert_eq!(result, 5774564250);
+    }
 }
