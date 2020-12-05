@@ -32,12 +32,6 @@ impl PassportList {
     }
 }
 
-lazy_static! {
-    static ref REQUIRED_FIELDS1: Vec<(&'static str, Regex)> = vec![
-        ("byr", Regex::new(r"^\d{4}$").unwrap()),
-    ];
-}
-
 const REQUIRED_FIELDS: &'static [&'static str] = &[
     "byr", // (Birth Year)
     "iyr", // (Issue Year)
