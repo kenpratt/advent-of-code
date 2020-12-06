@@ -2,7 +2,7 @@ use std::fs;
 
 fn main() {
     println!("part 1 result: {:?}", part1(read_input_file()));
-    //println!("part 2 result: {:?}", part2(read_input_file()));
+    println!("part 2 result: {:?}", part2(read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -99,10 +99,22 @@ fn part1(input: String) -> usize {
     return passes.iter().map(|p| p.seat_id).max().unwrap();
 }
 
-// fn part2(input: String) -> usize {
-//     let data = Data::parse(input);
-//     return data.execute();
-// }
+fn part2(input: String) -> Result<usize, String> {
+    let passes = parse_input(&input);
+
+    let mut seat_ids: Vec<usize> = passes.iter().map(|p| p.seat_id).collect();
+    seat_ids.sort();
+
+    for i in 0..(seat_ids.len() - 2) {
+        let seat1 = seat_ids[i];
+        let seat2 = seat_ids[i+1];
+        if seat2 - seat1 > 1 {
+            return Ok(seat1 + 1);
+        }
+    }
+
+    return Err("Didn't find a gap in the seats".to_string());
+}
 
 #[cfg(test)]
 mod tests {
@@ -148,19 +160,11 @@ mod tests {
         assert_eq!(result, 953);
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(
-    //         "".to_string()
-    //     );
-    //     assert_eq!(result, 0);
-    // }
-
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(
-    //         read_input_file()
-    //     );
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(
+            read_input_file()
+        );
+        assert_eq!(result.unwrap(), 615);
+    }
 }
