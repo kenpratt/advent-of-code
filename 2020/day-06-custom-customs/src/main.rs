@@ -29,14 +29,19 @@ impl Group {
     }
     
     fn union_size(&self) -> usize {
-        let chars_union: HashSet<char> = self.people.join("").chars().collect();
-        return chars_union.len();
+        let sets = self.char_sets();
+        let union = sets[1..].iter().fold(sets[0].clone(), |acc, x| acc.union(&x).cloned().collect());
+        return union.len();        
     }
     
     fn intersection_size(&self) -> usize {        
-        let base: HashSet<char> = self.people[0].chars().collect();
-        let intersection = self.people[1..].iter().fold(base, |acc, x| acc.intersection(&x.chars().collect()).cloned().collect());
+        let sets = self.char_sets();
+        let intersection = sets[1..].iter().fold(sets[0].clone(), |acc, x| acc.intersection(&x).cloned().collect());
         return intersection.len();
+    }
+
+    fn char_sets(&self) -> Vec<HashSet<char>> {
+        return self.people.iter().map(|p| p.chars().collect()).collect();
     }
 }
 
