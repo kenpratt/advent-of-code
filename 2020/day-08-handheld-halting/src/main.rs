@@ -7,7 +7,7 @@ use regex::Regex;
 
 fn main() {
     println!("part 1 result: {:?}", part1(read_input_file()));
-    //println!("part 2 result: {:?}", part2(read_input_file()));
+    println!("part 2 result: {:?}", part2(read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -24,33 +24,44 @@ struct Program {
 impl Program {
     fn parse(input: &str) -> Program {
         let instructions = input.lines().map(|line| Instruction::parse(line)).collect();
+        return Program::new(instructions);
+    }
+
+    fn new(instructions: Vec<Instruction>) -> Program {
         return Program {
             instructions: instructions,
             accumulator: 0,
             instruction_pointer: 0,
-        }
+        };
     }
 
-    fn execute(&mut self) -> isize {
+    fn execute(&mut self) -> (isize, Termination) {
         let mut seen_instructions = HashSet::new();
-        let mut done = false;
 
-        while !done {
-            //println!("ip={:?}, acc={:?}, done={:?}, seen={:?}", self.instruction_pointer, self.accumulator, done, seen_instructions);
-            if seen_instructions.contains(&self.instruction_pointer) {
-                done = true;
+        // println!("\n");
+        // for (pos, i) in self.instructions.iter().enumerate() {
+        //   println!("{}: {:?}", pos, i);
+        // }
+        // println!("");
+
+        loop {
+            //println!("ip={:?}, acc={:?}, seen={:?}", self.instruction_pointer, self.accumulator, seen_instructions);
+            if self.instruction_pointer >= self.instructions.len() {
+                //println!("EOF");
+                return (self.accumulator, Termination::EndOfProgram);
+            } else if seen_instructions.contains(&self.instruction_pointer) {
+                //println!("Loop {}", self.instruction_pointer);
+                return (self.accumulator, Termination::InfiniteLoop);
             } else {
                 seen_instructions.insert(self.instruction_pointer);
                 self.execute_current_instruction();
             }
         }
-
-        return self.accumulator;
     }
 
     fn execute_current_instruction(&mut self) {
         match self.instructions[self.instruction_pointer] {
-            Instruction::Nop => {
+            Instruction::Nop(_) => {
                 self.instruction_pointer += 1;
             },
             Instruction::Acc(argument) => {
@@ -63,11 +74,41 @@ impl Program {
             },                        
         }
     }
+
+    fn repair_and_execute(&self) -> isize {
+        for i in 0..self.instructions.len() {
+            // swap jmp & nop
+            let replacement = match self.instructions[i] {
+                Instruction::Nop(argument) => Some(Instruction::Jmp(argument)),
+                Instruction::Acc(_) => None,
+                Instruction::Jmp(argument) => Some(Instruction::Nop(argument)),
+            };
+
+            if replacement.is_some() {
+                // run modified program and terminate if it exits normally
+                let mut modified_instructions = self.instructions.clone();
+                modified_instructions[i] = replacement.unwrap();
+                let mut modified_program = Program::new(modified_instructions);
+                let (acc, result) = modified_program.execute();
+                if result == Termination::EndOfProgram {
+                    return acc;
+                }
+            }           
+        }
+
+        panic!("Unable to repair program");
+    }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
+enum Termination {
+    InfiniteLoop,
+    EndOfProgram,
+}
+
+#[derive(Debug, Clone)]
 enum Instruction {
-    Nop,
+    Nop(isize),
     Acc(isize),
     Jmp(isize),
 }
@@ -80,7 +121,7 @@ impl Instruction {
         let argument = captures.get(2).unwrap().as_str().parse::<isize>().unwrap();
 
         return match operation {
-            "nop" => Instruction::Nop,
+            "nop" => Instruction::Nop(argument),
             "acc" => Instruction::Acc(argument),
             "jmp" => Instruction::Jmp(argument),
             _ => panic!("Unknown operation"),
@@ -90,13 +131,15 @@ impl Instruction {
 
 fn part1(input: String) -> isize {
     let mut program = Program::parse(&input);
-    return program.execute();
+    let (accumulator, _) = program.execute();
+    return accumulator;
 }
 
-// fn part2(input: String) -> usize {
-//     let data = Data::parse(input);
-//     return data.execute();
-// }
+fn part2(input: String) -> isize {
+    let program = Program::parse(&input);
+    let accumulator = program.repair_and_execute();
+    return accumulator;
+}
 
 #[cfg(test)]
 mod tests {
@@ -127,19 +170,28 @@ mod tests {
         assert_eq!(result, 1614);
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(
-    //         "".to_string()
-    //     );
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example1() {
+        let input = indoc! {"
+            nop +0
+            acc +1
+            jmp +4
+            acc +3
+            jmp -3
+            acc -99
+            acc +1
+            jmp -4
+            acc +6
+        "};
+        let result = part2(input.to_string());
+        assert_eq!(result, 8);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(
-    //         read_input_file()
-    //     );
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(
+            read_input_file()
+        );
+        assert_eq!(result, 1260);
+    }
 }
