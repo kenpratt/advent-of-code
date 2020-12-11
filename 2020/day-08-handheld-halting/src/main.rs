@@ -15,37 +15,28 @@ fn read_input_file() -> String {
 
 #[derive(Debug)]
 struct Data {
-    parts: Vec<Part>,
+    lines: Vec<usize>,
 }
 
 impl Data {
-    fn parse(input: &str) -> Data {
-        let parts = input.lines().map(|line| Part::parse(line)).collect();
+    fn parse(input: String) -> Data {
+        let lines = input.lines().map(|line| Data::parse_line(line)).collect();
         return Data {
-            parts: parts,
+            lines: lines,
         }
+    }
+    
+    fn parse_line(line: &str) -> usize {
+        return line.parse::<usize>().unwrap();
     }
 
     fn execute(&self) -> usize {
-        return self.parts.len();
-    }
-}
-
-#[derive(Debug)]
-struct Part {
-    foo: usize,
-}
-
-impl Part {
-        fn parse(input: &str) -> Part {
-        return Part {
-            foo: input.len(),
-        }
+        return 0;
     }
 }
 
 fn part1(input: String) -> usize {
-    let data = Data::parse(&input);
+    let data = Data::parse(input);
     return data.execute();
 }
 
@@ -77,10 +68,9 @@ mod tests {
 
     // #[test]
     // fn test_part2_example1() {
-    //     let input = indoc! {"
-    //         input
-    //     "};
-    //     let result = part1(input.to_string());
+    //     let result = part2(
+    //         "".to_string()
+    //     );
     //     assert_eq!(result, 0);
     // }
 
