@@ -6,7 +6,7 @@ use indoc::indoc;
 
 fn main() {
     println!("part 1 result: {:?}", part1(read_input_file(), 25));
-    //println!("part 2 result: {:?}", part2(read_input_file()));
+    println!("part 2 result: {:?}", part2(read_input_file(), 675280050));
 }
 
 fn read_input_file() -> String {
@@ -62,6 +62,26 @@ impl Data {
 
         return false;
     }
+
+    fn find_contiguous_sum(&self, target: usize) -> usize {
+        for i in 0..self.numbers.len() {
+            let mut sum = 0;
+            for j in i..self.numbers.len() {
+                sum += self.numbers[j];
+                if sum == target {
+                    let range = &self.numbers[i..=j];
+                    let min = range.iter().min().unwrap();
+                    let max = range.iter().max().unwrap();
+                    return min + max;
+                } else if sum > target {
+                    break;
+                }
+                // else continue
+            }
+        }
+
+        panic!("couldn't find contiguous sum")
+    }
 }
 
 fn part1(input: String, preamble: usize) -> usize {
@@ -69,10 +89,10 @@ fn part1(input: String, preamble: usize) -> usize {
     return data.find_bad_number();
 }
 
-// fn part2(input: String) -> usize {
-//     let data = Data::parse(input);
-//     return data.execute();
-// }
+fn part2(input: String, target: usize) -> usize {
+    let data = Data::parse(&input, 0);
+    return data.find_contiguous_sum(target);
+}
 
 #[cfg(test)]
 mod tests {
@@ -112,20 +132,37 @@ mod tests {
         assert_eq!(result, 675280050);
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let input = indoc! {"
-    //         input
-    //     "};
-    //     let result = part1(input.to_string());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example1() {
+        let input = indoc! {"
+            35
+            20
+            15
+            25
+            47
+            40
+            62
+            55
+            65
+            95
+            102
+            117
+            150
+            182
+            127
+            219
+            299
+            277
+            309
+            576
+        "};
+        let result = part2(input.to_string(), 127);
+        assert_eq!(result, 62);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(
-    //         read_input_file()
-    //     );
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(read_input_file(), 675280050);
+        assert_eq!(result, 96081673);
+    }
 }

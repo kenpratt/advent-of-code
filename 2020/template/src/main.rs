@@ -50,7 +50,7 @@ fn part1(input: String) -> usize {
 }
 
 // fn part2(input: String) -> usize {
-//     let data = Data::parse(input);
+//     let data = Data::parse(&input);
 //     return data.execute();
 // }
 
