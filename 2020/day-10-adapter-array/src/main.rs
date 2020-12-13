@@ -15,38 +15,41 @@ fn read_input_file() -> String {
 
 #[derive(Debug)]
 struct Data {
-    parts: Vec<Part>,
+    adapters: Vec<usize>,
 }
 
 impl Data {
     fn parse(input: &str) -> Data {
-        let parts = input.lines().map(|line| Part::parse(line)).collect();
+        let mut adapters: Vec<usize> = input.lines().map(|line| line.parse::<usize>().unwrap()).collect();
+
+        adapters.sort();
+        adapters.push(adapters.last().unwrap() + 3);
+        println!("{:?}", adapters);
+
         return Data {
-            parts: parts,
+            adapters: adapters,
         }
     }
 
-    fn execute(&self) -> usize {
-        return self.parts.len();
-    }
-}
+    fn differences(&self) -> Vec<usize> {
+        let mut differences: Vec<usize> = vec![0, 0, 0, 0];
 
-#[derive(Debug)]
-struct Part {
-    foo: usize,
-}
-
-impl Part {
-        fn parse(input: &str) -> Part {
-        return Part {
-            foo: input.len(),
+        for i in 0..self.adapters.len() {
+            let left = if i == 0 {0} else {self.adapters[i - 1]};
+            let right = self.adapters[i];
+            let diff = right - left;
+            differences[diff] += 1;
         }
+
+        println!("{:?}", differences);
+        return differences;
     }
 }
 
 fn part1(input: String) -> usize {
     let data = Data::parse(&input);
-    return data.execute();
+    let differences = data.differences();
+    return differences[1] * differences[3];
 }
 
 // fn part2(input: String) -> usize {
@@ -61,19 +64,68 @@ mod tests {
     #[test]
     fn test_part1_example1() {
         let input = indoc! {"
-            input
+            16
+            10
+            15
+            5
+            1
+            11
+            7
+            19
+            6
+            12
+            4
         "};
         let result = part1(input.to_string());
-        assert_eq!(result, 0);
+        assert_eq!(result, 35);
     }
 
-    // #[test]
-    // fn test_part1_solution() {
-    //     let result = part1(
-    //         read_input_file()
-    //     );
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part1_example2() {
+        let input = indoc! {"
+            28
+            33
+            18
+            42
+            31
+            14
+            46
+            20
+            48
+            47
+            24
+            23
+            49
+            45
+            19
+            38
+            39
+            11
+            1
+            32
+            25
+            35
+            8
+            17
+            7
+            9
+            4
+            2
+            34
+            10
+            3
+        "};
+        let result = part1(input.to_string());
+        assert_eq!(result, 220);
+    }
+
+    #[test]
+    fn test_part1_solution() {
+        let result = part1(
+            read_input_file()
+        );
+        assert_eq!(result, 1917);
+    }
 
     // #[test]
     // fn test_part2_example1() {
