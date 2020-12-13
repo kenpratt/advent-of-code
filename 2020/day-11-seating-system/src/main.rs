@@ -12,9 +12,10 @@ fn read_input_file() -> String {
 #[derive(Debug, PartialEq)]
 struct Grid {
     cells: Vec<Cell>,
+    neighbour_map: Vec<Vec<usize>>,
     width: usize,
     height: usize,
-    view_cones: bool,
+    max_seats: usize,
 }
 
 impl Grid {
@@ -28,12 +29,23 @@ impl Grid {
             cells.append(&mut row);
         }
 
+        let neighbour_map = Grid::build_neighbour_map(&cells, width, height, view_cones);
+
         return Grid {
             cells: cells,
+            neighbour_map: neighbour_map,
             width: width,
             height: height,
-            view_cones: view_cones,
+            max_seats: if view_cones {5} else {4},
         }
+    }
+
+    fn build_neighbour_map(cells: &Vec<Cell>, width: usize, height: usize, view_cones: bool) -> Vec<Vec<usize>> {
+        return if view_cones {
+            (0..cells.len()).map(|i| Grid::visual_neighbours(i, width, height, cells)).collect()
+        } else {
+            (0..cells.len()).map(|i| Grid::direct_neighbours(i, width, height)).collect()
+        };
     }
 
     fn parse_row(input: &str) -> Vec<Cell> {
@@ -55,21 +67,19 @@ impl Grid {
 
         return Grid {
             cells: new_cells,
+            neighbour_map: self.neighbour_map.clone(),
             width: self.width,
-            height: self.height,
-            view_cones: self.view_cones,
+            height: self.height,            
+            max_seats: self.max_seats,
         }
     }
 
     fn iterate_cell(&self, position: usize, cell: &Cell) -> Cell {
         // If a seat is empty (L) and there are no occupied seats adjacent to
         // it, the seat becomes occupied.
-        // If a seat is occupied (#) and four or more seats adjacent to it are
+        // If a seat is occupied (#) and four/five or more seats adjacent to it are
         // also occupied, the seat becomes empty.
         // Otherwise, the seat's state does not change.
-
-        let max_seats = if self.view_cones {5} else {4};
-
         return match cell {
             Cell::Floor => Cell::Floor,
             Cell::EmptySeat => {
@@ -80,7 +90,7 @@ impl Grid {
                 }
             },
             Cell::OccupiedSeat => {
-                if self.num_occupied_neighbours(position) >= max_seats {
+                if self.num_occupied_neighbours(position) >= self.max_seats {
                     Cell::EmptySeat
                 } else {
                     Cell::OccupiedSeat
@@ -89,38 +99,38 @@ impl Grid {
         };
     }
 
-    fn neighbour_in_direction(&self, index: usize, direction: &Direction) -> Option<usize> {
-        let row = index / self.width;
-        let col = index % self.width;
+    fn neighbour_in_direction(index: usize, width: usize, height: usize, direction: &Direction) -> Option<usize> {
+        let row = index / width;
+        let col = index % width;
 
-        let right = self.width - 1;
-        let bottom = self.height - 1;
+        let right = width - 1;
+        let bottom = height - 1;
 
         return match direction {
-            Direction::UpLeft => if row > 0 && col > 0 {Some(index - self.width - 1)} else {None},
-            Direction::Up => if row > 0 {Some(index - self.width)} else {None},
-            Direction::UpRight => if row > 0 && col < right {Some(index - self.width + 1)} else {None},
+            Direction::UpLeft => if row > 0 && col > 0 {Some(index - width - 1)} else {None},
+            Direction::Up => if row > 0 {Some(index - width)} else {None},
+            Direction::UpRight => if row > 0 && col < right {Some(index - width + 1)} else {None},
             Direction::Left => if col > 0 {Some(index - 1)} else {None},
             Direction::Right => if col < right {Some(index + 1)} else {None},
-            Direction::DownLeft => if row < bottom && col > 0 {Some(index + self.width - 1)} else {None},
-            Direction::Down => if row < bottom {Some(index + self.width)} else {None},
-            Direction::DownRight => if row < bottom && col < right {Some(index + self.width + 1)} else {None},
+            Direction::DownLeft => if row < bottom && col > 0 {Some(index + width - 1)} else {None},
+            Direction::Down => if row < bottom {Some(index + width)} else {None},
+            Direction::DownRight => if row < bottom && col < right {Some(index + width + 1)} else {None},
         };
     }
 
-    fn direct_neighbours(&self, position: usize) -> Vec<usize> {
-        return DIRECTIONS.iter().map(|d| self.neighbour_in_direction(position, d)).filter(|o| o.is_some()).map(|o| o.unwrap()).collect();
+    fn direct_neighbours(position: usize, width: usize, height: usize) -> Vec<usize> {
+        return DIRECTIONS.iter().map(|d| Grid::neighbour_in_direction(position, width, height, d)).filter(|o| o.is_some()).map(|o| o.unwrap()).collect();
     }
 
-    fn visual_neighbours(&self, position: usize) -> Vec<usize> {
-        return DIRECTIONS.iter().map(|d| self.first_seat_in_direction(position, d)).filter(|o| o.is_some()).map(|o| o.unwrap()).collect();
+    fn visual_neighbours(position: usize, width: usize, height: usize, cells: &Vec<Cell>) -> Vec<usize> {
+        return DIRECTIONS.iter().map(|d| Grid::first_seat_in_direction(position, width, height, cells, d)).filter(|o| o.is_some()).map(|o| o.unwrap()).collect();
     }
 
-    fn first_seat_in_direction(&self, position: usize, direction: &Direction) -> Option<usize> {
-        return match self.neighbour_in_direction(position, direction) {
+    fn first_seat_in_direction(position: usize, width: usize, height: usize, cells: &Vec<Cell>, direction: &Direction) -> Option<usize> {
+        return match Grid::neighbour_in_direction(position, width, height, direction) {
             Some(neighbour) => {
-                if self.cells[neighbour] == Cell::Floor {
-                    self.first_seat_in_direction(neighbour, direction)
+                if cells[neighbour] == Cell::Floor {
+                    Grid::first_seat_in_direction(neighbour, width, height, cells, direction)
                 } else {
                     Some(neighbour)
                 }
@@ -130,13 +140,8 @@ impl Grid {
     }
 
     fn num_occupied_neighbours(&self, position: usize) -> usize {
-        let neighbours = if self.view_cones {
-            self.visual_neighbours(position)
-        } else {
-            self.direct_neighbours(position)
-        };
-
-        return neighbours.into_iter().filter(|i| self.cells[*i] == Cell::OccupiedSeat).count();
+        let neighbours = &self.neighbour_map[position];
+        return neighbours.iter().filter(|i| self.cells[**i] == Cell::OccupiedSeat).count();
     }
 
     fn render(&self) -> String {
