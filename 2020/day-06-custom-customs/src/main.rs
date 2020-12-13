@@ -1,11 +1,9 @@
 use std::collections::HashSet;
 use std::fs;
 
-use indoc::indoc;
-
 fn main() {
-    println!("part 1 result: {:?}", part1(read_input_file()));
-    println!("part 2 result: {:?}", part2(read_input_file()));
+    println!("part 1 result: {:?}", part1(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -45,13 +43,13 @@ impl Group {
     }
 }
 
-fn part1(input: String) -> usize {
-    let groups = parse_input(&input);
+fn part1(input: &str) -> usize {
+    let groups = parse_input(input);
     return groups.iter().map(|g| g.union_size()).fold(0, |acc, x| acc + x);
 }
 
-fn part2(input: String) -> usize {
-    let groups = parse_input(&input);
+fn part2(input: &str) -> usize {
+    let groups = parse_input(input);
     return groups.iter().map(|g| g.intersection_size()).fold(0, |acc, x| acc + x);
 }
 
@@ -59,65 +57,47 @@ fn part2(input: String) -> usize {
 mod tests {
     use super::*;
 
+    use indoc::indoc;
+
+    static EXAMPLE1: &str = indoc! {"
+        abc
+
+        a
+        b
+        c
+        
+        ab
+        ac
+        
+        a
+        a
+        a
+        a
+        
+        b
+    "};
+
     #[test]
     fn test_part1_example1() {
-        let input = indoc! {"
-            abc
-
-            a
-            b
-            c
-            
-            ab
-            ac
-            
-            a
-            a
-            a
-            a
-            
-            b
-        "};
-        let result = part1(input.to_string());
+        let result = part1(EXAMPLE1);
         assert_eq!(result, 11);
     }    
 
     #[test]
     fn test_part1_solution() {
-        let result = part1(
-            read_input_file()
-        );
+        let result = part1(&read_input_file());
         assert_eq!(result, 6748);
     }
 
     #[test]
     fn test_part2_example1() {
-        let input = indoc! {"
-            abc
-
-            a
-            b
-            c
-            
-            ab
-            ac
-            
-            a
-            a
-            a
-            a
-            
-            b
-        "};
-        let result = part2(input.to_string());
+        let result = part2(EXAMPLE1);
         assert_eq!(result, 6);
     }    
 
     #[test]
     fn test_part2_solution() {
-        let result = part2(
-            read_input_file()
-        );
+        let result = part2(&read_input_file());
         assert_eq!(result, 3445);
     }
 }

@@ -2,15 +2,15 @@ use std::fs;
 use regex::Regex;
 
 fn main() {
-    println!("part 1 result: {:?}", part1(read_input_file()));
-    println!("part 2 result: {:?}", part2(read_input_file()));
+    println!("part 1 result: {:?}", part1(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
     return fs::read_to_string("input.txt").expect("Something went wrong reading the file");
 }
 
-fn parse_input(input: String) -> Vec<PasswordWithPolicy> {
+fn parse_input(input: &str) -> Vec<PasswordWithPolicy> {
     return input.lines().map(|line| PasswordWithPolicy::parse(line)).collect();
 }
 
@@ -50,12 +50,12 @@ impl PasswordWithPolicy {
     }
 }
 
-fn part1(input: String) -> usize {
+fn part1(input: &str) -> usize {
     let entries = parse_input(input);
     return entries.iter().filter(|&e| e.valid_using_count_policy()).count();
 }
 
-fn part2(input: String) -> usize {
+fn part2(input: &str) -> usize {
     let entries = parse_input(input);
     return entries.iter().filter(|&e| e.valid_using_index_policy()).count();
 }
@@ -64,35 +64,35 @@ fn part2(input: String) -> usize {
 mod tests {
     use super::*;
 
+    use indoc::indoc;
+
+    static EXAMPLE1: &str = indoc! {"
+        1-3 a: abcde
+        1-3 b: cdefg
+        2-9 c: ccccccccc
+    "};
+
     #[test]
     fn test_part1_example1() {
-        let result = part1(
-            "1-3 a: abcde\n1-3 b: cdefg\n2-9 c: ccccccccc".to_string()
-        );
+        let result = part1(EXAMPLE1);
         assert_eq!(result, 2);
     }
 
     #[test]
     fn test_part1_solution() {
-        let result = part1(
-            read_input_file()
-        );
+        let result = part1(&read_input_file());
         assert_eq!(result, 636);
     }
 
     #[test]
     fn test_part2_example1() {
-        let result = part2(
-            "1-3 a: abcde\n1-3 b: cdefg\n2-9 c: ccccccccc".to_string()
-        );
+        let result = part2(EXAMPLE1);
         assert_eq!(result, 1);
     }
 
     #[test]
     fn test_part2_solution() {
-        let result = part2(
-            read_input_file()
-        );
+        let result = part2(&read_input_file());
         assert_eq!(result, 588);
     }
 }

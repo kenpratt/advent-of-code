@@ -1,8 +1,8 @@
 use std::fs;
 
 fn main() {
-    println!("part 1 result: {:?}", part1(read_input_file()));
-    println!("part 2 result: {:?}", part2(read_input_file()));
+    println!("part 1 result: {:?}", part1(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -94,13 +94,13 @@ impl BinarySpacePartition {
     }
 }
 
-fn part1(input: String) -> usize {
-    let passes = parse_input(&input);
+fn part1(input: &str) -> usize {
+    let passes = parse_input(input);
     return passes.iter().map(|p| p.seat_id).max().unwrap();
 }
 
-fn part2(input: String) -> Result<usize, String> {
-    let passes = parse_input(&input);
+fn part2(input: &str) -> Result<usize, String> {
+    let passes = parse_input(input);
 
     let mut seat_ids: Vec<usize> = passes.iter().map(|p| p.seat_id).collect();
     seat_ids.sort();
@@ -154,17 +154,13 @@ mod tests {
 
     #[test]
     fn test_part1_solution() {
-        let result = part1(
-            read_input_file()
-        );
+        let result = part1(&read_input_file());
         assert_eq!(result, 953);
     }
 
     #[test]
     fn test_part2_solution() {
-        let result = part2(
-            read_input_file()
-        );
+        let result = part2(&read_input_file());
         assert_eq!(result.unwrap(), 615);
     }
 }

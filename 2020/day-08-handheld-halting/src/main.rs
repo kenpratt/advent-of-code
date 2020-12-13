@@ -1,13 +1,11 @@
 use std::collections::HashSet;
 use std::fs;
 
-use indoc::indoc;
-// use lazy_static::lazy_static;
 use regex::Regex;
 
 fn main() {
-    println!("part 1 result: {:?}", part1(read_input_file()));
-    println!("part 2 result: {:?}", part2(read_input_file()));
+    println!("part 1 result: {:?}", part1(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -129,14 +127,14 @@ impl Instruction {
     }
 }
 
-fn part1(input: String) -> isize {
-    let mut program = Program::parse(&input);
+fn part1(input: &str) -> isize {
+    let mut program = Program::parse(input);
     let (accumulator, _) = program.execute();
     return accumulator;
 }
 
-fn part2(input: String) -> isize {
-    let program = Program::parse(&input);
+fn part2(input: &str) -> isize {
+    let program = Program::parse(input);
     let accumulator = program.repair_and_execute();
     return accumulator;
 }
@@ -145,53 +143,41 @@ fn part2(input: String) -> isize {
 mod tests {
     use super::*;
 
+    use indoc::indoc;
+
+    static EXAMPLE1: &str = indoc! {"
+        nop +0
+        acc +1
+        jmp +4
+        acc +3
+        jmp -3
+        acc -99
+        acc +1
+        jmp -4
+        acc +6
+    "};
+
     #[test]
     fn test_part1_example1() {
-        let input = indoc! {"
-            nop +0
-            acc +1
-            jmp +4
-            acc +3
-            jmp -3
-            acc -99
-            acc +1
-            jmp -4
-            acc +6
-        "};
-        let result = part1(input.to_string());
+        let result = part1(EXAMPLE1);
         assert_eq!(result, 5);
     }
 
     #[test]
     fn test_part1_solution() {
-        let result = part1(
-            read_input_file()
-        );
+        let result = part1(&read_input_file());
         assert_eq!(result, 1614);
     }
 
     #[test]
     fn test_part2_example1() {
-        let input = indoc! {"
-            nop +0
-            acc +1
-            jmp +4
-            acc +3
-            jmp -3
-            acc -99
-            acc +1
-            jmp -4
-            acc +6
-        "};
-        let result = part2(input.to_string());
+        let result = part2(EXAMPLE1);
         assert_eq!(result, 8);
     }
 
     #[test]
     fn test_part2_solution() {
-        let result = part2(
-            read_input_file()
-        );
+        let result = part2(&read_input_file());
         assert_eq!(result, 1260);
     }
 }

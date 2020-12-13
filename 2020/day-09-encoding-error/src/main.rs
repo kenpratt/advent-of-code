@@ -1,12 +1,8 @@
 use std::fs;
 
-use indoc::indoc;
-// use lazy_static::lazy_static;
-// use regex::Regex;
-
 fn main() {
-    println!("part 1 result: {:?}", part1(read_input_file(), 25));
-    println!("part 2 result: {:?}", part2(read_input_file(), 675280050));
+    println!("part 1 result: {:?}", part1(&read_input_file(), 25));
+    println!("part 2 result: {:?}", part2(&read_input_file(), 675280050));
 }
 
 fn read_input_file() -> String {
@@ -84,13 +80,13 @@ impl Data {
     }
 }
 
-fn part1(input: String, preamble: usize) -> usize {
-    let mut data = Data::parse(&input, preamble);
+fn part1(input: &str, preamble: usize) -> usize {
+    let mut data = Data::parse(input, preamble);
     return data.find_bad_number();
 }
 
-fn part2(input: String, target: usize) -> usize {
-    let data = Data::parse(&input, 0);
+fn part2(input: &str, target: usize) -> usize {
+    let data = Data::parse(input, 0);
     return data.find_contiguous_sum(target);
 }
 
@@ -98,71 +94,52 @@ fn part2(input: String, target: usize) -> usize {
 mod tests {
     use super::*;
 
+    use indoc::indoc;
+
+    static EXAMPLE1: &str = indoc! {"
+        35
+        20
+        15
+        25
+        47
+        40
+        62
+        55
+        65
+        95
+        102
+        117
+        150
+        182
+        127
+        219
+        299
+        277
+        309
+        576
+    "};
+
     #[test]
     fn test_part1_example1() {
-        let input = indoc! {"
-            35
-            20
-            15
-            25
-            47
-            40
-            62
-            55
-            65
-            95
-            102
-            117
-            150
-            182
-            127
-            219
-            299
-            277
-            309
-            576
-        "};
-        let result = part1(input.to_string(), 5);
+        let result = part1(EXAMPLE1, 5);
         assert_eq!(result, 127);
     }
 
     #[test]
     fn test_part1_solution() {
-        let result = part1(read_input_file(), 25);
+        let result = part1(&read_input_file(), 25);
         assert_eq!(result, 675280050);
     }
 
     #[test]
     fn test_part2_example1() {
-        let input = indoc! {"
-            35
-            20
-            15
-            25
-            47
-            40
-            62
-            55
-            65
-            95
-            102
-            117
-            150
-            182
-            127
-            219
-            299
-            277
-            309
-            576
-        "};
-        let result = part2(input.to_string(), 127);
+        let result = part2(EXAMPLE1, 127);
         assert_eq!(result, 62);
     }
 
     #[test]
     fn test_part2_solution() {
-        let result = part2(read_input_file(), 675280050);
+        let result = part2(&read_input_file(), 675280050);
         assert_eq!(result, 96081673);
     }
 }
