@@ -1,11 +1,8 @@
 use std::fs;
 
-// use lazy_static::lazy_static;
-// use regex::Regex;
-
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -17,10 +14,11 @@ struct Grid {
     cells: Vec<Cell>,
     width: usize,
     height: usize,
+    view_cones: bool,
 }
 
 impl Grid {
-    fn parse(input: &str) -> Grid {
+    fn parse(input: &str, view_cones: bool) -> Grid {
         let rows: Vec<Vec<Cell>> = input.lines().map(|line| Grid::parse_row(line)).collect();
         let width = rows.first().unwrap().len();
         let height = rows.len();
@@ -34,6 +32,7 @@ impl Grid {
             cells: cells,
             width: width,
             height: height,
+            view_cones: view_cones,
         }
     }
 
@@ -58,6 +57,7 @@ impl Grid {
             cells: new_cells,
             width: self.width,
             height: self.height,
+            view_cones: self.view_cones,
         }
     }
 
@@ -67,6 +67,9 @@ impl Grid {
         // If a seat is occupied (#) and four or more seats adjacent to it are
         // also occupied, the seat becomes empty.
         // Otherwise, the seat's state does not change.
+
+        let max_seats = if self.view_cones {5} else {4};
+
         return match cell {
             Cell::Floor => Cell::Floor,
             Cell::EmptySeat => {
@@ -77,7 +80,7 @@ impl Grid {
                 }
             },
             Cell::OccupiedSeat => {
-                if self.num_occupied_neighbours(position) >= 4 {
+                if self.num_occupied_neighbours(position) >= max_seats {
                     Cell::EmptySeat
                 } else {
                     Cell::OccupiedSeat
@@ -86,36 +89,54 @@ impl Grid {
         };
     }
 
-    fn neighbours(&self, position: usize) -> Vec<usize> {
-        let mut neighbours: Vec<usize> = vec![];
+    fn neighbour_in_direction(&self, index: usize, direction: &Direction) -> Option<usize> {
+        let row = index / self.width;
+        let col = index % self.width;
 
-        let row = position / self.width;
-        let col = position % self.width;
+        let right = self.width - 1;
+        let bottom = self.height - 1;
 
-        let r = self.width - 1;
-    
-        if row > 0 {
-            let p = position - self.width;
-            if col > 0 {neighbours.push(p - 1)}
-            neighbours.push(p);
-            if col < r {neighbours.push(p + 1)}
+        return match direction {
+            Direction::UpLeft => if row > 0 && col > 0 {Some(index - self.width - 1)} else {None},
+            Direction::Up => if row > 0 {Some(index - self.width)} else {None},
+            Direction::UpRight => if row > 0 && col < right {Some(index - self.width + 1)} else {None},
+            Direction::Left => if col > 0 {Some(index - 1)} else {None},
+            Direction::Right => if col < right {Some(index + 1)} else {None},
+            Direction::DownLeft => if row < bottom && col > 0 {Some(index + self.width - 1)} else {None},
+            Direction::Down => if row < bottom {Some(index + self.width)} else {None},
+            Direction::DownRight => if row < bottom && col < right {Some(index + self.width + 1)} else {None},
+        };
+    }
+
+    fn direct_neighbours(&self, position: usize) -> Vec<usize> {
+        return DIRECTIONS.iter().map(|d| self.neighbour_in_direction(position, d)).filter(|o| o.is_some()).map(|o| o.unwrap()).collect();
+    }
+
+    fn visual_neighbours(&self, position: usize) -> Vec<usize> {
+        return DIRECTIONS.iter().map(|d| self.first_seat_in_direction(position, d)).filter(|o| o.is_some()).map(|o| o.unwrap()).collect();
+    }
+
+    fn first_seat_in_direction(&self, position: usize, direction: &Direction) -> Option<usize> {
+        return match self.neighbour_in_direction(position, direction) {
+            Some(neighbour) => {
+                if self.cells[neighbour] == Cell::Floor {
+                    self.first_seat_in_direction(neighbour, direction)
+                } else {
+                    Some(neighbour)
+                }
+            },
+            None => None,
         }
-
-        if col > 0 {neighbours.push(position - 1)}
-        if col < r {neighbours.push(position + 1)}
-
-        if row < (self.height - 1) {
-            let p = position + self.width;
-            if col > 0 {neighbours.push(p - 1)}
-            neighbours.push(p);
-            if col < r {neighbours.push(p + 1)}
-        }
-
-        return neighbours;
     }
 
     fn num_occupied_neighbours(&self, position: usize) -> usize {
-        return self.neighbours(position).into_iter().filter(|i| self.cells[*i] == Cell::OccupiedSeat).count();
+        let neighbours = if self.view_cones {
+            self.visual_neighbours(position)
+        } else {
+            self.direct_neighbours(position)
+        };
+
+        return neighbours.into_iter().filter(|i| self.cells[*i] == Cell::OccupiedSeat).count();
     }
 
     fn render(&self) -> String {
@@ -155,16 +176,40 @@ impl Cell {
     }
 }
 
+#[derive(Debug, PartialEq)]
+enum Direction {
+    UpLeft,
+    Up,
+    UpRight,
+    Left,
+    Right,
+    DownLeft,
+    Down,
+    DownRight,
+}
+
+static DIRECTIONS: &'static [Direction] = &[
+    Direction::UpLeft,
+    Direction::Up,
+    Direction::UpRight,
+    Direction::Left,
+    Direction::Right,
+    Direction::DownLeft,
+    Direction::Down,
+    Direction::DownRight,
+];
+
 fn part1(input: &str) -> usize {
-    let initial_grid = Grid::parse(input);
+    let initial_grid = Grid::parse(input, false);
     let final_grid = initial_grid.iterate_until_stable();
     return final_grid.num_occupied();
 }
 
-// fn part2(input: &str) -> usize {
-//     let data = Grid::parse(input);
-//     return data.execute();
-// }
+fn part2(input: &str) -> usize {
+    let initial_grid = Grid::parse(input, true);
+    let final_grid = initial_grid.iterate_until_stable();
+    return final_grid.num_occupied();
+}
 
 #[cfg(test)]
 mod tests {
@@ -251,22 +296,13 @@ mod tests {
     "};
 
     #[test]
-    fn test_part1_example1() {
-        let result = part1(EXAMPLE1);
-        assert_eq!(result, 37);
-    }
-
-    #[test]
     fn test_example1_iterations() {
-        let grid = Grid::parse(EXAMPLE1);
-        println!("{}", grid.render());
+        let grid = Grid::parse(EXAMPLE1, false);
 
         let grid1 = grid.iterate();
-        println!("{}", grid1.render());
         assert_eq!(grid1.render(), EXAMPLE1_ITERATION1);
 
         let grid2 = grid1.iterate();
-        println!("{}", grid2.render());
         assert_eq!(grid2.render(), EXAMPLE1_ITERATION2);
 
         let grid3 = grid2.iterate();
@@ -280,20 +316,127 @@ mod tests {
     }
 
     #[test]
+    fn test_part1_example1() {
+        let result = part1(EXAMPLE1);
+        assert_eq!(result, 37);
+    }
+
+    #[test]
     fn test_part1_solution() {
         let result = part1(&read_input_file());
         assert_eq!(result, 2316);
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(EXAMPLE1);
-    //     assert_eq!(result, 0);
-    // }
+    static EXAMPLE1_PART2_ITERATION1: &str = indoc! {"
+        #.##.##.##
+        #######.##
+        #.#.#..#..
+        ####.##.##
+        #.##.##.##
+        #.#####.##
+        ..#.#.....
+        ##########
+        #.######.#
+        #.#####.##
+    "};
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    static EXAMPLE1_PART2_ITERATION2: &str = indoc! {"
+        #.LL.LL.L#
+        #LLLLLL.LL
+        L.L.L..L..
+        LLLL.LL.LL
+        L.LL.LL.LL
+        L.LLLLL.LL
+        ..L.L.....
+        LLLLLLLLL#
+        #.LLLLLL.L
+        #.LLLLL.L#
+    "};
+
+    static EXAMPLE1_PART2_ITERATION3: &str = indoc! {"
+        #.L#.##.L#
+        #L#####.LL
+        L.#.#..#..
+        ##L#.##.##
+        #.##.#L.##
+        #.#####.#L
+        ..#.#.....
+        LLL####LL#
+        #.L#####.L
+        #.L####.L#
+    "};
+
+    static EXAMPLE1_PART2_ITERATION4: &str = indoc! {"
+        #.L#.L#.L#
+        #LLLLLL.LL
+        L.L.L..#..
+        ##LL.LL.L#
+        L.LL.LL.L#
+        #.LLLLL.LL
+        ..L.L.....
+        LLLLLLLLL#
+        #.LLLLL#.L
+        #.L#LL#.L#
+    "};
+
+    static EXAMPLE1_PART2_ITERATION5: &str = indoc! {"
+        #.L#.L#.L#
+        #LLLLLL.LL
+        L.L.L..#..
+        ##L#.#L.L#
+        L.L#.#L.L#
+        #.L####.LL
+        ..#.#.....
+        LLL###LLL#
+        #.LLLLL#.L
+        #.L#LL#.L#
+    "};
+
+    static EXAMPLE1_PART2_ITERATION6: &str = indoc! {"
+        #.L#.L#.L#
+        #LLLLLL.LL
+        L.L.L..#..
+        ##L#.#L.L#
+        L.L#.LL.L#
+        #.LLLL#.LL
+        ..#.L.....
+        LLL###LLL#
+        #.LLLLL#.L
+        #.L#LL#.L#
+    "};
+
+    #[test]
+    fn test_example1_part2_iterations() {
+        let grid = Grid::parse(EXAMPLE1, true);
+
+        let grid1 = grid.iterate();
+        assert_eq!(grid1.render(), EXAMPLE1_PART2_ITERATION1);
+
+        let grid2 = grid1.iterate();
+        assert_eq!(grid2.render(), EXAMPLE1_PART2_ITERATION2);
+
+        let grid3 = grid2.iterate();
+        assert_eq!(grid3.render(), EXAMPLE1_PART2_ITERATION3);
+
+        let grid4 = grid3.iterate();
+        assert_eq!(grid4.render(), EXAMPLE1_PART2_ITERATION4);
+
+        let grid5 = grid4.iterate();
+        assert_eq!(grid5.render(), EXAMPLE1_PART2_ITERATION5);
+
+        let grid6 = grid5.iterate();
+        assert_eq!(grid6.render(), EXAMPLE1_PART2_ITERATION6);
+    }
+
+    #[test]
+    fn test_part2_example1() {
+        let result = part2(EXAMPLE1);
+        assert_eq!(result, 26);
+    }
+
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 2128);
+    }
 }
