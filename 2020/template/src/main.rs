@@ -1,12 +1,11 @@
 use std::fs;
 
-use indoc::indoc;
 // use lazy_static::lazy_static;
 // use regex::Regex;
 
 fn main() {
-    println!("part 1 result: {:?}", part1(read_input_file()));
-    //println!("part 2 result: {:?}", part2(read_input_file()));
+    println!("part 1 result: {:?}", part1(&read_input_file()));
+    // println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -27,7 +26,7 @@ impl Data {
     }
 
     fn execute(&self) -> usize {
-        return self.parts.len();
+        return 0;
     }
 }
 
@@ -44,13 +43,13 @@ impl Part {
     }
 }
 
-fn part1(input: String) -> usize {
-    let data = Data::parse(&input);
+fn part1(input: &str) -> usize {
+    let data = Data::parse(input);
     return data.execute();
 }
 
-// fn part2(input: String) -> usize {
-//     let data = Data::parse(&input);
+// fn part2(input: &str) -> usize {
+//     let data = Data::parse(input);
 //     return data.execute();
 // }
 
@@ -58,37 +57,33 @@ fn part1(input: String) -> usize {
 mod tests {
     use super::*;
 
+    use indoc::indoc;
+
+    static EXAMPLE1: &str = indoc! {"
+        foo
+    "};    
+
     #[test]
     fn test_part1_example1() {
-        let input = indoc! {"
-            input
-        "};
-        let result = part1(input.to_string());
+        let result = part1(EXAMPLE1);
         assert_eq!(result, 0);
     }
 
     // #[test]
     // fn test_part1_solution() {
-    //     let result = part1(
-    //         read_input_file()
-    //     );
+    //     let result = part1(&read_input_file());
     //     assert_eq!(result, 0);
     // }
 
     // #[test]
     // fn test_part2_example1() {
-    //     let input = indoc! {"
-    //         input
-    //     "};
-    //     let result = part1(input.to_string());
+    //     let result = part2(EXAMPLE1);
     //     assert_eq!(result, 0);
     // }
 
     // #[test]
     // fn test_part2_solution() {
-    //     let result = part2(
-    //         read_input_file()
-    //     );
+    //     let result = part2(&read_input_file());
     //     assert_eq!(result, 0);
     // }
 }
