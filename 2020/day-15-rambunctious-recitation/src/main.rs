@@ -4,7 +4,7 @@ use std::fs;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file(), 2020));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file(), 30000000));
 }
 
 fn read_input_file() -> String {
@@ -42,11 +42,12 @@ impl MemoryGame {
                 num: *num,
                 previously_spoken: None,
             };
-            println!("{:?}", last);
+            //println!("{:?}", last);
         }
 
         while last.turn < num_turns {
             let turn = last.turn + 1;
+
             let num = match last.previously_spoken {
                 Some(turns_ago) => turns_ago,
                 None => 0,
@@ -64,7 +65,7 @@ impl MemoryGame {
                 num: num,
                 previously_spoken: previously_spoken,
             };
-            println!("{:?}", last);
+            //println!("{:?}", last);
         }
 
         return last.num;
@@ -83,10 +84,10 @@ fn part1(input: &str, num_turns: usize) -> usize {
     return game.execute(num_turns);
 }
 
-// fn part2(input: &str) -> usize {
-//     let game = MemoryGame::parse(input);
-//     return game.execute();
-// }
+fn part2(input: &str, num_turns: usize) -> usize {
+    let game = MemoryGame::parse(input);
+    return game.execute(num_turns);
+}
 
 #[cfg(test)]
 mod tests {
@@ -148,15 +149,51 @@ mod tests {
         assert_eq!(result, 276);
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(EXAMPLE1);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example1() {
+        let result = part2(EXAMPLE1, 30000000);
+        assert_eq!(result, 175594);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example2() {
+        let result = part2(EXAMPLE2, 30000000);
+        assert_eq!(result, 2578);
+    }
+
+    #[test]
+    fn test_part2_example3() {
+        let result = part2(EXAMPLE3, 30000000);
+        assert_eq!(result, 3544142);
+    }
+
+    #[test]
+    fn test_part2_example4() {
+        let result = part2(EXAMPLE4, 30000000);
+        assert_eq!(result, 261214);
+    }
+
+    #[test]
+    fn test_part2_example5() {
+        let result = part2(EXAMPLE5, 30000000);
+        assert_eq!(result, 6895259);
+    }
+
+    #[test]
+    fn test_part2_example6() {
+        let result = part2(EXAMPLE6, 30000000);
+        assert_eq!(result, 18);
+    }
+
+    #[test]
+    fn test_part2_example7() {
+        let result = part2(EXAMPLE7, 30000000);
+        assert_eq!(result, 362);
+    }
+
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file(), 30000000);
+        assert_eq!(result, 31916);
+    }
 }
