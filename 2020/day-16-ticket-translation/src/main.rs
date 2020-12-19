@@ -81,14 +81,28 @@ impl TicketSolver {
         return input.lines().map(|l| TicketSolver::parse_ticket(l)).collect();
     }
 
-    fn execute(&self) -> usize {
-        return 0;
+    fn invalid_ticket_values(&self) -> Vec<usize> {
+        return self.nearby_tickets.iter().map(|t| self.invalid_ticket_value(t)).filter(|o| o.is_some()).map(|o| *o.unwrap()).collect();
+    }
+
+    fn invalid_ticket_value<'a>(&self, ticket: &'a Ticket) -> Option<&'a usize> {
+        return ticket.iter().find(|v| self.is_ticket_value_invalid(v));
+    }
+
+    fn is_ticket_value_invalid(&self, value: &usize) -> bool {
+        return self.fields.iter().all(|(_, constraint)| !TicketSolver::satisfies_constraint(value, constraint));
+    }
+
+    fn satisfies_constraint(value: &usize, constraint: &FieldConstraints) -> bool {
+        let (r1, r2) = constraint;
+        return r1.contains(value) || r2.contains(value);
     }
 }
 
 fn part1(input: &str) -> usize {
     let solver = TicketSolver::parse(input);
-    return solver.execute();
+    let invalid_ticket_values = solver.invalid_ticket_values();
+    return invalid_ticket_values.iter().fold(0, |acc, x| acc + x);
 }
 
 // fn part2(input: &str) -> usize {
@@ -123,11 +137,11 @@ mod tests {
         assert_eq!(result, 71);
     }
 
-    // #[test]
-    // fn test_part1_solution() {
-    //     let result = part1(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part1_solution() {
+        let result = part1(&read_input_file());
+        assert_eq!(result, 25059);
+    }
 
     // #[test]
     // fn test_part2_example1() {
