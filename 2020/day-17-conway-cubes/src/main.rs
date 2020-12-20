@@ -1,7 +1,35 @@
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fs;
 
-// use lazy_static::lazy_static;
-// use regex::Regex;
+const NEIGHBOUR_OFFSETS: [Coordinate; 26] = [
+    (-1, -1, -1),
+    (-1, -1, 0),
+    (-1, -1, 1),
+    (-1, 0, -1),
+    (-1, 0, 0),
+    (-1, 0, 1),
+    (-1, 1, -1),
+    (-1, 1, 0),
+    (-1, 1, 1),
+    (0, -1, -1),
+    (0, -1, 0),
+    (0, -1, 1),
+    (0, 0, -1),
+    (0, 0, 1),
+    (0, 1, -1),
+    (0, 1, 0),
+    (0, 1, 1),
+    (1, -1, -1),
+    (1, -1, 0),
+    (1, -1, 1),
+    (1, 0, -1),
+    (1, 0, 0),
+    (1, 0, 1),
+    (1, 1, -1),
+    (1, 1, 0),
+    (1, 1, 1),    
+];
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
@@ -12,17 +40,54 @@ fn read_input_file() -> String {
     return fs::read_to_string("input.txt").expect("Something went wrong reading the file");
 }
 
+type Coordinate = (isize, isize, isize);
+
 #[derive(Debug)]
-struct Data {
-    parts: Vec<Part>,
+struct Grid {
+    neighbour_map: HashMap<Coordinate, HashSet<Coordinate>>,
+    active_map: HashMap<Coordinate, bool>,
 }
 
-impl Data {
-    fn parse(input: &str) -> Data {
-        let parts = input.lines().map(|line| Part::parse(line)).collect();
-        return Data {
-            parts: parts,
+impl Grid {
+    fn parse(input: &str) -> Grid {
+        let lines: Vec<Vec<bool>> = input.lines().map(|line| Grid::parse_line(line)).collect();
+
+        let mut neighbour_map = HashMap::new();
+        let mut active_map = HashMap::new();
+
+        for (y, line) in lines.iter().enumerate() {
+            for (x, active) in line.iter().enumerate() {
+                let coord = (x as isize, y as isize, 0 as isize);
+                let neighbours = Grid::neighbours_of_position(&coord);
+                neighbour_map.insert(coord, neighbours);
+                active_map.insert(coord, *active);
+            }
         }
+
+        return Grid {
+            neighbour_map: neighbour_map,
+            active_map: active_map,
+        }
+    }
+
+    fn parse_line(input: &str) -> Vec<bool> {
+        return input.chars().map(|c| Grid::parse_state(&c)).collect();
+    }
+
+    fn parse_state(input: &char) -> bool {
+        return match input {
+            '.' => false,
+            '#' => true,
+            _ => panic!("Unexpected state char: {}", input),
+        };
+    }
+
+    fn neighbours_of_position(position: &Coordinate) -> HashSet<Coordinate> {
+        return NEIGHBOUR_OFFSETS.iter().map(|offset| Grid::apply_position_offset(position, offset)).collect();
+    }
+
+    fn apply_position_offset(position: &Coordinate, offset: &Coordinate) -> Coordinate {
+        return (position.0 + offset.0, position.1 + offset.1, position.2 + offset.2);
     }
 
     fn execute(&self) -> usize {
@@ -30,26 +95,13 @@ impl Data {
     }
 }
 
-#[derive(Debug)]
-struct Part {
-    foo: usize,
-}
-
-impl Part {
-        fn parse(input: &str) -> Part {
-        return Part {
-            foo: input.len(),
-        }
-    }
-}
-
 fn part1(input: &str) -> usize {
-    let data = Data::parse(input);
-    return data.execute();
+    let grid = Grid::parse(input);
+    return grid.execute();
 }
 
 // fn part2(input: &str) -> usize {
-//     let data = Data::parse(input);
+//     let data = Grid::parse(input);
 //     return data.execute();
 // }
 
