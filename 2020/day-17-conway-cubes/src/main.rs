@@ -2,45 +2,128 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fs;
 
-const NEIGHBOUR_OFFSETS: [Coordinate; 26] = [
-    (-1, -1, -1),
-    (-1, -1, 0),
-    (-1, -1, 1),
-    (-1, 0, -1),
-    (-1, 0, 0),
-    (-1, 0, 1),
-    (-1, 1, -1),
-    (-1, 1, 0),
-    (-1, 1, 1),
-    (0, -1, -1),
-    (0, -1, 0),
-    (0, -1, 1),
-    (0, 0, -1),
-    (0, 0, 1),
-    (0, 1, -1),
-    (0, 1, 0),
-    (0, 1, 1),
-    (1, -1, -1),
-    (1, -1, 0),
-    (1, -1, 1),
-    (1, 0, -1),
-    (1, 0, 0),
-    (1, 0, 1),
-    (1, 1, -1),
-    (1, 1, 0),
-    (1, 1, 1),    
+const NEIGHBOUR_OFFSETS_3D: [Coordinate; 26] = [
+    (-1, -1, -1, 0),
+    (-1, -1, 0, 0),
+    (-1, -1, 1, 0),
+    (-1, 0, -1, 0),
+    (-1, 0, 0, 0),
+    (-1, 0, 1, 0),
+    (-1, 1, -1, 0),
+    (-1, 1, 0, 0),
+    (-1, 1, 1, 0),
+    (0, -1, -1, 0),
+    (0, -1, 0, 0),
+    (0, -1, 1, 0),
+    (0, 0, -1, 0),
+    (0, 0, 1, 0),
+    (0, 1, -1, 0),
+    (0, 1, 0, 0),
+    (0, 1, 1, 0),
+    (1, -1, -1, 0),
+    (1, -1, 0, 0),
+    (1, -1, 1, 0),
+    (1, 0, -1, 0),
+    (1, 0, 0, 0),
+    (1, 0, 1, 0),
+    (1, 1, -1, 0),
+    (1, 1, 0, 0),
+    (1, 1, 1, 0),
+];
+
+const NEIGHBOUR_OFFSETS_4D: [Coordinate; 80] = [
+    (-1, -1, -1, -1),
+    (-1, -1, -1, 0),
+    (-1, -1, -1, 1),
+    (-1, -1, 0, -1),
+    (-1, -1, 0, 0),
+    (-1, -1, 0, 1),
+    (-1, -1, 1, -1),
+    (-1, -1, 1, 0),
+    (-1, -1, 1, 1),
+    (-1, 0, -1, -1),
+    (-1, 0, -1, 0),
+    (-1, 0, -1, 1),
+    (-1, 0, 0, -1),
+    (-1, 0, 0, 0),
+    (-1, 0, 0, 1),
+    (-1, 0, 1, -1),
+    (-1, 0, 1, 0),
+    (-1, 0, 1, 1),
+    (-1, 1, -1, -1),
+    (-1, 1, -1, 0),
+    (-1, 1, -1, 1),
+    (-1, 1, 0, -1),
+    (-1, 1, 0, 0),
+    (-1, 1, 0, 1),
+    (-1, 1, 1, -1),
+    (-1, 1, 1, 0),
+    (-1, 1, 1, 1),
+    (0, -1, -1, -1),
+    (0, -1, -1, 0),
+    (0, -1, -1, 1),
+    (0, -1, 0, -1),
+    (0, -1, 0, 0),
+    (0, -1, 0, 1),
+    (0, -1, 1, -1),
+    (0, -1, 1, 0),
+    (0, -1, 1, 1),
+    (0, 0, -1, -1),
+    (0, 0, -1, 0),
+    (0, 0, -1, 1),
+    (0, 0, 0, -1),
+    (0, 0, 0, 1),
+    (0, 0, 1, -1),
+    (0, 0, 1, 0),
+    (0, 0, 1, 1),
+    (0, 1, -1, -1),
+    (0, 1, -1, 0),
+    (0, 1, -1, 1),
+    (0, 1, 0, -1),
+    (0, 1, 0, 0),
+    (0, 1, 0, 1),
+    (0, 1, 1, -1),
+    (0, 1, 1, 0),
+    (0, 1, 1, 1),
+    (1, -1, -1, -1),
+    (1, -1, -1, 0),
+    (1, -1, -1, 1),
+    (1, -1, 0, -1),
+    (1, -1, 0, 0),
+    (1, -1, 0, 1),
+    (1, -1, 1, -1),
+    (1, -1, 1, 0),
+    (1, -1, 1, 1),
+    (1, 0, -1, -1),
+    (1, 0, -1, 0),
+    (1, 0, -1, 1),
+    (1, 0, 0, -1),
+    (1, 0, 0, 0),
+    (1, 0, 0, 1),
+    (1, 0, 1, -1),
+    (1, 0, 1, 0),
+    (1, 0, 1, 1),
+    (1, 1, -1, -1),
+    (1, 1, -1, 0),
+    (1, 1, -1, 1),
+    (1, 1, 0, -1),
+    (1, 1, 0, 0),
+    (1, 1, 0, 1),
+    (1, 1, 1, -1),
+    (1, 1, 1, 0),
+    (1, 1, 1, 1),
 ];
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file(), 6));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file(), 6));
 }
 
 fn read_input_file() -> String {
     return fs::read_to_string("input.txt").expect("Something went wrong reading the file");
 }
 
-type Coordinate = (isize, isize, isize);
+type Coordinate = (isize, isize, isize, isize);
 
 #[derive(Debug)]
 struct Grid {
@@ -49,21 +132,21 @@ struct Grid {
 }
 
 impl Grid {
-    fn parse(input: &str) -> Grid {
+    fn parse(input: &str, dimensions: u8) -> Grid {
         let lines: Vec<Vec<bool>> = input.lines().map(|line| Grid::parse_line(line)).collect();
 
         let mut active_set = HashSet::new();
         for (y, line) in lines.iter().enumerate() {
             for (x, active) in line.iter().enumerate() {
                 if *active {
-                    let coord = (x as isize, y as isize, 0 as isize);
+                    let coord = (x as isize, y as isize, 0 as isize, 0 as isize);
                     active_set.insert(coord);
                 }
             }
         }
 
         return Grid {
-            neighbour_map: NeighbourMap::new(),
+            neighbour_map: NeighbourMap::new(dimensions),
             active_set: active_set,
         }
     }
@@ -119,12 +202,16 @@ impl Grid {
         let max_y = self.active_set.iter().map(|s| s.1).max().unwrap();
         let min_z = self.active_set.iter().map(|s| s.2).min().unwrap();
         let max_z = self.active_set.iter().map(|s| s.2).max().unwrap();
+        let min_w = self.active_set.iter().map(|s| s.3).min().unwrap();
+        let max_w = self.active_set.iter().map(|s| s.3).max().unwrap();
 
-        for z in min_z..=max_z {
-            println!("\nz={}", z);
-            for y in min_y..=max_y {
-                let line: String = (min_x..=max_x).map(|x| if self.active_set.contains(&(x, y, z)) {'#'} else {'.'}).collect();
-                println!("{}", line);
+        for w in min_w..=max_w {
+            for z in min_z..=max_z {
+                println!("\nz={}, w={}", z, w);
+                for y in min_y..=max_y {
+                    let line: String = (min_x..=max_x).map(|x| if self.active_set.contains(&(x, y, z, w)) {'#'} else {'.'}).collect();
+                    println!("{}", line);
+                }
             }
         }
     }
@@ -147,42 +234,52 @@ impl Grid {
 #[derive(Debug)]
 struct NeighbourMap {
     map: HashMap<Coordinate, HashSet<Coordinate>>,
+    offsets: &'static [Coordinate],
 }
 
 impl NeighbourMap {
-    fn new() -> NeighbourMap {
+    fn new(dimensions: u8) -> NeighbourMap {
         return NeighbourMap {
             map: HashMap::new(),
+            offsets: NeighbourMap::offsets(dimensions),
         };
     }
 
     fn get(&mut self, position: &Coordinate) -> &HashSet<Coordinate> {
         if !self.map.contains_key(position) {
-            let neighbours = NeighbourMap::calculate_neighbours(position);
+            let neighbours = self.calculate_neighbours(position);
             self.map.insert(*position, neighbours);
         }
 
         return self.map.get(position).unwrap();
     }
 
-    fn calculate_neighbours(position: &Coordinate) -> HashSet<Coordinate> {
-        return NEIGHBOUR_OFFSETS.iter().map(|offset| NeighbourMap::apply_offset(position, offset)).collect();
+    fn offsets(dimensions: u8) -> &'static [Coordinate] {
+        return match dimensions {
+            3 => &NEIGHBOUR_OFFSETS_3D,
+            4 => &NEIGHBOUR_OFFSETS_4D,
+            _ => panic!("Unsupported number of dimensions: {}", dimensions),
+        };
+    }
+
+    fn calculate_neighbours(&self, position: &Coordinate) -> HashSet<Coordinate> {
+        return self.offsets.iter().map(|offset| NeighbourMap::apply_offset(position, offset)).collect();
     }
 
     fn apply_offset(position: &Coordinate, offset: &Coordinate) -> Coordinate {
-        return (position.0 + offset.0, position.1 + offset.1, position.2 + offset.2);
+        return (position.0 + offset.0, position.1 + offset.1, position.2 + offset.2, position.3 + offset.3);
     }
 }
 
 fn part1(input: &str, num_cycles: usize) -> usize {
-    let mut grid = Grid::parse(input);
+    let mut grid = Grid::parse(input, 3);
     return grid.execute(num_cycles);
 }
 
-// fn part2(input: &str) -> usize {
-//     let data = Grid::parse(input);
-//     return data.execute();
-// }
+fn part2(input: &str, num_cycles: usize) -> usize {
+    let mut grid = Grid::parse(input, 4);
+    return grid.execute(num_cycles);
+}
 
 #[cfg(test)]
 mod tests {
@@ -208,15 +305,15 @@ mod tests {
         assert_eq!(result, 322);
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(EXAMPLE1);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example1() {
+        let result = part2(EXAMPLE1, 6);
+        assert_eq!(result, 848);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file(), 6);
+        assert_eq!(result, 2000);
+    }
 }
