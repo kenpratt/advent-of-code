@@ -7,7 +7,7 @@ use crate::parser::*;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -20,8 +20,8 @@ struct Calculations {
 }
 
 impl Calculations {
-    fn parse(input: &str) -> Calculations {
-        let list = input.lines().map(|line| Calculation::parse(line)).collect();
+    fn parse(input: &str, use_operator_precedence: bool) -> Calculations {
+        let list = input.lines().map(|line| Calculation::parse(line, use_operator_precedence)).collect();
         return Calculations {
             list: list,
         }
@@ -38,13 +38,13 @@ struct Calculation {
 }
 
 impl Calculation {
-    fn parse(input: &str) -> Calculation {
+    fn parse(input: &str, use_operator_precedence: bool) -> Calculation {
         println!("input: {}", input);
 
         let tokens = lexer::tokenize(input).unwrap();
         println!("tokens: {:?}", tokens);
 
-        let expression = parser::parse(&tokens).unwrap();
+        let expression = parser::parse(&tokens, use_operator_precedence).unwrap();
         println!("ast: {:?}", expression);
 
         return Calculation {
@@ -73,14 +73,14 @@ impl Calculation {
 }
 
 fn part1(input: &str) -> usize {
-    let data = Calculations::parse(input);
+    let data = Calculations::parse(input, false);
     return data.sum_of_values();
 }
 
-// fn part2(input: &str) -> usize {
-//     let data = Calculations::parse(input);
-//     return data.execute();
-// }
+fn part2(input: &str) -> usize {
+    let data = Calculations::parse(input, true);
+    return data.sum_of_values();
+}
 
 #[cfg(test)]
 mod tests {
@@ -117,6 +117,7 @@ mod tests {
     fn test_part1_example5() {
         assert_eq!(part1(EXAMPLE5), 12240);
     }
+
     #[test]
     fn test_part1_example6() {
         assert_eq!(part1(EXAMPLE6), 13632);
@@ -128,15 +129,39 @@ mod tests {
         assert_eq!(result, 464478013511);
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(EXAMPLE1);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example1() {
+        assert_eq!(part2(EXAMPLE1), 231);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example2() {
+        assert_eq!(part2(EXAMPLE2), 51);
+    }
+
+    #[test]
+    fn test_part2_example3() {
+        assert_eq!(part2(EXAMPLE3), 46);
+    }
+
+    #[test]
+    fn test_part2_example4() {
+        assert_eq!(part2(EXAMPLE4), 1445);
+    }
+
+    #[test]
+    fn test_part2_example5() {
+        assert_eq!(part2(EXAMPLE5), 669060);
+    }
+
+    #[test]
+    fn test_part2_example6() {
+        assert_eq!(part2(EXAMPLE6), 23340);
+    }
+
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 85660197232452);
+    }
 }

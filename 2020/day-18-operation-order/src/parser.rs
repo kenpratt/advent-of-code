@@ -4,8 +4,8 @@ use std::slice;
 
 use crate::lexer::*;
 
-pub fn parse(tokens: &Vec<Token>) -> Result<Expression, ParseError> {
-    Parser::parse(tokens)
+pub fn parse(tokens: &Vec<Token>, use_operator_precedence: bool) -> Result<Expression, ParseError> {
+    Parser::parse(tokens, use_operator_precedence)
 }
 
 #[derive(PartialEq, Clone, Debug)]
@@ -37,31 +37,29 @@ macro_rules! parse_error {
 
 struct Parser<'a> {
     tokens: iter::Peekable<slice::Iter<'a, Token>>,
+    use_operator_precedence: bool,
 }
 
 impl<'a> Parser<'a> {
-    fn parse(tokens: &Vec<Token>) -> Result<Expression, ParseError> {
-        let mut parser = Parser { tokens: tokens.iter().peekable() };
+    fn parse(tokens: &Vec<Token>, use_operator_precedence: bool) -> Result<Expression, ParseError> {
+        let mut parser = Parser {
+            tokens: tokens.iter().peekable(),
+            use_operator_precedence: use_operator_precedence,
+        };
         parser.parse_expression(1)
     }
 
     fn parse_expression(&mut self, min_precedence: u8) -> Result<Expression, ParseError> {
-        println!("parse_expression start: min_precedence={}", min_precedence);
-
         let mut left = self.parse_term()?;
-        println!("  parse_expression: left={:?}, min_precedence={}", left, min_precedence);
     
         loop {
             match self.tokens.peek() {
                 Some(Token::Operator(operator)) => {
-                    println!("  parse_expression op: operator={:?}, min_precedence={}", operator, min_precedence);
-                    if min_precedence > 1 {
-                        println!("    min_precedence of {} > 1", min_precedence);
+                    if min_precedence > self.precedence_for_operator(operator) {
                         break;
                     } else {
                         self.tokens.next(); // advance
                         let right = self.parse_expression(min_precedence + 1)?;
-                        println!("    parse_expression recur: right={:?}, min_precedence={}", right, min_precedence);
 
                         let new_left = Expression::Operation(
                             *operator,
@@ -76,18 +74,14 @@ impl<'a> Parser<'a> {
             }
         }
 
-        println!("parse_expression end: res={:?}, min_precedence={}", left, min_precedence);
         Ok(left)
     }
 
     fn parse_term(&mut self) -> Result<Expression, ParseError> {
-        println!("parse_term start");
-        let res = match self.tokens.next() {
+        match self.tokens.next() {
             Some(Token::Integer(value)) => Ok(Expression::Integer(*value)),
             Some(Token::OpenParen) => {
-                println!("  parse_term in open paren start");
                 let inner = self.parse_expression(1)?;
-                println!("  parse_term in open paren end, inner={:?}", inner);
                 match self.tokens.next() {
                     Some(Token::CloseParen) => Ok(inner),
                     _ => parse_error!("Unmatched open paren in term parsing"),
@@ -95,16 +89,22 @@ impl<'a> Parser<'a> {
             },
             Some(token) => parse_error!("Unexpected token in term parsing: {:?}", token),
             None => parse_error!("Unexpected end of input in term parsing"),
-        };
-        println!("parse_term end: res={:?}", res);
-        res
+        }
+    }
+
+    fn precedence_for_operator(&self, operator: &char) -> u8 {
+        if self.use_operator_precedence && operator == &'+' {
+            2
+        } else {
+            1
+        }
     }
 }
 
 #[test]
 fn test_parser_simple() {
     assert_eq!(
-        parse(&vec![Token::Integer(1), Token::Operator('+'), Token::Integer(2)]).unwrap(),
+        parse(&vec![Token::Integer(1), Token::Operator('+'), Token::Integer(2)], false).unwrap(),
         Expression::Operation('+', Box::new(Expression::Integer(1)), Box::new(Expression::Integer(2))),
     );
 }
@@ -112,17 +112,17 @@ fn test_parser_simple() {
 #[test]
 fn test_parser_single_term() {
     assert_eq!(
-        parse(&vec![Token::Integer(1)]).unwrap(),
+        parse(&vec![Token::Integer(1)], false).unwrap(),
         Expression::Integer(1),
     );
 }
 
 #[test]
-fn test_parser_multiple_operations_no_parens() {
+fn test_parser_multiple_operations_no_parens_no_precedence() {
     assert_eq!(
         // 1 + 2 * 3 + 4
-        // => [[1 + 2] * 3] + 4
-        parse(&vec![Token::Integer(1), Token::Operator('+'), Token::Integer(2), Token::Operator('*'), Token::Integer(3), Token::Operator('+'), Token::Integer(4)]).unwrap(),
+        // => [[[1 + 2] * 3] + 4]
+        parse(&vec![Token::Integer(1), Token::Operator('+'), Token::Integer(2), Token::Operator('*'), Token::Integer(3), Token::Operator('+'), Token::Integer(4)], false).unwrap(),
         Expression::Operation(
             '+',
             Box::new(Expression::Operation(
@@ -140,18 +140,40 @@ fn test_parser_multiple_operations_no_parens() {
 }
 
 #[test]
+fn test_parser_multiple_operations_no_parens_with_precedence() {
+    assert_eq!(
+        // 1 + 2 * 3 + 4
+        // => [[1 + 2] * [3 + 4]]
+        parse(&vec![Token::Integer(1), Token::Operator('+'), Token::Integer(2), Token::Operator('*'), Token::Integer(3), Token::Operator('+'), Token::Integer(4)], true).unwrap(),
+        Expression::Operation(
+            '*',
+            Box::new(Expression::Operation(
+                '+',           
+                Box::new(Expression::Integer(1)),
+                Box::new(Expression::Integer(2)),
+            )),
+            Box::new(Expression::Operation(
+                '+',           
+                Box::new(Expression::Integer(3)),
+                Box::new(Expression::Integer(4)),
+            )),
+        ),
+    );
+}
+
+#[test]
 fn test_parser_simple_parens() {
     assert_eq!(
-        parse(&vec![Token::OpenParen, Token::Integer(1), Token::Operator('+'), Token::Integer(2), Token::CloseParen]).unwrap(),
+        parse(&vec![Token::OpenParen, Token::Integer(1), Token::Operator('+'), Token::Integer(2), Token::CloseParen], false).unwrap(),
         Expression::Operation('+', Box::new(Expression::Integer(1)), Box::new(Expression::Integer(2))),
     );
 }
 
 #[test]
-fn test_parser_noop_parens() {
+fn test_parser_noop_parens_no_precedence() {
     assert_eq!(
         // (1 + 2) * 3
-        parse(&vec![Token::OpenParen, Token::Integer(1), Token::Operator('+'), Token::Integer(2), Token::CloseParen, Token::Operator('*'), Token::Integer(3)]).unwrap(),
+        parse(&vec![Token::OpenParen, Token::Integer(1), Token::Operator('+'), Token::Integer(2), Token::CloseParen, Token::Operator('*'), Token::Integer(3)], false).unwrap(),
         Expression::Operation(
             '*',
             Box::new(Expression::Operation(
@@ -165,10 +187,10 @@ fn test_parser_noop_parens() {
 }
 
 #[test]
-fn test_parser_meaningful_parens() {
+fn test_parser_meaningful_parens_with_precedence() {
     assert_eq!(
         // 1 + (2 * 3)
-        parse(&vec![Token::Integer(1), Token::Operator('+'), Token::OpenParen, Token::Integer(2), Token::Operator('*'), Token::Integer(3), Token::CloseParen]).unwrap(),
+        parse(&vec![Token::Integer(1), Token::Operator('+'), Token::OpenParen, Token::Integer(2), Token::Operator('*'), Token::Integer(3), Token::CloseParen], true).unwrap(),
         Expression::Operation(
             '+',
             Box::new(Expression::Integer(1)),
@@ -182,11 +204,11 @@ fn test_parser_meaningful_parens() {
 }
 
 #[test]
-fn test_parser_multiple_operations_parens_in_middle() {
+fn test_parser_multiple_operations_parens_in_middle_no_precedence() {
     assert_eq!(
         // 1 + (2 * 3) + 4
-        // => [1 + [2 * 3]] + 4
-        parse(&vec![Token::Integer(1), Token::Operator('+'), Token::OpenParen, Token::Integer(2), Token::Operator('*'), Token::Integer(3), Token::CloseParen, Token::Operator('+'), Token::Integer(4)]).unwrap(),
+        // => [[1 + [2 * 3]] + 4]
+        parse(&vec![Token::Integer(1), Token::Operator('+'), Token::OpenParen, Token::Integer(2), Token::Operator('*'), Token::Integer(3), Token::CloseParen, Token::Operator('+'), Token::Integer(4)], false).unwrap(),
         Expression::Operation(
             '+',
             Box::new(Expression::Operation(
