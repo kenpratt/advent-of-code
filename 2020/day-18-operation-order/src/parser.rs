@@ -36,69 +36,68 @@ macro_rules! parse_error {
 }
 
 struct Parser<'a> {
-    //tokens: slice::Iter<'a, Token>,
-    tokens: iter::Peekable<iter::Rev<slice::Iter<'a, Token>>>,
+    tokens: iter::Peekable<slice::Iter<'a, Token>>,
 }
 
 impl<'a> Parser<'a> {
     fn parse(tokens: &Vec<Token>) -> Result<Expression, ParseError> {
-        let mut parser = Parser { tokens: tokens.iter().rev().peekable() };
-        Ok(parser.parse_expression(0)?.unwrap())
+        let mut parser = Parser { tokens: tokens.iter().peekable() };
+        parser.parse_expression(1)
     }
 
-    // parses in reverse due to left-hand-side evalution
-    fn parse_expression(&mut self, depth: u32) -> Result<Option<Expression>, ParseError> {
-        match self.tokens.next() {
-            Some(token) => {
-                match *token {
-                    Token::Integer(ref val) => {
-                        let right = Expression::Integer(val.clone());
-                        Ok(Some(self.parse_rest_of_expression(depth, right)?))
-                    },
-                    Token::CloseParen => {
-                        let right = self.parse_expression(depth + 1)?.unwrap();
-                        Ok(Some(self.parse_rest_of_expression(depth, right)?))
-                    },
-                    Token::OpenParen => {
-                        if depth > 0 {
-                            Ok(None)
-                        } else {
-                            parse_error!("Unexpected close paren, depth: {}", depth)
-                        }
-                    },
-                    _ => {
-                        parse_error!("Unexpected token in parse_expression: {:?}", token)
-                    },                    
-                }
-            },
-            None => {
-                if depth == 0 {
-                    Ok(None)
-                } else {
-                    parse_error!("Unexpected end of input, depth: {}", depth)
-                }
+    fn parse_expression(&mut self, min_precedence: u8) -> Result<Expression, ParseError> {
+        println!("parse_expression start: min_precedence={}", min_precedence);
+
+        let mut left = self.parse_term()?;
+        println!("  parse_expression: left={:?}, min_precedence={}", left, min_precedence);
+    
+        loop {
+            match self.tokens.peek() {
+                Some(Token::Operator(operator)) => {
+                    println!("  parse_expression op: operator={:?}, min_precedence={}", operator, min_precedence);
+                    if min_precedence > 1 {
+                        println!("    min_precedence of {} > 1", min_precedence);
+                        break;
+                    } else {
+                        self.tokens.next(); // advance
+                        let right = self.parse_expression(min_precedence + 1)?;
+                        println!("    parse_expression recur: right={:?}, min_precedence={}", right, min_precedence);
+
+                        let new_left = Expression::Operation(
+                            *operator,
+                            Box::new(left),
+                            Box::new(right),
+                        );
+
+                        left = new_left;
+                    }
+                },
+                _ => break,
             }
         }
+
+        println!("parse_expression end: res={:?}, min_precedence={}", left, min_precedence);
+        Ok(left)
     }
 
-    fn parse_rest_of_expression(&mut self, depth: u32, right: Expression) -> Result<Expression, ParseError> {
-        let next = self.tokens.next();
-        match next {
-            Some(Token::Operator(op)) => {
-                let left = self.parse_expression(depth)?.unwrap();
-                Ok(Expression::Operation(
-                    op.clone(),
-                    Box::new(left),
-                    Box::new(right),
-                ))
+    fn parse_term(&mut self) -> Result<Expression, ParseError> {
+        println!("parse_term start");
+        let res = match self.tokens.next() {
+            Some(Token::Integer(value)) => Ok(Expression::Integer(*value)),
+            Some(Token::OpenParen) => {
+                println!("  parse_term in open paren start");
+                let inner = self.parse_expression(1)?;
+                println!("  parse_term in open paren end, inner={:?}", inner);
+                match self.tokens.next() {
+                    Some(Token::CloseParen) => Ok(inner),
+                    _ => parse_error!("Unmatched open paren in term parsing"),
+                }
             },
-            Some(Token::OpenParen) | None => {
-                Ok(right)
-            },
-            _ => {
-                parse_error!("Unexpected token for rest of expression: {:?}", next)
-            },            
-        }   
+            Some(token) => parse_error!("Unexpected token in term parsing: {:?}", token),
+            None => parse_error!("Unexpected end of input in term parsing"),
+        };
+        println!("parse_term end: res={:?}", res);
+        res
     }
 }
 

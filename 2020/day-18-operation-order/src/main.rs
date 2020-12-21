@@ -86,34 +86,40 @@ fn part1(input: &str) -> usize {
 mod tests {
     use super::*;
 
+    static EXAMPLE1: &str = "1 + 2 * 3 + 4 * 5 + 6";
+    static EXAMPLE2: &str = "1 + (2 * 3) + (4 * (5 + 6))";
+    static EXAMPLE3: &str = "2 * 3 + (4 * 5)";
+    static EXAMPLE4: &str = "5 + (8 * 3 + 9 + 3 * 4 * 3)";
+    static EXAMPLE5: &str = "5 * 9 * (7 * 3 * 3 + 9 * 3 + (8 + 6 * 4))";
+    static EXAMPLE6: &str = "((2 + 4 * 9) * (6 + 9 * 8 + 6) + 6) + 2 + 4 * 2";
+
     #[test]
     fn test_part1_example1() {
-        let result = part1("1 + 2 * 3 + 4 * 5 + 6");
-        assert_eq!(result, 71);
+        assert_eq!(part1(EXAMPLE1), 71);
     }
 
     #[test]
     fn test_part1_example2() {
-        let result = part1("2 * 3 + (4 * 5)");
-        assert_eq!(result, 26);
+        assert_eq!(part1(EXAMPLE2), 51);
     }
 
     #[test]
     fn test_part1_example3() {
-        let result = part1("5 + (8 * 3 + 9 + 3 * 4 * 3)");
-        assert_eq!(result, 437);
+        assert_eq!(part1(EXAMPLE3), 26);
     }
 
     #[test]
     fn test_part1_example4() {
-        let result = part1("5 * 9 * (7 * 3 * 3 + 9 * 3 + (8 + 6 * 4))");
-        assert_eq!(result, 12240);
+        assert_eq!(part1(EXAMPLE4), 437);
     }
 
     #[test]
     fn test_part1_example5() {
-        let result = part1("((2 + 4 * 9) * (6 + 9 * 8 + 6) + 6) + 2 + 4 * 2");
-        assert_eq!(result, 13632);
+        assert_eq!(part1(EXAMPLE5), 12240);
+    }
+    #[test]
+    fn test_part1_example6() {
+        assert_eq!(part1(EXAMPLE6), 13632);
     }
 
     #[test]
