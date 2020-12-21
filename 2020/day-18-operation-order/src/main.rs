@@ -1,7 +1,9 @@
+pub mod lexer;
+pub mod parser;
+
 use std::fs;
 
-// use lazy_static::lazy_static;
-// use regex::Regex;
+use crate::parser::*;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
@@ -13,43 +15,70 @@ fn read_input_file() -> String {
 }
 
 #[derive(Debug)]
-struct Data {
-    parts: Vec<Part>,
+struct Calculations {
+    list: Vec<Calculation>,
 }
 
-impl Data {
-    fn parse(input: &str) -> Data {
-        let parts = input.lines().map(|line| Part::parse(line)).collect();
-        return Data {
-            parts: parts,
+impl Calculations {
+    fn parse(input: &str) -> Calculations {
+        let list = input.lines().map(|line| Calculation::parse(line)).collect();
+        return Calculations {
+            list: list,
         }
     }
 
-    fn execute(&self) -> usize {
-        return 0;
+    fn sum_of_values(&self) -> usize {
+        return self.list.iter().map(|c| c.evaluate()).fold(0, |acc, x| acc + x);
     }
 }
 
 #[derive(Debug)]
-struct Part {
-    foo: usize,
+struct Calculation {
+    expression: Expression,
 }
 
-impl Part {
-        fn parse(input: &str) -> Part {
-        return Part {
-            foo: input.len(),
+impl Calculation {
+    fn parse(input: &str) -> Calculation {
+        println!("input: {}", input);
+
+        let tokens = lexer::tokenize(input).unwrap();
+        println!("tokens: {:?}", tokens);
+
+        let expression = parser::parse(&tokens).unwrap();
+        println!("ast: {:?}", expression);
+
+        return Calculation {
+            expression: expression,
+        }
+    }
+
+    fn evaluate(&self) -> usize {
+        Calculation::evaluate_expression(&self.expression) 
+    }
+
+    fn evaluate_expression(expression: &Expression) -> usize {
+        match expression {
+            Expression::Integer(value) => *value,
+            Expression::Operation(operator, left, right) => {
+                let left_val = Calculation::evaluate_expression(left);
+                let right_val = Calculation::evaluate_expression(right);
+                match operator {
+                    '+' => left_val + right_val,
+                    '*' => left_val * right_val,
+                    _ => panic!("Unknown operator: {}", operator),
+                }
+            }
         }
     }
 }
 
 fn part1(input: &str) -> usize {
-    let data = Data::parse(input);
-    return data.execute();
+    let data = Calculations::parse(input);
+    return data.sum_of_values();
 }
 
 // fn part2(input: &str) -> usize {
-//     let data = Data::parse(input);
+//     let data = Calculations::parse(input);
 //     return data.execute();
 // }
 
@@ -57,23 +86,41 @@ fn part1(input: &str) -> usize {
 mod tests {
     use super::*;
 
-    use indoc::indoc;
-
-    static EXAMPLE1: &str = indoc! {"
-        foo
-    "};    
-
     #[test]
     fn test_part1_example1() {
-        let result = part1(EXAMPLE1);
-        assert_eq!(result, 0);
+        let result = part1("1 + 2 * 3 + 4 * 5 + 6");
+        assert_eq!(result, 71);
     }
 
-    // #[test]
-    // fn test_part1_solution() {
-    //     let result = part1(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part1_example2() {
+        let result = part1("2 * 3 + (4 * 5)");
+        assert_eq!(result, 26);
+    }
+
+    #[test]
+    fn test_part1_example3() {
+        let result = part1("5 + (8 * 3 + 9 + 3 * 4 * 3)");
+        assert_eq!(result, 437);
+    }
+
+    #[test]
+    fn test_part1_example4() {
+        let result = part1("5 * 9 * (7 * 3 * 3 + 9 * 3 + (8 + 6 * 4))");
+        assert_eq!(result, 12240);
+    }
+
+    #[test]
+    fn test_part1_example5() {
+        let result = part1("((2 + 4 * 9) * (6 + 9 * 8 + 6) + 6) + 2 + 4 * 2");
+        assert_eq!(result, 13632);
+    }
+
+    #[test]
+    fn test_part1_solution() {
+        let result = part1(&read_input_file());
+        assert_eq!(result, 464478013511);
+    }
 
     // #[test]
     // fn test_part2_example1() {
