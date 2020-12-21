@@ -36,7 +36,7 @@ struct Part {
 }
 
 impl Part {
-        fn parse(input: &str) -> Part {
+    fn parse(input: &str) -> Part {
         return Part {
             foo: input.len(),
         }
