@@ -34,8 +34,37 @@ impl MessageValidator {
         }
     }
 
-    fn execute(&self) -> usize {
-        return 0;
+    fn num_valid_messages(&self) -> usize {
+        let re = self.compile_rules(&0);
+        self.messages.iter().filter(|s| re.is_match(s)).count()
+    }
+
+    fn compile_rules(&self, starting_id: &usize) -> Regex {
+        let mut cache = HashMap::new();
+        let compiled: String = self.get_compiled_rule(starting_id, &mut cache);
+        let re_str = format!("^{}$", compiled);
+        Regex::new(&re_str).unwrap()
+    }
+
+    fn get_compiled_rule(&self, id: &usize, cache: &mut HashMap<usize, String>) -> String {
+        if !cache.contains_key(id) {
+            let value = self.compile_rule(id, cache);
+            cache.insert(*id, value);
+        }
+        cache.get(id).unwrap().clone()
+    }
+
+    fn compile_rule(&self, id: &usize, cache: &mut HashMap<usize, String>) -> String {
+        let rule = self.rules.get(id).unwrap();
+        match rule {
+            Rule::SingleCharacter(char) => char.to_string(),
+            Rule::Delegate(ids) => ids.iter().map(|i| self.get_compiled_rule(i, cache)).collect(),
+            Rule::DelegateOr(ids1, ids2) => {
+                let left: String = ids1.iter().map(|i| self.get_compiled_rule(i, cache)).collect();
+                let right: String = ids2.iter().map(|i| self.get_compiled_rule(i, cache)).collect();
+                format!("({}|{})", left, right)
+            },
+        }
     }
 }
 
@@ -83,7 +112,7 @@ impl Rule {
 fn part1(input: &str) -> usize {
     let validator = MessageValidator::parse(input);
     println!("{:?}", validator);
-    return validator.execute();
+    return validator.num_valid_messages();
 }
 
 // fn part2(input: &str) -> usize {
@@ -115,14 +144,14 @@ mod tests {
     #[test]
     fn test_part1_example1() {
         let result = part1(EXAMPLE1);
-        assert_eq!(result, 0);
+        assert_eq!(result, 2);
     }
 
-    // #[test]
-    // fn test_part1_solution() {
-    //     let result = part1(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part1_solution() {
+        let result = part1(&read_input_file());
+        assert_eq!(result, 165);
+    }
 
     // #[test]
     // fn test_part2_example1() {
