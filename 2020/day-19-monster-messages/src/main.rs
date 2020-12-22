@@ -2,12 +2,18 @@ use std::collections::HashMap;
 
 use std::fs;
 
+use indoc::indoc;
 use lazy_static::lazy_static;
 use regex::Regex;
 
+static PART_2_RULE_OVERRIDES: &str = indoc! {"
+    8: 42 | 42 8
+    11: 42 31 | 42 11 31
+"};
+
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -25,7 +31,7 @@ impl MessageValidator {
         let parts: Vec<&str> = input.split("\n\n").collect();
         assert_eq!(parts.len(), 2);
 
-        let rules = parts[0].lines().map(|line| Rule::parse(line)).collect();
+        let rules = MessageValidator::parse_rules(parts[0]);
         let messages = parts[1].lines().map(|line| line.to_string()).collect();
         
         MessageValidator {
@@ -34,37 +40,21 @@ impl MessageValidator {
         }
     }
 
+    fn apply_rule_overrides(&mut self, input: &str) {
+        let overrides = MessageValidator::parse_rules(input);
+        self.rules.extend(overrides);
+    }
+
+    fn parse_rules(input: &str) -> HashMap<usize, Rule> {
+        input.lines().map(|line| Rule::parse(line)).collect()
+    }
+
     fn num_valid_messages(&self) -> usize {
-        let re = self.compile_rules(&0);
-        self.messages.iter().filter(|s| re.is_match(s)).count()
+        self.messages.iter().filter(|m| self.is_message_valid(m)).count()
     }
 
-    fn compile_rules(&self, starting_id: &usize) -> Regex {
-        let mut cache = HashMap::new();
-        let compiled: String = self.get_compiled_rule(starting_id, &mut cache);
-        let re_str = format!("^{}$", compiled);
-        Regex::new(&re_str).unwrap()
-    }
-
-    fn get_compiled_rule(&self, id: &usize, cache: &mut HashMap<usize, String>) -> String {
-        if !cache.contains_key(id) {
-            let value = self.compile_rule(id, cache);
-            cache.insert(*id, value);
-        }
-        cache.get(id).unwrap().clone()
-    }
-
-    fn compile_rule(&self, id: &usize, cache: &mut HashMap<usize, String>) -> String {
-        let rule = self.rules.get(id).unwrap();
-        match rule {
-            Rule::SingleCharacter(char) => char.to_string(),
-            Rule::Delegate(ids) => ids.iter().map(|i| self.get_compiled_rule(i, cache)).collect(),
-            Rule::DelegateOr(ids1, ids2) => {
-                let left: String = ids1.iter().map(|i| self.get_compiled_rule(i, cache)).collect();
-                let right: String = ids2.iter().map(|i| self.get_compiled_rule(i, cache)).collect();
-                format!("({}|{})", left, right)
-            },
-        }
+    fn is_message_valid(&self, message: &str) -> bool {
+        Solver::is_valid(message, &self.rules, 0)
     }
 }
 
@@ -109,22 +99,136 @@ impl Rule {
     }
 }
 
+#[derive(Debug)]
+struct Solver<'a> {
+    input: &'a Vec<char>,
+    last_input_index: usize,
+    rules: &'a HashMap<usize, Rule>,
+    branches: Vec<Branch>,
+}
+
+#[derive(Debug)]
+struct Branch {
+    input_index: usize,
+    current_rule: usize,
+    leftover_rules: Vec<usize>,
+}
+
+#[derive(Debug)]
+enum StepResult {
+    Valid,
+    Invalid,
+    Continue(Vec<Branch>),
+}
+
+impl Solver<'_> {
+    fn is_valid(input: &str, rules: &HashMap<usize, Rule>, starting_id: usize) -> bool {
+        let starting_branch = Branch {
+            input_index: 0,
+            current_rule: starting_id,
+            leftover_rules: vec![],
+        };
+
+        let chars = input.chars().collect();
+        let mut state = Solver {
+            input: &chars,
+            last_input_index: chars.len() - 1,
+            rules: rules,
+            branches: vec![starting_branch],
+        };
+
+        // run until a valid branch is found, or we run out of branches to try
+        let mut is_valid = false;
+        while !is_valid && !state.branches.is_empty() {
+            is_valid = Solver::step(&mut state);
+        }
+        is_valid
+    }
+
+    fn step(state: &mut Solver) -> bool {
+        let branch = state.branches.pop().unwrap();
+        match Solver::step_branch(&branch, state) {
+            StepResult::Valid => true,
+            StepResult::Invalid => false,
+            StepResult::Continue(branches) => {
+                state.branches.extend(branches);
+                false
+            }
+        }
+    }
+
+    fn step_branch(branch: &Branch, state: &Solver) -> StepResult {
+        let rule = state.rules.get(&branch.current_rule).unwrap();
+        match rule {
+            Rule::SingleCharacter(char) => {
+                if state.input[branch.input_index] == *char {
+                    // we have a char match!
+                    let end_of_input = branch.input_index == state.last_input_index;
+                    let out_of_rules = branch.leftover_rules.is_empty();
+
+                    match (end_of_input, out_of_rules) {
+                        // done this rule tree, and done input string, yay!
+                        (true, true) => StepResult::Valid,
+
+                        // no more input but we have leftovers :(
+                        (true, false) => StepResult::Invalid,
+
+                        // still have input, but out of rules :(
+                        (false, true) => StepResult::Invalid,
+
+                        // not done yet!
+                        (false, false) => StepResult::Continue(vec![branch.advance()]),
+                    }
+                } else {
+                    // char mismatch
+                    StepResult::Invalid
+                }
+            },
+            Rule::Delegate(ids) => {
+                StepResult::Continue(vec![branch.delegate(ids)])
+            }
+            Rule::DelegateOr(ids1, ids2) => {
+                StepResult::Continue(vec![branch.delegate(ids1), branch.delegate(ids2)])
+            },
+        }
+    }
+}
+
+impl Branch {
+    fn advance(&self) -> Branch {
+        Branch {
+            input_index: self.input_index + 1,
+            current_rule: self.leftover_rules[0],
+            leftover_rules: self.leftover_rules[1..].to_vec(),
+        }
+    }
+
+    fn delegate(&self, ids: &Vec<usize>) -> Branch {
+        let mut leftover_rules = ids[1..].to_vec();
+        leftover_rules.extend(&self.leftover_rules);
+    
+        Branch {
+            input_index: self.input_index,
+            current_rule: ids[0],
+            leftover_rules: leftover_rules,
+        }
+    }
+}
+
 fn part1(input: &str) -> usize {
     let validator = MessageValidator::parse(input);
-    println!("{:?}", validator);
     return validator.num_valid_messages();
 }
 
-// fn part2(input: &str) -> usize {
-//     let data = MessageValidator::parse(input);
-//     return data.execute();
-// }
+fn part2(input: &str) -> usize {
+    let mut validator = MessageValidator::parse(input);
+    validator.apply_rule_overrides(PART_2_RULE_OVERRIDES);
+    return validator.num_valid_messages();
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    use indoc::indoc;
 
     static EXAMPLE1: &str = indoc! {"
         0: 4 1 5
@@ -209,15 +313,15 @@ mod tests {
         assert_eq!(result, 165);
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(EXAMPLE1);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example2() {
+        let result = part2(EXAMPLE2);
+        assert_eq!(result, 12);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 274);
+    }
 }
