@@ -1,13 +1,14 @@
 pub mod solver;
 pub mod tile;
 
+use std::collections::HashMap;
 use std::fs;
 
 use crate::tile::*;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -57,10 +58,16 @@ impl CameraArray {
     fn solve_for_combined_image(&self) -> Tile {
         let tile_layout = self.solve_tile_layout();
 
-        // TODO write code to create a new tile out of all these tiles
-        panic!("ahhhh");
+        // swap tile objects for tile IDs
+        let tile_lookup: HashMap<usize, &Tile> = self.tiles.iter().map(|t| (t.id, t)).collect();
+        let tile_layout2: Vec<Vec<(&Tile, Direction, usize)>> = tile_layout.iter().map(|row| {
+            row.iter().map(|(id, direction, rotation)| {
+                let tile = tile_lookup.get(id).unwrap();
+                (*tile, *direction, *rotation)
+            }).collect()
+        }).collect();
 
-        // combined_tile.to_string()
+        Tile::merge(&tile_layout2)
     }
 }
 
@@ -69,10 +76,12 @@ fn part1(input: &str) -> usize {
     array.solve_for_corner_ids().iter().fold(1, |acc, id| acc * id)
 }
 
-// fn part2(input: &str) -> usize {
-//     let data = CameraArray::parse(input);
-//     return data.execute();
-// }
+fn part2(input: &str) -> usize {
+    let array = CameraArray::parse(input);
+    let image = array.solve_for_combined_image();
+    println!("{}", image.to_string());
+    0
+}
 
 #[cfg(test)]
 mod tests {
@@ -191,30 +200,30 @@ mod tests {
     "};
 
     static EXAMPLE1_COMBINED_IMAGE: &str = indoc! {"
-        .#.#..#.##...#.##..#####
-        ###....#.#....#..#......
-        ##.##.###.#.#..######...
-        ###.#####...#.#####.#..#
-        ##.#....#.##.####...#.##
-        ...########.#....#####.#
-        ....#..#...##..#.#.###..
-        .####...#..#.....#......
-        #..#.##..#..###.#.##....
-        #.####..#.####.#.#.###..
-        ###.#.#...#.######.#..##
-        #.####....##..########.#
-        ##..##.#...#...#.#.#.#..
-        ...#..#..#.#.##..###.###
-        .#.#....#.##.#...###.##.
-        ###.#...#..#.##.######..
-        .#.#.###.##.##.#..#.##..
-        .####.###.#...###.#..#.#
-        ..#.#..#..#.#.#.####.###
-        #..####...#.#.#.###.###.
-        #####..#####...###....##
-        #.##..#..#...#..####...#
-        .#.###..##..##..####.##.
         ...###...##...#...#..###
+        .#.###..##..##..####.##.
+        #.##..#..#...#..####...#
+        #####..#####...###....##
+        #..####...#.#.#.###.###.
+        ..#.#..#..#.#.#.####.###
+        .####.###.#...###.#..#.#
+        .#.#.###.##.##.#..#.##..
+        ###.#...#..#.##.######..
+        .#.#....#.##.#...###.##.
+        ...#..#..#.#.##..###.###
+        ##..##.#...#...#.#.#.#..
+        #.####....##..########.#
+        ###.#.#...#.######.#..##
+        #.####..#.####.#.#.###..
+        #..#.##..#..###.#.##....
+        .####...#..#.....#......
+        ....#..#...##..#.#.###..
+        ...########.#....#####.#
+        ##.#....#.##.####...#.##
+        ###.#####...#.#####.#..#
+        ##.##.###.#.#..######...
+        ###....#.#....#..#......
+        .#.#..#.##...#.##..#####
     "};
 
     #[test]
@@ -233,7 +242,8 @@ mod tests {
     fn test_example1_combined_image() {
         let array = CameraArray::parse(EXAMPLE1);
         let image = array.solve_for_combined_image();
-        assert_eq!(image.to_string(), EXAMPLE1_COMBINED_IMAGE);
+        println!("{}", image.to_string());
+        assert_eq!(image.to_string(), EXAMPLE1_COMBINED_IMAGE.trim());
     }
 
     // #[test]
