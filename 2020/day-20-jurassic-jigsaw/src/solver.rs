@@ -7,14 +7,14 @@ use crate::tile::*;
 struct Edge {
     tile: TileRef,
     side: Side,
-    value: usize,
-    value_rev: usize,
+    value: TileValue,
+    value_rev: TileValue,
 }
 
 type Edges = Vec<Edge>;
 
 impl Edge {
-    fn new(tile: TileRef, side: Side, value: usize, value_rev: usize) -> Edge {
+    fn new(tile: TileRef, side: Side, value: TileValue, value_rev: TileValue) -> Edge {
         Edge {
             tile: tile,
             side: side,
@@ -61,7 +61,7 @@ pub fn solve(tiles: &Vec<Tile>, array_width: usize) -> Vec<Vec<(usize, Direction
 #[derive(Debug)]
 struct Solver {
     tiles: HashMap<TileRef, Edges>,
-    edges_with_value: HashMap<usize, Edges>,
+    edges_with_value: HashMap<TileValue, Edges>,
 }
 
 impl Solver {
@@ -119,7 +119,7 @@ impl Solver {
         ].into_iter().collect()
     }
 
-    fn build_edges_with_value_map<'a>(tiles: &'a HashMap<TileRef, Edges>) -> HashMap<usize, Edges> {
+    fn build_edges_with_value_map<'a>(tiles: &'a HashMap<TileRef, Edges>) -> HashMap<TileValue, Edges> {
         let mut result = HashMap::new();
         for (_, edges) in tiles {
             for edge in edges {
@@ -137,22 +137,6 @@ impl Solver {
     fn solve(&self, array_width: usize) -> Vec<Vec<(usize, Direction, usize)>> {
         let mut result: Vec<Vec<Option<TileRefWithRotation>>> = vec![vec![None; array_width]; array_width];
 
-        println!("tiles:");
-        let mut refs: Vec<&TileRef> = self.tiles.keys().collect();
-        refs.sort_by_key(|r| r.id);
-        for r in refs {
-            println!("{:?}: {:?}", r, self.tiles.get(r).unwrap());
-        }
-        println!();
-
-        println!("value map:");
-        let mut vals: Vec<&usize> = self.edges_with_value.keys().collect();
-        vals.sort();
-        for v in vals {
-            println!("{}: {}", v, self.edges_with_value.get(v).unwrap().len());
-        }
-        println!();
-
         for y in 0..array_width {
             for x in 0..array_width {
                 let tile = if x == 0 && y == 0 {
@@ -168,12 +152,9 @@ impl Solver {
                     };                  
                     self.choose_tile_with_edge(&previous_tile, side_to_match)
                 };
-                println!("solved {},{}: {:?} {:?}", x, y, tile, self.tiles.get(&tile.0).unwrap());
                 result[y][x] = Some(tile);
             }
         }
-
-        println!("solved! {:?}", result);
 
         result.iter().map(|row| {
             row.iter().map(|tile| {
@@ -197,9 +178,7 @@ impl Solver {
 
     fn choose_tile_with_edge(&self, previous_tile: &TileRefWithRotation, side_to_match: Side) -> TileRefWithRotation {
         let previous_edge = self.get_edge(previous_tile, side_to_match);
-        println!("choose_tile_with_edge {:?} {:?} {:?}", previous_tile, side_to_match, previous_edge);
         let new_edge = self.connection_for_edge(previous_edge).unwrap();
-        println!("new_edge: {:?}", new_edge);
 
         let intended_side = match side_to_match {
             Side::Bottom => Side::Top,

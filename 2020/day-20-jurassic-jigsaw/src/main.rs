@@ -1,3 +1,4 @@
+pub mod monster;
 pub mod solver;
 pub mod tile;
 
@@ -69,6 +70,13 @@ impl CameraArray {
 
         Tile::merge(&tile_layout2)
     }
+
+    fn solve_for_num_leftover_pixels_after_monsters(&self) -> usize {
+        let tile = self.solve_for_combined_image();
+        let num_active_pixels = tile.count_active_pixels();
+        let num_monster_pixels = monster::count_monster_pixels(&tile);
+        num_active_pixels - num_monster_pixels
+    }
 }
 
 fn part1(input: &str) -> usize {
@@ -78,9 +86,7 @@ fn part1(input: &str) -> usize {
 
 fn part2(input: &str) -> usize {
     let array = CameraArray::parse(input);
-    let image = array.solve_for_combined_image();
-    println!("{}", image.to_string());
-    0
+    array.solve_for_num_leftover_pixels_after_monsters()
 }
 
 #[cfg(test)]
@@ -242,13 +248,18 @@ mod tests {
     fn test_example1_combined_image() {
         let array = CameraArray::parse(EXAMPLE1);
         let image = array.solve_for_combined_image();
-        println!("{}", image.to_string());
         assert_eq!(image.to_string(), EXAMPLE1_COMBINED_IMAGE.trim());
     }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example1() {
+        let result = part2(EXAMPLE1);
+        assert_eq!(result, 273);
+    }
+
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 1792);
+    }
 }

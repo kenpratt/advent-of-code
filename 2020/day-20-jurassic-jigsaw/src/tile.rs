@@ -47,10 +47,12 @@ pub enum Direction {
 
 type Pixels = Vec<Vec<bool>>;
 
+pub type TileValue = u128;
+
 #[derive(Debug)]
 pub struct Tile {
     pub id: usize,
-    pixels: Pixels,
+    pub pixels: Pixels,
     pub width: usize,
     pub height: usize,
 }
@@ -128,8 +130,14 @@ impl Tile {
         (0..self.height).map(|y| self.pixels[y][self.width - 1]).collect()
     }
 
-    pub fn line_to_int<'a>(line: impl Iterator<Item=&'a bool>) -> usize {
+    pub fn line_to_int<'a>(line: impl Iterator<Item=&'a bool>) -> TileValue {
         line.map(|b| if *b { 1 } else { 0 }).fold(0, |acc, bit| (acc << 1) ^ bit)
+    }
+
+    pub fn line_values(pixels: &Pixels) -> Vec<TileValue> {
+        pixels.iter().map(|line| {
+            Tile::line_to_int(line.iter())
+        }).collect()
     }
 
     pub fn merge(tiles: &Vec<Vec<(&Tile, Direction, usize)>>) -> Tile {
@@ -137,13 +145,12 @@ impl Tile {
             Tile::merge_pixels_in_row(row)
         }).flatten().collect();
 
-        println!("merged pixels: {:?}", pixels);
         Tile::from_pixels(0, pixels)
     }
 
     fn merge_pixels_in_row(tiles: &Vec<(&Tile, Direction, usize)>) -> Pixels {
         let pixels_per_tile: Vec<Pixels> = tiles.iter().map(|(tile, direction, rotation)| {
-            tile.calculate_pixels(direction, rotation)
+            tile.calculate_pixels(direction, rotation, true)
         }).collect();
 
         let mut combined = vec![vec![]; pixels_per_tile[0].len()];
@@ -155,16 +162,22 @@ impl Tile {
         combined
     }
 
-    fn calculate_pixels(&self, direction: &Direction, rotation: &usize) -> Pixels {
+    pub fn calculate_pixels(&self, direction: &Direction, rotation: &usize, trim_borders: bool) -> Pixels {
         let coords = Tile::calculate_coords_for_direction_and_rotation(direction, rotation, self.width);
-        println!("calculate_pixels {:?} {:?} -> {:?}", direction, rotation, coords);
 
-        // trim borders
-        coords[1..(self.width-1)].iter().map(|row| {
-            row[1..(self.width-1)].iter().map(|(x, y)| {
-                self.pixels[*y][*x]
+        if trim_borders {
+            coords[1..(self.width-1)].iter().map(|row| {
+                row[1..(self.width-1)].iter().map(|(x, y)| {
+                    self.pixels[*y][*x]
+                }).collect()
             }).collect()
-        }).collect()
+        } else {
+            coords.iter().map(|row| {
+                row.iter().map(|(x, y)| {
+                    self.pixels[*y][*x]
+                }).collect()
+            }).collect()
+        }
     }
 
     fn calculate_coords_for_direction_and_rotation(direction: &Direction, rotation: &usize, width: usize) -> Vec<Vec<(usize, usize)>> {
@@ -198,5 +211,11 @@ impl Tile {
                 }).collect()
             }).collect()
         }
+    }
+
+    pub fn count_active_pixels(&self) -> usize {
+        self.pixels.iter().fold(0, |acc, row| {
+            acc + row.iter().filter(|val| **val).count()
+        })
     }
 }
