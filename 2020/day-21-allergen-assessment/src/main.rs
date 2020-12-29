@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fs;
 
 use lazy_static::lazy_static;
@@ -25,16 +27,32 @@ impl Data {
         }
     }
 
-    fn allergen_free_ingredients(&self) -> usize {
-        println!("{:?}", self);
-        return 0;
+    fn solve_for_allergens(&self) -> HashMap<String, String> {
+        Solver::new(&self.foods).solve()
+    }
+
+    fn allergen_free_ingredient_count(&self) -> usize {
+        let allergen_mappings = self.solve_for_allergens();
+        let allergen_ingredients: HashSet<&String> = allergen_mappings.values().collect();
+
+        let mut ingredient_counts: HashMap<&String, usize> = HashMap::new();
+        for food in &self.foods {
+            for ingredient in &food.ingredients {
+                let count = ingredient_counts.entry(ingredient).or_insert(0);
+                *count += 1;
+            }
+        }
+
+        ingredient_counts.into_iter().filter(|(k, _)| {
+            !allergen_ingredients.contains(k)
+        }).fold(0, |acc, (_, v)| acc + v)
     }
 }
 
 #[derive(Debug)]
 struct Food {
-    ingredients: Vec<String>,
-    allergens: Vec<String>,
+    ingredients: HashSet<String>,
+    allergens: HashSet<String>,
 }
 
 impl Food {
@@ -46,8 +64,8 @@ impl Food {
         let ingredients_str = captures.get(1).unwrap().as_str();
         let allergens_str = captures.get(2).unwrap().as_str();
 
-        let ingredients: Vec<String> = ingredients_str.split(' ').map(|s| s.to_string()).collect();
-        let allergens: Vec<String> = allergens_str.split(", ").map(|s| s.to_string()).collect();
+        let ingredients: HashSet<String> = ingredients_str.split(' ').map(|s| s.to_string()).collect();
+        let allergens: HashSet<String> = allergens_str.split(", ").map(|s| s.to_string()).collect();
 
         return Food {
             ingredients: ingredients,
@@ -56,10 +74,67 @@ impl Food {
     }
 }
 
+#[derive(Debug)]
+struct Solver<'a> {
+    foods: &'a Vec<Food>,
+}
+
+impl Solver<'_> {
+    fn new(foods: &Vec<Food>) -> Solver {
+        Solver {
+            foods: foods,
+        }
+    }
+
+    fn solve(&self) -> HashMap<String, String> {
+        let mut allergen_possibilites = Solver::possible_ingredients_for_allergens(self.foods);
+
+        let mut solution = HashMap::new();
+
+        while !allergen_possibilites.is_empty() {
+            // find an allergen that can only map to a single ingredient
+            let allergen = allergen_possibilites.iter().find(|(_, s)| s.len() == 1).unwrap().0.clone();
+
+            // find the ingredient that it maps to
+            let ingredient: String = allergen_possibilites.remove(&allergen).unwrap().into_iter().next().unwrap();
+
+            // remove that ingredients from the available options for other allergens
+            for (_, ingredients) in &mut allergen_possibilites {
+                ingredients.remove(&ingredient);
+            }
+
+            solution.insert(allergen, ingredient);
+        }
+
+        solution
+    }
+
+    fn possible_ingredients_for_allergens(foods: &Vec<Food>) -> HashMap<String, HashSet<String>> {
+        // for each allergen:
+        // - find foods that contain that allergen
+        // - find intersection of all ingredients in those foods (to get
+        //   possible ingredients that the allergen could map to)
+        let allergens = foods.iter().fold(HashSet::new(), |acc, food| {
+            acc.union(&food.allergens).cloned().collect()
+        });
+
+        allergens.into_iter().map(|allergen| {
+            let foods_with_allergen: Vec<&Food> = foods.iter().filter(|f| {
+                f.allergens.contains(&allergen)
+            }).collect();
+
+            let ingredients_with_allergen: HashSet<String> = foods_with_allergen[1..].iter().fold(foods_with_allergen[0].ingredients.clone(), |acc, food| {
+                acc.intersection(&food.ingredients).cloned().collect()
+            });
+
+            (allergen, ingredients_with_allergen)
+        }).collect()
+    }
+}
+
 fn part1(input: &str) -> usize {
     let data = Data::parse(input);
-    let ingredients = data.allergen_free_ingredients();
-    return 0;
+    data.allergen_free_ingredient_count()
 }
 
 // fn part2(input: &str) -> usize {
@@ -83,14 +158,14 @@ mod tests {
     #[test]
     fn test_part1_example1() {
         let result = part1(EXAMPLE1);
-        assert_eq!(result, 0);
+        assert_eq!(result, 5);
     }
 
-    // #[test]
-    // fn test_part1_solution() {
-    //     let result = part1(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part1_solution() {
+        let result = part1(&read_input_file());
+        assert_eq!(result, 2556);
+    }
 
     // #[test]
     // fn test_part2_example1() {
