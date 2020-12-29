@@ -7,7 +7,7 @@ use regex::Regex;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -46,6 +46,16 @@ impl Data {
         ingredient_counts.into_iter().filter(|(k, _)| {
             !allergen_ingredients.contains(k)
         }).fold(0, |acc, (_, v)| acc + v)
+    }
+
+    fn allergen_ingredients(&self) -> Vec<String> {
+        let allergen_mappings = self.solve_for_allergens();
+
+        // sort by allergen name
+        let mut allergens: Vec<&String> = allergen_mappings.keys().collect();
+        allergens.sort();
+
+        allergens.into_iter().map(|a| allergen_mappings.get(a).unwrap().clone()).collect()
     }
 }
 
@@ -137,10 +147,10 @@ fn part1(input: &str) -> usize {
     data.allergen_free_ingredient_count()
 }
 
-// fn part2(input: &str) -> usize {
-//     let data = Data::parse(input);
-//     return data.execute();
-// }
+fn part2(input: &str) -> String {
+    let data = Data::parse(input);
+    return data.allergen_ingredients().join(",");
+}
 
 #[cfg(test)]
 mod tests {
@@ -167,15 +177,15 @@ mod tests {
         assert_eq!(result, 2556);
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(EXAMPLE1);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example1() {
+        let result = part2(EXAMPLE1);
+        assert_eq!(result, "mxmxvkd,sqjhc,fvjkl".to_string());
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, "vcckp,hjz,nhvprqb,jhtfzk,mgkhhc,qbgbmc,bzcrknb,zmh".to_string());
+    }
 }
