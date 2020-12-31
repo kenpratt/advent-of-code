@@ -1,8 +1,8 @@
 static INPUT: &str = "916438275";
 
 fn main() {
-    println!("part 1 result: {:?}", part1(INPUT, 100));
-    // println!("part 2 result: {:?}", part2(INPUT));
+    //println!("part 1 result: {:?}", part1(INPUT, 100));
+    println!("part 2 result: {:?}", part2(INPUT, 10000000));
 }
 
 #[derive(Debug)]
@@ -13,8 +13,16 @@ struct Game {
 }
 
 impl Game {
-    fn parse(input: &str) -> Game {
-        let cups: Vec<usize> = input.chars().map(|c| c.to_digit(10).unwrap() as usize).map(|c| c - 1).collect();
+    fn parse(input: &str, fill_cups: Option<usize>) -> Game {
+        let mut cups: Vec<usize> = input.chars().map(|c| c.to_digit(10).unwrap() as usize).map(|c| c - 1).collect();
+
+        if fill_cups.is_some() {
+            let fill_from = cups.len();
+            let fill_to = fill_cups.unwrap();       
+            let fill: Vec<usize> = (fill_from..fill_to).collect();    
+            cups.extend(fill);
+        }
+
         let size = cups.len();
 
         let mut pointers: Vec<usize> = vec![0; size];
@@ -32,30 +40,32 @@ impl Game {
         }
     }
 
-    fn run(&mut self, moves: u8) {
-        println!("initial state: {}\n", self.labels_debug());
+    fn run(&mut self, moves: usize) {
+        //println!("initial state: {}\n", self.labels_debug());
         for m in 0..moves {
-            println!("-- move {} --", m);
+            if m % 1000000 == 0 {
+                println!("-- move {} --", m);
+            }
             self.tick();
-            println!("");
+            //println!("");
         }
-        println!("final state: {}", self.labels_debug());
+        //println!("final state: {}", self.labels_debug());
     }
 
     fn tick(&mut self) {
-        println!("cups: {}", self.labels_debug());
+        //println!("cups: {}", self.labels_debug());
 
         let current = self.current;
         let grab0 = self.pointers[current];
         let grab1 = self.pointers[grab0];
         let grab2 = self.pointers[grab1];
-        println!("pick up: {}, {}, {}", grab0+1, grab1+1, grab2+1);
+        //println!("pick up: {}, {}, {}", grab0+1, grab1+1, grab2+1);
 
         let mut destination = (current + self.size - 1) % self.size;
         while destination == grab0 || destination == grab1 || destination == grab2 {
             destination = (destination + self.size - 1) % self.size;
         }
-        println!("destination: {}", destination+1);
+        //println!("destination: {}", destination+1);
         
         let after_grab2 = self.pointers[grab2];
         let after_destination = self.pointers[destination];
@@ -70,6 +80,17 @@ impl Game {
 
         // current changes to the next number (after changing current pointer)
         self.current = self.pointers[current];
+    }
+
+    fn cups_from_reference_point(&self, reference_base_1: usize, num: usize) -> Vec<usize> {
+        let reference = reference_base_1 - 1;
+        let mut cup = self.pointers[reference];
+        let mut acc = vec![];
+        for _ in 0..num {
+            acc.push(cup);
+            cup = self.pointers[cup];
+        }
+        acc.iter().map(|c| c + 1).collect() // fix back to base 1
     }
 
     fn labels_from_reference_point(&self, reference_base_1: usize) -> String {
@@ -94,16 +115,17 @@ impl Game {
     }
 }
 
-fn part1(input: &str, moves: u8) -> String {
-    let mut game = Game::parse(input);
+fn part1(input: &str, moves: usize) -> String {
+    let mut game = Game::parse(input, None);
     game.run(moves);
     game.labels_from_reference_point(1)
 }
 
-// fn part2(input: &str) -> usize {
-//     let game = Game::parse(input);
-//     return game.execute();
-// }
+fn part2(input: &str, moves: usize) -> usize {
+    let mut game = Game::parse(input, Some(1000000));
+    game.run(moves);
+    game.cups_from_reference_point(1, 2).iter().fold(1, |acc, c| acc * c)
+}
 
 #[cfg(test)]
 mod tests {
@@ -129,15 +151,15 @@ mod tests {
         assert_eq!(&result, "39564287");
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(EXAMPLE1);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example1() {
+        let result = part2(EXAMPLE1, 10000000);
+        assert_eq!(result, 149245887792);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(INPUT);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(INPUT, 10000000);
+        assert_eq!(result, 404431096944);
+    }
 }
