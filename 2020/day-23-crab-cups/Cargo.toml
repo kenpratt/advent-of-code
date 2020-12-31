@@ -5,6 +5,3 @@ authors = ["Ken Pratt <ken@kenpratt.net>"]
 edition = "2018"
 
 [dependencies]
-indoc = "1.0"
-lazy_static = "1"
-regex = "1"
