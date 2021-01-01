@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fs;
 
@@ -6,7 +7,7 @@ use regex::Regex;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file(), 100));
 }
 
 fn read_input_file() -> String {
@@ -14,36 +15,77 @@ fn read_input_file() -> String {
 }
 
 #[derive(Debug)]
-struct Data {
-    paths: Vec<Path>,
+struct Floor {
+    flipped_tiles: HashSet<Coordinate>,
+    neighbour_map: NeighbourMap,
 }
 
-impl Data {
-    fn parse(input: &str) -> Data {
+impl Floor {
+    fn parse(input: &str) -> Floor {
         let paths = input.lines().map(|line| Path::parse(line)).collect();
-        Data {
-            paths: paths,
+        Floor {
+            flipped_tiles: Floor::initial_flipped_tiles(&paths),
+            neighbour_map: NeighbourMap::new(),
         }
     }
 
-    fn count_flipped_tiles(&self) -> usize {
+    fn initial_flipped_tiles(paths: &Vec<Path>) -> HashSet<Coordinate> {
         let start = Coordinate::start();
         let mut flipped = HashSet::new();
 
-        for path in &self.paths {
+        for path in paths {
             let coord = path.follow(&start);
-            println!("{:?} => {:?}", path, coord);
             if flipped.contains(&coord) {
                 flipped.remove(&coord);
-                println!("removed {:?}", coord);
             } else {
                 flipped.insert(coord);
-                println!("added {:?}", coord);
             }
         }
 
-        flipped.len()
+        flipped
     }
+
+    fn count_flipped_tiles(&self) -> usize {
+        self.flipped_tiles.len()
+    }
+
+    fn run(&mut self, days: usize) {
+        for _ in 0..days {
+            self.tick();
+        }
+    }
+
+    fn tick(&mut self) {
+        let mut new_flipped = HashSet::new();
+        let to_visit = self.positions_to_check();
+        for p in to_visit {
+            let is_currently_flipped = self.flipped_tiles.contains(&p);
+            let num_flipped_neighbours = self.count_flipped_neighbours(&p);
+            if (is_currently_flipped && (num_flipped_neighbours == 1 || num_flipped_neighbours == 2))
+                || (!is_currently_flipped && num_flipped_neighbours == 2) {
+                new_flipped.insert(p);
+            }
+        }
+        self.flipped_tiles = new_flipped;
+    }
+
+    fn positions_to_check(&mut self) -> HashSet<Coordinate> {
+        let mut to_visit = HashSet::new();
+        for position in &self.flipped_tiles {
+            to_visit.insert(*position);
+
+            let neighbours = self.neighbour_map.get(position);    
+            for n in neighbours {
+                to_visit.insert(*n);
+            }
+        }
+        to_visit
+    }
+
+    fn count_flipped_neighbours(&mut self, position: &Coordinate) -> usize {
+        let neighbours = self.neighbour_map.get(position);    
+        self.flipped_tiles.intersection(neighbours).count()
+    }    
 }
 
 #[derive(Debug)]
@@ -103,6 +145,15 @@ pub enum Direction {
     Northeast,
 }
 
+static DIRECTIONS: &[Direction; 6] = &[
+    Direction::East,
+    Direction::Southeast,
+    Direction::Southwest,
+    Direction::West,
+    Direction::Northwest,
+    Direction::Northeast,
+];
+
 impl Direction {
     fn parse_list(input: &str) -> Vec<Direction> {
         lazy_static! {
@@ -135,15 +186,41 @@ impl Direction {
     }
 }
 
-fn part1(input: &str) -> usize {
-    let data = Data::parse(input);
-    data.count_flipped_tiles()
+#[derive(Debug)]
+struct NeighbourMap {
+    map: HashMap<Coordinate, HashSet<Coordinate>>,
 }
 
-// fn part2(input: &str) -> usize {
-//     let data = Data::parse(input);
-//     data.execute()
-// }
+impl NeighbourMap {
+    fn new() -> NeighbourMap {
+        NeighbourMap {
+            map: HashMap::new(),
+        }
+    }
+
+    fn get(&mut self, position: &Coordinate) -> &HashSet<Coordinate> {
+        if !self.map.contains_key(position) {
+            let neighbours = self.calculate_neighbours(position);
+            self.map.insert(*position, neighbours);
+        }
+        self.map.get(position).unwrap()
+    }
+
+    fn calculate_neighbours(&self, position: &Coordinate) -> HashSet<Coordinate> {
+        DIRECTIONS.iter().map(|d| position.in_direction(d)).collect()
+    }
+}
+
+fn part1(input: &str) -> usize {
+    let floor = Floor::parse(input);
+    floor.count_flipped_tiles()
+}
+
+fn part2(input: &str, days: usize) -> usize {
+    let mut floor = Floor::parse(input);
+    floor.run(days);
+    floor.count_flipped_tiles()
+}
 
 #[cfg(test)]
 mod tests {
@@ -207,15 +284,35 @@ mod tests {
         assert_eq!(result, 332);
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(EXAMPLE1);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example1() {
+        assert_eq!(part2(EXAMPLE1, 0), 10);
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+        assert_eq!(part2(EXAMPLE1, 1), 15);
+        assert_eq!(part2(EXAMPLE1, 2), 12);
+        assert_eq!(part2(EXAMPLE1, 3), 25);
+        assert_eq!(part2(EXAMPLE1, 4), 14);
+        assert_eq!(part2(EXAMPLE1, 5), 23);
+        assert_eq!(part2(EXAMPLE1, 6), 28);
+        assert_eq!(part2(EXAMPLE1, 7), 41);
+        assert_eq!(part2(EXAMPLE1, 8), 37);
+        assert_eq!(part2(EXAMPLE1, 9), 49);
+        assert_eq!(part2(EXAMPLE1, 10), 37);
+
+        assert_eq!(part2(EXAMPLE1, 20), 132);
+        assert_eq!(part2(EXAMPLE1, 30), 259);
+        assert_eq!(part2(EXAMPLE1, 40), 406);
+        assert_eq!(part2(EXAMPLE1, 50), 566);
+        assert_eq!(part2(EXAMPLE1, 60), 788);
+        assert_eq!(part2(EXAMPLE1, 70), 1106);
+        assert_eq!(part2(EXAMPLE1, 80), 1373);
+        assert_eq!(part2(EXAMPLE1, 90), 1844);
+        assert_eq!(part2(EXAMPLE1, 100), 2208);
+    }
+
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file(), 100);
+        assert_eq!(result, 3900);
+    }
 }

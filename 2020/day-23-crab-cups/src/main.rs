@@ -1,7 +1,7 @@
 static INPUT: &str = "916438275";
 
 fn main() {
-    //println!("part 1 result: {:?}", part1(INPUT, 100));
+    println!("part 1 result: {:?}", part1(INPUT, 100));
     println!("part 2 result: {:?}", part2(INPUT, 10000000));
 }
 
