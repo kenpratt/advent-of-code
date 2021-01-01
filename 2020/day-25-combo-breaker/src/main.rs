@@ -4,7 +4,6 @@ static LOOP_DIVISOR: usize = 20201227;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -65,11 +64,6 @@ fn part1(input: &str) -> usize {
     data.calculate_encryption_key()
 }
 
-// fn part2(input: &str) -> usize {
-//     let data = Data::parse(input);
-//     data.execute()
-// }
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -104,16 +98,4 @@ mod tests {
         let result = part1(&read_input_file());
         assert_eq!(result, 11707042);
     }
-
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(EXAMPLE1);
-    //     assert_eq!(result, 0);
-    // }
-
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
 }
