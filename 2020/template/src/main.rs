@@ -9,7 +9,7 @@ fn main() {
 }
 
 fn read_input_file() -> String {
-    return fs::read_to_string("input.txt").expect("Something went wrong reading the file");
+    fs::read_to_string("input.txt").expect("Something went wrong reading the file")
 }
 
 #[derive(Debug)]
@@ -20,13 +20,13 @@ struct Data {
 impl Data {
     fn parse(input: &str) -> Data {
         let parts = input.lines().map(|line| Part::parse(line)).collect();
-        return Data {
+        Data {
             parts: parts,
         }
     }
 
     fn execute(&self) -> usize {
-        return 0;
+        0
     }
 }
 
@@ -37,7 +37,7 @@ struct Part {
 
 impl Part {
     fn parse(input: &str) -> Part {
-        return Part {
+        Part {
             foo: input.len(),
         }
     }
@@ -45,12 +45,12 @@ impl Part {
 
 fn part1(input: &str) -> usize {
     let data = Data::parse(input);
-    return data.execute();
+    data.execute()
 }
 
 // fn part2(input: &str) -> usize {
 //     let data = Data::parse(input);
-//     return data.execute();
+//     data.execute()
 // }
 
 #[cfg(test)]
