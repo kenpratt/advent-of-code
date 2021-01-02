@@ -1,8 +1,8 @@
 require_relative 'computer'
-require_relative 'grid'
+require_relative 'map'
 
 class Droid
-  attr_reader :computer, :map, :current_room, :inventory
+  attr_reader :computer, :map, :current_room, :inventory, :airlock_password
 
   def self.start(program)
     droid = self.new(program)
@@ -12,21 +12,25 @@ class Droid
 
   def initialize(program)
     @computer = IntcodeComputer.new(program, [], "droid")
-    @map = GrowableGrid.new
+    @map = Map.new
     @current_room = nil
     @inventory = []
+    @airlock_password = nil
   end
 
   def start
     output = run_computer
-    handle_move_output(output, Coordinate.new(0, 0))
+    move_output = parse_move_output(output)
+    raise "Unexpected move output" if move_output.size != 1 || !move_output[0][1].nil?
+    @current_room = move_output[0][0]
+    @map.add_new_room(@current_room, nil)
   end
 
   def run_computer
     @computer.run
     output_raw = @computer.clear_output
     output = output_raw.map(&:chr).join('')
-    puts output
+    puts output.blue
     output
   end
 
@@ -37,19 +41,92 @@ class Droid
   end
 
   def north
-    move('north', :up)
+    move('north')
   end
 
   def south
-    move('south', :down)
+    move('south')
   end
 
   def east
-    move('east', :right)
+    move('east')
   end
 
   def west
-    move('west', :left)
+    move('west')
+  end
+
+  def move(direction)
+    if !@current_room.doors.include?(direction)
+      raise "Invalid command, can't move #{direction}"
+    end
+
+    output = send_command(direction)
+    move_output = parse_move_output(output)
+
+    previous_room = @current_room
+    destination_room, action = move_output[0]
+    @current_room = @map.explored_door(previous_room, direction, destination_room)
+
+    if !action.nil? || move_output.size > 1
+      if action && action.include?('ejected back to') && move_output.size == 2
+        # forced move back
+        second_room, second_action = move_output[1]
+        if previous_room.name == second_room.name && second_action.nil?
+          @current_room = previous_room
+        else
+          binding.pry
+        end
+      elsif action && action.include?('Analysis complete!') && move_output.size == 1
+        if action =~ /You should be able to get in by typing (\d+) on the keypad at the main airlock/
+          @airlock_password = $1
+        else
+          binding.pry
+        end
+      else
+        binding.pry
+      end
+    end
+  end
+
+  MOVE_OUTPUT_CHUNK = "(\n\n\=\= (.*) \=\=\n(.*)\n\n(Doors here lead:\n([a-z\\-\n ]+?)\n\n)?(Items here:\n([a-z\\-\n ]+?)\n\n)?((.+)\n\n)?)"
+  RE_NORMAL_MOVE_OUTPUT = /\A\n#{MOVE_OUTPUT_CHUNK}Command\?\n\z/
+  RE_MULTI_MOVE_OUTPUT = /\A\n#{MOVE_OUTPUT_CHUNK}#{MOVE_OUTPUT_CHUNK}Command\?\n\z/
+  RE_MOVE_OUTPUT_CHUNK = /\A#{MOVE_OUTPUT_CHUNK}\z/
+  RE_NO_COMMAND_MOVE_OUTPUT = /\A\n#{MOVE_OUTPUT_CHUNK}([\S\s]+)\z/
+
+  def parse_move_output(str)
+    if str =~ RE_NORMAL_MOVE_OUTPUT
+      [parse_move_chunk($1)]
+    elsif str =~ RE_MULTI_MOVE_OUTPUT
+      chunk_1 = $1
+      chunk_2 = $10
+      [parse_move_chunk(chunk_1), parse_move_chunk(chunk_2)]
+    elsif str =~ RE_NO_COMMAND_MOVE_OUTPUT
+      leftovers = $10.strip
+      room, action = parse_move_chunk($1)
+      if !action.nil?
+        binding.pry
+      end
+      [[room, leftovers]]
+    else
+      binding.pry
+    end
+  end
+
+  def parse_move_chunk(str)
+    if str =~ RE_MOVE_OUTPUT_CHUNK
+      name = $2
+      description = $3
+      doors_str = $5 || ''
+      items_str = $7 || ''
+      action_str = $9
+      doors = doors_str.split("\n").map {|s| s.sub(/^\- /, '')}
+      items = items_str.split("\n").map {|s| s.sub(/^\- /, '')}
+      [Room.new(@map, name, description, doors, items), action_str]
+    else
+      binding.pry
+    end
   end
 
   def take(item)
@@ -74,132 +151,5 @@ class Droid
 
   def read_inventory
     send_command("inv")
-  end
-
-  def move(direction, coord_direction)
-    if !@current_room.doors.include?(direction)
-      raise "Invalid command, can't move #{direction}"
-    end
-
-    output = send_command(direction)
-
-    new_location = @current_room.location.move(coord_direction)
-    handle_move_output(output, new_location)
-  end
-
-  def handle_move_output(str, location)
-    room = if str.strip =~ /^\=\= (.*) \=\=\n(.*)\n\n(Doors here lead:\n([a-z\-\n ]+?)\n\n)?(Items here:\n([a-z\-\n ]+?)\n\n)?Command\?$/
-      name = $1
-      description = $2
-      doors_str = $4 || ''
-      items_str = $6 || ''
-      doors = doors_str.split("\n").map {|s| s.sub(/^\- /, '')}
-      items = items_str.split("\n").map {|s| s.sub(/^\- /, '')}
-      Room.new(location, name, description, doors, items)
-    else
-      binding.pry
-    end
-
-    @current_room = room
-
-    if existing_room = @map.value(location)
-      if existing_room != room
-        binding.pry
-      end
-    else
-      @map.paint!(room.location, room)
-    end
-  end
-
-  def to_s(width=19)
-    rows = @map.bounds.rendered_cells do |l|
-      lines_for_location(l, width)
-    end
-
-    rows.map do |row|
-      row[0].zip(*row[1..-1]).map {|a| a.join('')}.join("\n")
-    end.flatten.join("\n")
-  end
-
-  def lines_for_location(location, width)
-    inner_width = width - 2
-    trunc_width = inner_width - 2
-    centre = width / 2
-    top_bottom_template = '+' + ('-' * inner_width) + '+'
-
-    name = nil
-    desc1 = nil
-    desc2 = nil
-    items1 = nil
-    items2 = nil
-
-    has_top_door = false
-    has_bottom_door = false
-    has_left_door = false
-    has_right_door = false
-
-    room = @map.value(location)
-    if room.nil?
-      return [' ' * width] * 7
-    end
-
-    has_top_door = room.doors.include?('north')
-    has_bottom_door = room.doors.include?('south')
-    has_left_door = room.doors.include?('west')
-    has_right_door = room.doors.include?('east')
-
-    top = top_bottom_template.clone
-    if has_top_door
-      top[centre-1] = ' '
-      top[centre] = ' '
-      top[centre+1] = ' '
-    end
-
-    bottom = top_bottom_template.clone
-    if has_bottom_door
-      bottom[centre-1] = ' '
-      bottom[centre] = ' '
-      bottom[centre+1] = ' '
-    end
-
-    left_door = has_left_door ? ' ' : '|'
-    right_door = has_right_door ? ' ' : '|'
-
-    name = room.name
-    desc1 = room.description[0..trunc_width]
-    desc2 = room.description[trunc_width..-1]
-    items = room.items.join(', ')
-    items1 = items[0..trunc_width]
-    items2 = items[trunc_width..-1]
-    
-    row1 = '| ' + trunc_center(name, trunc_width) + ' |'
-    row2 = '| ' + trunc_center(desc1, trunc_width) + ' |'
-    row3 = left_door + ' ' + trunc_center(desc2, trunc_width) + ' ' + right_door
-    row4 = '| ' + trunc_center(items1, trunc_width) + ' |'
-    row5 = '| ' + trunc_center(items2, trunc_width) + ' |'
-
-    [
-      top,
-      row1,
-      row2,
-      row3,
-      row4,
-      row5,
-      bottom,
-    ]
-  end
-
-  def trunc_center(str, width)
-    if str.nil? || str.empty?
-      ' ' * width
-    elsif str.size >= width
-      str[0, width]
-    else
-      extra = width - str.size
-      half = extra / 2
-      (' ' * half) + str + (' ' * (extra - half))
-    end
-  end
+  end  
 end
-
-Room = Struct.new(:location, :name, :description, :doors, :items)

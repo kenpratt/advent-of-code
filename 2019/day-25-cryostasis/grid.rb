@@ -331,7 +331,7 @@ class PathfindingAStar
   end
 
   def visitable_neighbours(coord)
-    coord.neighbours.select {|dir, c| @is_coord_visitable.call(c)}
+    coord.neighbours.select {|dir, c| @is_coord_visitable.call(dir, c)}
   end
 
   def reconstruct_path(coord)
