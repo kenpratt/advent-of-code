@@ -6,5 +6,4 @@ edition = "2021"
 
 [dependencies]
 indoc = "1.0"
-lazy_static = "1"
-regex = "1"
+itertools = "0.10"
