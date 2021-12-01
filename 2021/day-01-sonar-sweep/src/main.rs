@@ -4,7 +4,7 @@ use itertools::Itertools;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -20,10 +20,11 @@ fn part1(input: &str) -> usize {
     data.iter().tuple_windows().filter(|(x, y)| y > x).count()
 }
 
-// fn part2(input: &str) -> usize {
-//     let data = Data::parse(input);
-//     data.execute()
-// }
+fn part2(input: &str) -> usize {
+    let data = parse(input);
+    let triples = data.iter().tuple_windows().map(|(x, y, z)| x + y + z);
+    triples.tuple_windows().filter(|(x, y)| y > x).count()
+}
 
 #[cfg(test)]
 mod tests {
@@ -56,15 +57,15 @@ mod tests {
         assert_eq!(result, 1477);
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(EXAMPLE1);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example1() {
+        let result = part2(EXAMPLE1);
+        assert_eq!(result, 5);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 1523);
+    }
 }
