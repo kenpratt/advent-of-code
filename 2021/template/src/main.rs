@@ -1,5 +1,6 @@
 use std::fs;
 
+// use itertools::Itertools;
 // use lazy_static::lazy_static;
 // use regex::Regex;
 
@@ -20,9 +21,7 @@ struct Data {
 impl Data {
     fn parse(input: &str) -> Data {
         let parts = input.lines().map(|line| Part::parse(line)).collect();
-        Data {
-            parts: parts,
-        }
+        Data { parts: parts }
     }
 
     fn execute(&self) -> usize {
@@ -37,19 +36,19 @@ struct Part {
 
 impl Part {
     fn parse(input: &str) -> Part {
-        Part {
-            foo: input.len(),
-        }
+        Part { foo: input.len() }
     }
 }
 
 fn part1(input: &str) -> usize {
     let data = Data::parse(input);
+    println!("{:?}", data);
     data.execute()
 }
 
 // fn part2(input: &str) -> usize {
 //     let data = Data::parse(input);
+//     println!("{:?}", data);
 //     data.execute()
 // }
 
@@ -61,7 +60,7 @@ mod tests {
 
     static EXAMPLE1: &str = indoc! {"
         foo
-    "};    
+    "};
 
     #[test]
     fn test_part1_example1() {

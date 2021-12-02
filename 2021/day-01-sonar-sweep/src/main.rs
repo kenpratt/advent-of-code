@@ -12,7 +12,10 @@ fn read_input_file() -> String {
 }
 
 fn parse(input: &str) -> Vec<usize> {
-    input.lines().map(|line| line.parse::<usize>().unwrap()).collect()
+    input
+        .lines()
+        .map(|line| line.parse::<usize>().unwrap())
+        .collect()
 }
 
 fn part1(input: &str) -> usize {
@@ -43,7 +46,7 @@ mod tests {
         269
         260
         263
-    "};    
+    "};
 
     #[test]
     fn test_part1_example1() {

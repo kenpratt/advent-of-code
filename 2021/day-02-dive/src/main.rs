@@ -32,7 +32,7 @@ impl Command {
             "forward" => Command::Forward(amount),
             "down" => Command::Down(amount),
             "up" => Command::Up(amount),
-            _ => panic!("Bad input: {}", input)
+            _ => panic!("Bad input: {}", input),
         }
     }
 }
@@ -100,7 +100,7 @@ impl ImprovedSubmarine {
             Command::Forward(amount) => {
                 self.position += amount;
                 self.depth += self.aim * amount;
-            },
+            }
             Command::Down(amount) => self.aim += amount,
             Command::Up(amount) => self.aim -= amount,
         }
@@ -127,7 +127,7 @@ mod tests {
         up 3
         down 8
         forward 2
-    "};    
+    "};
 
     #[test]
     fn test_part1_example1() {
