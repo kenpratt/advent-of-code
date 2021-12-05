@@ -1,8 +1,6 @@
 use std::fs;
 
-// use itertools::Itertools;
-// use lazy_static::lazy_static;
-// use regex::Regex;
+use std::collections::HashMap;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
@@ -14,42 +12,123 @@ fn read_input_file() -> String {
 }
 
 #[derive(Debug)]
-struct Data {
-    parts: Vec<Part>,
+struct Game {
+    numbers: Vec<usize>,
+    number_index: usize,
+    boards: Vec<Board>,
 }
 
-impl Data {
-    fn parse(input: &str) -> Data {
-        let parts = input.lines().map(|line| Part::parse(line)).collect();
-        Data { parts: parts }
+impl Game {
+    fn parse(input: &str) -> Game {
+        let mut parts = input.split("\n\n");
+        let numbers = parts
+            .next()
+            .unwrap()
+            .split(',')
+            .map(|s| s.parse::<usize>().unwrap())
+            .collect();
+        let boards = parts.map(|p| Board::parse(p)).collect();
+        Game {
+            numbers: numbers,
+            number_index: 0,
+            boards: boards,
+        }
     }
 
-    fn execute(&self) -> usize {
-        0
+    fn execute(&mut self) -> usize {
+        let mut last_number = 0;
+        while !self.game_over() {
+            last_number = self.tick();
+        }
+        match self.winning_board() {
+            Some(board) => board.score() * last_number,
+            None => 0,
+        }
+    }
+
+    fn game_over(&self) -> bool {
+        self.winning_board().is_some() || self.number_index == self.numbers.len()
+    }
+
+    fn winning_board(&self) -> Option<&Board> {
+        self.boards.iter().find(|b| b.won())
+    }
+
+    fn tick(&mut self) -> usize {
+        let number = self.numbers[self.number_index];
+        for board in &mut self.boards {
+            board.mark(&number);
+        }
+        self.number_index += 1;
+        number
     }
 }
+
+type Position = (usize, usize);
 
 #[derive(Debug)]
-struct Part {
-    foo: usize,
+struct Board {
+    unmarked: HashMap<usize, Position>,
+    marked_in_row: [u8; 5],
+    marked_in_column: [u8; 5],
 }
 
-impl Part {
-    fn parse(input: &str) -> Part {
-        Part { foo: input.len() }
+impl Board {
+    fn parse(input: &str) -> Board {
+        let rows: Vec<Vec<usize>> = input
+            .trim()
+            .split("\n")
+            .map(|row| {
+                row.split_whitespace()
+                    .map(|s| s.parse::<usize>().unwrap())
+                    .collect()
+            })
+            .collect();
+
+        let mut unmarked = HashMap::new();
+        for (y, row) in rows.iter().enumerate() {
+            for (x, number) in row.iter().enumerate() {
+                unmarked.insert(*number, (x, y));
+            }
+        }
+
+        Board {
+            unmarked: unmarked,
+            marked_in_row: [0; 5],
+            marked_in_column: [0; 5],
+        }
+    }
+
+    fn mark(&mut self, number: &usize) -> bool {
+        match self.unmarked.remove(number) {
+            Some(position) => {
+                let (x, y) = position;
+                self.marked_in_row[y] += 1;
+                self.marked_in_column[x] += 1;
+                true
+            }
+            None => false,
+        }
+    }
+
+    fn won(&self) -> bool {
+        self.marked_in_row.iter().any(|&n| n == 5) || self.marked_in_column.iter().any(|&n| n == 5)
+    }
+
+    fn score(&self) -> usize {
+        self.unmarked.keys().sum()
     }
 }
 
 fn part1(input: &str) -> usize {
-    let data = Data::parse(input);
-    println!("{:?}", data);
-    data.execute()
+    let mut game = Game::parse(input);
+    game.execute()
 }
 
 // fn part2(input: &str) -> usize {
-//     let data = Data::parse(input);
-//     println!("{:?}", data);
-//     data.execute()
+//     let game = Game::parse(input);
+//     println!("{:?}", game);
+//     game.execute()
 // }
 
 #[cfg(test)]
@@ -59,20 +138,38 @@ mod tests {
     use indoc::indoc;
 
     static EXAMPLE1: &str = indoc! {"
-        foo
+        7,4,9,5,11,17,23,2,0,14,21,24,10,16,13,6,15,25,12,22,18,20,8,19,3,26,1
+
+        22 13 17 11  0
+        8  2 23  4 24
+        21  9 14 16  7
+        6 10  3 18  5
+        1 12 20 15 19
+        
+        3 15  0  2 22
+        9 18 13 17  5
+        19  8  7 25 23
+        20 11 10 24  4
+        14 21 16 12  6
+        
+        14 21 17 24  4
+        10 16 15  9 19
+        18  8 23 26 20
+        22 11 13  6  5
+        2  0 12  3  7
     "};
 
     #[test]
     fn test_part1_example1() {
         let result = part1(EXAMPLE1);
-        assert_eq!(result, 0);
+        assert_eq!(result, 4512);
     }
 
-    // #[test]
-    // fn test_part1_solution() {
-    //     let result = part1(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part1_solution() {
+        let result = part1(&read_input_file());
+        assert_eq!(result, 72770);
+    }
 
     // #[test]
     // fn test_part2_example1() {
