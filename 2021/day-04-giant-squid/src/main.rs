@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -14,7 +14,6 @@ fn read_input_file() -> String {
 #[derive(Debug)]
 struct Game {
     numbers: Vec<usize>,
-    number_index: usize,
     boards: Vec<Board>,
 }
 
@@ -30,47 +29,40 @@ impl Game {
         let boards = parts.map(|p| Board::parse(p)).collect();
         Game {
             numbers: numbers,
-            number_index: 0,
             boards: boards,
         }
     }
 
-    fn execute(&mut self) -> usize {
-        let mut last_number = 0;
-        while !self.game_over() {
-            last_number = self.tick();
+    fn execute(&mut self) -> Vec<usize> {
+        self.draw_numbers();
+        let mut winners: Vec<Bingo> = self.boards.iter().filter_map(|b| b.bingo).collect();
+        winners.sort_by_cached_key(|(round, _, _)| *round);
+        winners.into_iter().map(|(_, _, score)| score).collect()
+    }
+
+    fn draw_numbers(&mut self) {
+        let numbers = self.numbers.clone();
+        for (round, number) in numbers.iter().enumerate() {
+            self.mark_boards(&round, number);
         }
-        match self.winning_board() {
-            Some(board) => board.score() * last_number,
-            None => 0,
-        }
     }
 
-    fn game_over(&self) -> bool {
-        self.winning_board().is_some() || self.number_index == self.numbers.len()
-    }
-
-    fn winning_board(&self) -> Option<&Board> {
-        self.boards.iter().find(|b| b.won())
-    }
-
-    fn tick(&mut self) -> usize {
-        let number = self.numbers[self.number_index];
+    fn mark_boards(&mut self, round: &usize, number: &usize) {
         for board in &mut self.boards {
-            board.mark(&number);
+            board.mark(round, number);
         }
-        self.number_index += 1;
-        number
     }
 }
 
 type Position = (usize, usize);
+type Bingo = (usize, usize, usize);
 
 #[derive(Debug)]
 struct Board {
     unmarked: HashMap<usize, Position>,
     marked_in_row: [u8; 5],
     marked_in_column: [u8; 5],
+    bingo: Option<Bingo>,
 }
 
 impl Board {
@@ -96,40 +88,46 @@ impl Board {
             unmarked: unmarked,
             marked_in_row: [0; 5],
             marked_in_column: [0; 5],
+            bingo: None,
         }
     }
 
-    fn mark(&mut self, number: &usize) -> bool {
-        match self.unmarked.remove(number) {
-            Some(position) => {
-                let (x, y) = position;
-                self.marked_in_row[y] += 1;
-                self.marked_in_column[x] += 1;
-                true
+    fn mark(&mut self, round: &usize, number: &usize) {
+        if self.bingo.is_none() {
+            match self.unmarked.remove(number) {
+                Some(position) => {
+                    let (x, y) = position;
+                    self.marked_in_row[y] += 1;
+                    self.marked_in_column[x] += 1;
+                    if self.check_for_bingo() {
+                        self.bingo = Some((*round, *number, self.score(number)));
+                    }
+                }
+                None => {}
             }
-            None => false,
         }
     }
 
-    fn won(&self) -> bool {
+    fn check_for_bingo(&self) -> bool {
         self.marked_in_row.iter().any(|&n| n == 5) || self.marked_in_column.iter().any(|&n| n == 5)
     }
 
-    fn score(&self) -> usize {
-        self.unmarked.keys().sum()
+    fn score(&self, number: &usize) -> usize {
+        self.unmarked.keys().sum::<usize>() * number
     }
 }
 
 fn part1(input: &str) -> usize {
     let mut game = Game::parse(input);
-    game.execute()
+    let winning_scores = game.execute();
+    *winning_scores.first().unwrap()
 }
 
-// fn part2(input: &str) -> usize {
-//     let game = Game::parse(input);
-//     println!("{:?}", game);
-//     game.execute()
-// }
+fn part2(input: &str) -> usize {
+    let mut game = Game::parse(input);
+    let winning_scores = game.execute();
+    *winning_scores.last().unwrap()
+}
 
 #[cfg(test)]
 mod tests {
@@ -171,15 +169,15 @@ mod tests {
         assert_eq!(result, 72770);
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(EXAMPLE1);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example1() {
+        let result = part2(EXAMPLE1);
+        assert_eq!(result, 1924);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 13912);
+    }
 }
