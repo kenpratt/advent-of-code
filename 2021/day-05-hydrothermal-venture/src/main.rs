@@ -1,8 +1,8 @@
+use std::collections::HashMap;
 use std::fs;
 
-// use itertools::Itertools;
-// use lazy_static::lazy_static;
-// use regex::Regex;
+use lazy_static::lazy_static;
+use regex::Regex;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
@@ -13,37 +13,85 @@ fn read_input_file() -> String {
     fs::read_to_string("input.txt").expect("Something went wrong reading the file")
 }
 
-#[derive(Debug)]
-struct Data {
-    parts: Vec<Part>,
+lazy_static! {
+    static ref LINE_RE: Regex = Regex::new(r"\A(\d+),(\d+) -> (\d+),(\d+)\z").unwrap();
 }
 
-impl Data {
-    fn parse(input: &str) -> Data {
-        let parts = input.lines().map(|line| Part::parse(line)).collect();
-        Data { parts: parts }
-    }
-
-    fn execute(&self) -> usize {
-        0
-    }
+fn parse(input: &str) -> Vec<Line> {
+    input.lines().map(|line| Line::parse(line)).collect()
 }
+
+type Point = (usize, usize);
 
 #[derive(Debug)]
-struct Part {
-    foo: usize,
+struct Line {
+    start: Point,
+    end: Point,
 }
 
-impl Part {
-    fn parse(input: &str) -> Part {
-        Part { foo: input.len() }
+impl Line {
+    fn parse(input: &str) -> Line {
+        let captures = LINE_RE.captures(input).unwrap();
+        let x1 = captures.get(1).unwrap().as_str().parse::<usize>().unwrap();
+        let y1 = captures.get(2).unwrap().as_str().parse::<usize>().unwrap();
+        let x2 = captures.get(3).unwrap().as_str().parse::<usize>().unwrap();
+        let y2 = captures.get(4).unwrap().as_str().parse::<usize>().unwrap();
+        Line {
+            start: (x1, y1),
+            end: (x2, y2),
+        }
+    }
+
+    fn is_vertical(&self) -> bool {
+        self.start.0 == self.end.0
+    }
+
+    fn is_horizontal(&self) -> bool {
+        self.start.1 == self.end.1
+    }
+
+    fn points(&self) -> Vec<Point> {
+        if self.is_vertical() {
+            let x = self.start.0;
+            self.inclusive_range(self.start.1, self.end.1)
+                .map(|y| (x, y))
+                .collect()
+        } else if self.is_horizontal() {
+            let y = self.start.1;
+            self.inclusive_range(self.start.0, self.end.0)
+                .map(|x| (x, y))
+                .collect()
+        } else {
+            panic!("don't understand diagonal lines yet")
+        }
+    }
+
+    fn inclusive_range(&self, v1: usize, v2: usize) -> std::ops::RangeInclusive<usize> {
+        if v1 <= v2 {
+            v1..=v2
+        } else {
+            v2..=v1
+        }
     }
 }
 
 fn part1(input: &str) -> usize {
-    let data = Data::parse(input);
-    println!("{:?}", data);
-    data.execute()
+    let lines = parse(input);
+
+    let straight_lines = lines
+        .iter()
+        .filter(|l| l.is_horizontal() || l.is_vertical());
+
+    let mut cells = HashMap::new();
+    for points in straight_lines.map(|l| l.points()) {
+        for point in points {
+            let entry = cells.entry(point).or_insert(0);
+            *entry += 1;
+        }
+    }
+
+    // intersections are where two lines had that cell hit
+    cells.values().filter(|&v| v >= &2).count()
 }
 
 // fn part2(input: &str) -> usize {
@@ -59,20 +107,29 @@ mod tests {
     use indoc::indoc;
 
     static EXAMPLE1: &str = indoc! {"
-        foo
+        0,9 -> 5,9
+        8,0 -> 0,8
+        9,4 -> 3,4
+        2,2 -> 2,1
+        7,0 -> 7,4
+        6,4 -> 2,0
+        0,9 -> 2,9
+        3,4 -> 1,4
+        0,0 -> 8,8
+        5,5 -> 8,2
     "};
 
     #[test]
     fn test_part1_example1() {
         let result = part1(EXAMPLE1);
-        assert_eq!(result, 0);
+        assert_eq!(result, 5);
     }
 
-    // #[test]
-    // fn test_part1_solution() {
-    //     let result = part1(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part1_solution() {
+        let result = part1(&read_input_file());
+        assert_eq!(result, 5092);
+    }
 
     // #[test]
     // fn test_part2_example1() {
