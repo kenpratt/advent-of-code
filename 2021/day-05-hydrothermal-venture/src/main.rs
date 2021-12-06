@@ -6,7 +6,7 @@ use regex::Regex;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -19,6 +19,22 @@ lazy_static! {
 
 fn parse(input: &str) -> Vec<Line> {
     input.lines().map(|line| Line::parse(line)).collect()
+}
+
+fn abs_diff(a: usize, b: usize) -> usize {
+    if a >= b {
+        a - b
+    } else {
+        b - a
+    }
+}
+
+fn inclusive_range(v1: usize, v2: usize) -> Box<dyn Iterator<Item = usize>> {
+    if v1 <= v2 {
+        Box::new(v1..=v2)
+    } else {
+        Box::new((v2..=v1).rev())
+    }
 }
 
 type Point = (usize, usize);
@@ -50,55 +66,59 @@ impl Line {
         self.start.1 == self.end.1
     }
 
+    fn is_perfect_diagonal(&self) -> bool {
+        abs_diff(self.start.0, self.end.0) == abs_diff(self.start.1, self.end.1)
+    }
+
     fn points(&self) -> Vec<Point> {
         if self.is_vertical() {
             let x = self.start.0;
-            self.inclusive_range(self.start.1, self.end.1)
+            inclusive_range(self.start.1, self.end.1)
                 .map(|y| (x, y))
                 .collect()
         } else if self.is_horizontal() {
             let y = self.start.1;
-            self.inclusive_range(self.start.0, self.end.0)
+            inclusive_range(self.start.0, self.end.0)
                 .map(|x| (x, y))
                 .collect()
+        } else if self.is_perfect_diagonal() {
+            let xs = inclusive_range(self.start.0, self.end.0);
+            let ys = inclusive_range(self.start.1, self.end.1);
+            xs.zip(ys).collect()
         } else {
-            panic!("don't understand diagonal lines yet")
-        }
-    }
-
-    fn inclusive_range(&self, v1: usize, v2: usize) -> std::ops::RangeInclusive<usize> {
-        if v1 <= v2 {
-            v1..=v2
-        } else {
-            v2..=v1
+            panic!("invalid line geometry {:?}", self)
         }
     }
 }
 
-fn part1(input: &str) -> usize {
-    let lines = parse(input);
-
-    let straight_lines = lines
-        .iter()
-        .filter(|l| l.is_horizontal() || l.is_vertical());
-
+fn num_intersections(lines: &[Line]) -> usize {
     let mut cells = HashMap::new();
-    for points in straight_lines.map(|l| l.points()) {
+    for points in lines.iter().map(|l| l.points()) {
         for point in points {
             let entry = cells.entry(point).or_insert(0);
             *entry += 1;
         }
     }
 
-    // intersections are where two lines had that cell hit
+    // intersections are where at least two lines passed through
     cells.values().filter(|&v| v >= &2).count()
 }
 
-// fn part2(input: &str) -> usize {
-//     let data = Data::parse(input);
-//     println!("{:?}", data);
-//     data.execute()
-// }
+fn part1(input: &str) -> usize {
+    let lines = parse(input);
+
+    let straight_lines: Vec<Line> = lines
+        .into_iter()
+        .filter(|l| l.is_horizontal() || l.is_vertical())
+        .collect();
+
+    num_intersections(&straight_lines)
+}
+
+fn part2(input: &str) -> usize {
+    let lines = parse(input);
+    num_intersections(&lines)
+}
 
 #[cfg(test)]
 mod tests {
@@ -131,15 +151,15 @@ mod tests {
         assert_eq!(result, 5092);
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(EXAMPLE1);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example1() {
+        let result = part2(EXAMPLE1);
+        assert_eq!(result, 12);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 20484);
+    }
 }
