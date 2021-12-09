@@ -1,13 +1,9 @@
 use std::collections::HashMap;
-use std::collections::HashSet;
 use std::fs;
 
+use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::Regex;
-
-// for Enum iterator
-use strum::IntoEnumIterator;
-use strum_macros::EnumIter;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
@@ -22,112 +18,69 @@ lazy_static! {
     static ref LINE_RE: Regex = Regex::new(r"\A(.*) \| (.*)\z").unwrap();
 
     // Segment displays
-    static ref SEGMENTS_FOR_0: HashSet<Segment> = [Segment::I, Segment::J, Segment::K, Segment::M, Segment::N, Segment::O].into();
-    static ref SEGMENTS_FOR_1: HashSet<Segment> = [Segment::K, Segment::N].into();
-    static ref SEGMENTS_FOR_2: HashSet<Segment> = [Segment::I, Segment::K, Segment::L, Segment::M, Segment::O].into();
-    static ref SEGMENTS_FOR_3: HashSet<Segment> = [Segment::I, Segment::K, Segment::L, Segment::N, Segment::O].into();
-    static ref SEGMENTS_FOR_4: HashSet<Segment> = [Segment::J, Segment::K, Segment::L, Segment::N].into();
-    static ref SEGMENTS_FOR_5: HashSet<Segment> = [Segment::I, Segment::J, Segment::L, Segment::N, Segment::O].into();
-    static ref SEGMENTS_FOR_6: HashSet<Segment> = [Segment::I, Segment::J, Segment::L, Segment::M, Segment::N, Segment::O].into();
-    static ref SEGMENTS_FOR_7: HashSet<Segment> = [Segment::I, Segment::K, Segment::N].into();
-    static ref SEGMENTS_FOR_8: HashSet<Segment> = [Segment::I, Segment::J, Segment::K, Segment::L, Segment::M, Segment::N, Segment::O].into();
-    static ref SEGMENTS_FOR_9: HashSet<Segment> = [Segment::I, Segment::J, Segment::K, Segment::L, Segment::N, Segment::O].into();
+    static ref SEGMENTS_TO_DIGIT: HashMap<&'static str, usize> = {
+        let mut m = HashMap::new();
+        m.insert("ijkmno", 0);
+        m.insert("kn", 1);
+        m.insert("iklmo", 2);
+        m.insert("iklno", 3);
+        m.insert("jkln", 4);
+        m.insert("ijlno", 5);
+        m.insert("ijlmno", 6);
+        m.insert("ikn", 7);
+        m.insert("ijklmno", 8);
+        m.insert("ijklno", 9);
+        m
+    };
 }
+
+static VALID_WIRES: [char; 7] = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
 
 fn parse(input: &str) -> Vec<Entry> {
     input.lines().map(|line| Entry::parse(line)).collect()
 }
 
-#[derive(Clone, Copy, Debug, EnumIter, Hash, Eq, PartialEq)]
-enum Wire {
-    A,
-    B,
-    C,
-    D,
-    E,
-    F,
-    G,
-}
-
-impl Wire {
-    fn from_char(c: &char) -> Wire {
-        match c {
-            'a' => Wire::A,
-            'b' => Wire::B,
-            'c' => Wire::C,
-            'd' => Wire::D,
-            'e' => Wire::E,
-            'f' => Wire::F,
-            'g' => Wire::G,
-            _ => panic!("Unexpected wire character: {}", c),
-        }
-    }
-}
-
-#[derive(Debug, Eq, PartialEq)]
-struct Pattern(HashSet<Wire>);
+#[derive(Debug)]
+struct Pattern(String);
 
 impl Pattern {
     fn parse(str: &str) -> Pattern {
-        Pattern(str.chars().map(|c| Wire::from_char(&c)).collect())
+        Pattern(str.chars().sorted().collect::<String>())
     }
 
-    fn contains(&self, wire: &Wire) -> bool {
-        self.0.contains(wire)
+    fn contains(&self, wire: &char) -> bool {
+        self.0.chars().any(|c| &c == wire)
     }
 
     fn difference(&self, other: &Pattern) -> Pattern {
-        Pattern(self.0.difference(&other.0).cloned().collect())
+        let mut chars: Vec<char> = self.0.chars().collect();
+        let other_chars: Vec<char> = other.0.chars().collect();
+        chars.retain(|c| !other_chars.contains(c));
+        Pattern(chars.iter().collect())
     }
 
     fn len(&self) -> usize {
         self.0.len()
     }
 
-    fn single_element(&self) -> Wire {
+    fn single_element(&self) -> char {
         if self.0.len() != 1 {
             panic!("Expected single element");
         }
-        *self.0.iter().next().unwrap()
+        self.0.chars().next().unwrap()
+    }
+
+    fn apply_key(&self, key: &HashMap<char, char>) -> String {
+        self.0
+            .chars()
+            .map(|c| key.get(&c).unwrap())
+            .sorted()
+            .collect()
     }
 }
 
-// to avoid confusion, wires will be ABCDEFG, and segments will be IJKLMNO
-#[derive(Clone, Debug, Hash, Eq, PartialEq)]
-enum Segment {
-    I,
-    J,
-    K,
-    L,
-    M,
-    N,
-    O,
-}
-
-fn segments_to_int(segments: &HashSet<Segment>) -> usize {
-    if segments == &(*SEGMENTS_FOR_0) {
-        0
-    } else if segments == &(*SEGMENTS_FOR_1) {
-        1
-    } else if segments == &(*SEGMENTS_FOR_2) {
-        2
-    } else if segments == &(*SEGMENTS_FOR_3) {
-        3
-    } else if segments == &(*SEGMENTS_FOR_4) {
-        4
-    } else if segments == &(*SEGMENTS_FOR_5) {
-        5
-    } else if segments == &(*SEGMENTS_FOR_6) {
-        6
-    } else if segments == &(*SEGMENTS_FOR_7) {
-        7
-    } else if segments == &(*SEGMENTS_FOR_8) {
-        8
-    } else if segments == &(*SEGMENTS_FOR_9) {
-        9
-    } else {
-        panic!("fooey")
-    }
+fn segments_to_digit(segments: &str) -> usize {
+    *SEGMENTS_TO_DIGIT.get(segments).unwrap()
 }
 
 #[derive(Debug)]
@@ -156,7 +109,7 @@ impl Entry {
     }
 
     fn solve(&self) -> usize {
-        let key = self.solve_key();
+        let key = SegmentGroups::new(&self.signals).solve_key();
         println!("key: {:?}", key);
 
         let outputs: Vec<usize> = self
@@ -169,100 +122,10 @@ impl Entry {
         outputs.iter().fold(0, |acc, val| acc * 10 + val)
     }
 
-    fn solve_key(&self) -> HashMap<Wire, Segment> {
-        let signal_groups = SegmentGroups::new(&self.signals);
-        println!("{:?}", signal_groups);
-
-        // use 1 & 7 to find segment I
-        let kn = signal_groups.one;
-        let ikn = signal_groups.seven;
-        let i = ikn.difference(kn);
-        println!("ikn:{:?} - kn:{:?} = i:{:?}", ikn, kn, i);
-
-        // use 1 & 4 to find segments jl
-        let jkln = signal_groups.four;
-        let jl = jkln.difference(kn);
-        println!("jkln:{:?} - kn:{:?} = jl:{:?}", jkln, kn, jl);
-
-        // use 2 & 3 & 5 to find segments jm
-        let jm = Entry::wires_with_count(&signal_groups.two_three_five, 1);
-        println!(
-            "frequency of 1 in 2/3/5:{:?} = jm:{:?}",
-            signal_groups.two_three_five, jm
-        );
-
-        // now we can solve for l
-        let l = jl.difference(&jm);
-        println!("jl:{:?} - jm:{:?} = l:{:?}", jl, jm, l);
-
-        // and j
-        let j = jl.difference(&l);
-        println!("jl:{:?} - l:{:?} = j:{:?}", jl, l, j);
-
-        // and m
-        let m = jm.difference(&j);
-        println!("jm:{:?} - j:{:?} = m:{:?}", jm, j, m);
-
-        // now we've solved values for i,j,l,m and the pair of kn
-        // haven't tried o yet
-
-        // use 2 & 3 & 5 to find sets of ilo and solve for o
-        let ilo = Entry::wires_with_count(&signal_groups.two_three_five, 3);
-        println!(
-            "frequency of 3 in 2/3/5:{:?} = ilo:{:?}",
-            signal_groups.two_three_five, ilo
-        );
-        let o = ilo.difference(&i).difference(&l);
-        println!("ilo:{:?} - i:{:?} - l:{:?} = o:{:?}", ilo, i, l, o);
-
-        // okay now we should be able to solve kn by distinguishing 2
-        let iklmo = signal_groups
-            .two_three_five
-            .iter()
-            .find(|p| p.contains(&m.single_element()))
-            .unwrap();
-        let k = iklmo
-            .difference(&i)
-            .difference(&l)
-            .difference(&m)
-            .difference(&o);
-        println!(
-            "iklmo:{:?} - i:{:?} - l:{:?} - m:{:?} - o:{:?} = k:{:?}",
-            iklmo, i, l, m, o, k
-        );
-
-        // and solve for n
-        let n = kn.difference(&k);
-        println!("kn:{:?} - k:{:?} = n:{:?}", kn, k, n);
-
-        let mut key = HashMap::new();
-        key.insert(i.single_element(), Segment::I);
-        key.insert(j.single_element(), Segment::J);
-        key.insert(k.single_element(), Segment::K);
-        key.insert(l.single_element(), Segment::L);
-        key.insert(m.single_element(), Segment::M);
-        key.insert(n.single_element(), Segment::N);
-        key.insert(o.single_element(), Segment::O);
-        key
-    }
-
-    fn wires_with_count(patterns: &[&Pattern], target: usize) -> Pattern {
-        Pattern(
-            Wire::iter()
-                .filter(|w| patterns.iter().filter(|p| p.contains(w)).count() == target)
-                .collect(),
-        )
-    }
-
-    fn read_value(pattern: &Pattern, key: &HashMap<Wire, Segment>) -> usize {
-        let segments: HashSet<Segment> = pattern
-            .0
-            .iter()
-            .map(|w| key.get(w).unwrap())
-            .cloned()
-            .collect();
+    fn read_value(pattern: &Pattern, key: &HashMap<char, char>) -> usize {
+        let segments = pattern.apply_key(key);
         println!("pattern {:?} => segments {:?}", pattern, segments);
-        segments_to_int(&segments)
+        segments_to_digit(&segments)
     }
 }
 
@@ -305,6 +168,91 @@ impl<'a> SegmentGroups<'a> {
             panic!("Bad input, expected 3 patterns of length {}", len);
         }
         matches
+    }
+
+    fn solve_key(&self) -> HashMap<char, char> {
+        println!("{:?}", self);
+
+        // use 1 & 7 to find segment I
+        let kn = self.one;
+        let ikn = self.seven;
+        let i = ikn.difference(kn);
+        println!("ikn:{:?} - kn:{:?} = i:{:?}", ikn, kn, i);
+
+        // use 1 & 4 to find segments jl
+        let jkln = self.four;
+        let jl = jkln.difference(kn);
+        println!("jkln:{:?} - kn:{:?} = jl:{:?}", jkln, kn, jl);
+
+        // use 2 & 3 & 5 to find segments jm
+        let jm = SegmentGroups::wires_with_count(&self.two_three_five, 1);
+        println!(
+            "frequency of 1 in 2/3/5:{:?} = jm:{:?}",
+            self.two_three_five, jm
+        );
+
+        // now we can solve for l
+        let l = jl.difference(&jm);
+        println!("jl:{:?} - jm:{:?} = l:{:?}", jl, jm, l);
+
+        // and j
+        let j = jl.difference(&l);
+        println!("jl:{:?} - l:{:?} = j:{:?}", jl, l, j);
+
+        // and m
+        let m = jm.difference(&j);
+        println!("jm:{:?} - j:{:?} = m:{:?}", jm, j, m);
+
+        // now we've solved values for i,j,l,m and the pair of kn
+        // haven't tried o yet
+
+        // use 2 & 3 & 5 to find sets of ilo and solve for o
+        let ilo = SegmentGroups::wires_with_count(&self.two_three_five, 3);
+        println!(
+            "frequency of 3 in 2/3/5:{:?} = ilo:{:?}",
+            self.two_three_five, ilo
+        );
+        let o = ilo.difference(&i).difference(&l);
+        println!("ilo:{:?} - i:{:?} - l:{:?} = o:{:?}", ilo, i, l, o);
+
+        // okay now we should be able to solve kn by distinguishing 2
+        let iklmo = self
+            .two_three_five
+            .iter()
+            .find(|p| p.contains(&m.single_element()))
+            .unwrap();
+        let k = iklmo
+            .difference(&i)
+            .difference(&l)
+            .difference(&m)
+            .difference(&o);
+        println!(
+            "iklmo:{:?} - i:{:?} - l:{:?} - m:{:?} - o:{:?} = k:{:?}",
+            iklmo, i, l, m, o, k
+        );
+
+        // and solve for n
+        let n = kn.difference(&k);
+        println!("kn:{:?} - k:{:?} = n:{:?}", kn, k, n);
+
+        let mut key = HashMap::new();
+        key.insert(i.single_element(), 'i');
+        key.insert(j.single_element(), 'j');
+        key.insert(k.single_element(), 'k');
+        key.insert(l.single_element(), 'l');
+        key.insert(m.single_element(), 'm');
+        key.insert(n.single_element(), 'n');
+        key.insert(o.single_element(), 'o');
+        key
+    }
+
+    fn wires_with_count(patterns: &[&Pattern], target: usize) -> Pattern {
+        Pattern(
+            VALID_WIRES
+                .iter()
+                .filter(|w| patterns.iter().filter(|p| p.contains(w)).count() == target)
+                .collect(),
+        )
     }
 }
 
