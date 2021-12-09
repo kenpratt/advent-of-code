@@ -2,7 +2,7 @@ use std::fs;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -24,7 +24,17 @@ fn abs_diff(a: &usize, b: &usize) -> usize {
     }
 }
 
-fn optimal_position_to_align_on(positions: &mut [usize]) -> usize {
+fn average(numbers: &[usize]) -> usize {
+    numbers.iter().sum::<usize>() / numbers.len()
+}
+
+fn median(numbers: &[usize]) -> usize {
+    // assume sorted
+    let mid = numbers.len() / 2;
+    numbers[mid]
+}
+
+fn optimal_position_to_align_on(positions: &mut [usize], cost_mechanism: &CostMechanism) -> usize {
     let min = positions.iter().min().unwrap();
     if *min != 0 {
         panic!("Currently expecting a minimum of 0");
@@ -32,17 +42,13 @@ fn optimal_position_to_align_on(positions: &mut [usize]) -> usize {
 
     positions.sort();
 
-    let length = positions.len();
-    let mid = length / 2;
-    let median = positions[mid];
-
-    let starting_position = median;
-    let mut lowest_cost = align_cost(positions, &median);
+    let starting_position = starting_position(positions, cost_mechanism);
+    let mut lowest_cost = align_cost(positions, &starting_position, cost_mechanism);
 
     // try descending
     let mut current_position = starting_position - 1;
     loop {
-        let current_cost = align_cost(positions, &current_position);
+        let current_cost = align_cost(positions, &current_position, cost_mechanism);
         if current_cost < lowest_cost {
             lowest_cost = current_cost;
             current_position -= 1;
@@ -54,8 +60,8 @@ fn optimal_position_to_align_on(positions: &mut [usize]) -> usize {
 
     // try ascending
     let mut current_position = starting_position + 1;
-    while current_position < length {
-        let current_cost = align_cost(positions, &current_position);
+    while current_position < positions.len() {
+        let current_cost = align_cost(positions, &current_position, cost_mechanism);
         if current_cost < lowest_cost {
             lowest_cost = current_cost;
             current_position += 1;
@@ -68,22 +74,43 @@ fn optimal_position_to_align_on(positions: &mut [usize]) -> usize {
     lowest_cost
 }
 
-fn align_cost(positions: &[usize], target: &usize) -> usize {
-    let cost = positions.iter().map(|pos| abs_diff(pos, target)).sum();
+fn starting_position(positions: &[usize], cost_mechanism: &CostMechanism) -> usize {
+    match cost_mechanism {
+        CostMechanism::Static => median(positions),
+        CostMechanism::Increasing => average(positions),
+    }
+}
+
+fn align_cost(positions: &[usize], target: &usize, cost_mechanism: &CostMechanism) -> usize {
+    let cost = positions
+        .iter()
+        .map(|pos| single_align_cost(abs_diff(pos, target), cost_mechanism))
+        .sum();
     println!("cost({}) = {}", target, cost);
     cost
 }
 
-fn part1(input: &str) -> usize {
-    let mut positions = parse(input);
-    optimal_position_to_align_on(&mut positions)
+fn single_align_cost(distance: usize, cost_mechanism: &CostMechanism) -> usize {
+    match cost_mechanism {
+        CostMechanism::Static => distance,
+        CostMechanism::Increasing => (1..=distance).sum(),
+    }
 }
 
-// fn part2(input: &str) -> usize {
-//     let data = parse(input);
-//     println!("{:?}", data);
-//     0
-// }
+enum CostMechanism {
+    Static,
+    Increasing,
+}
+
+fn part1(input: &str) -> usize {
+    let mut positions = parse(input);
+    optimal_position_to_align_on(&mut positions, &CostMechanism::Static)
+}
+
+fn part2(input: &str) -> usize {
+    let mut positions = parse(input);
+    optimal_position_to_align_on(&mut positions, &CostMechanism::Increasing)
+}
 
 #[cfg(test)]
 mod tests {
@@ -107,15 +134,15 @@ mod tests {
         assert_eq!(result, 345197);
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(EXAMPLE1);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example1() {
+        let result = part2(EXAMPLE1);
+        assert_eq!(result, 168);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 96361606);
+    }
 }
