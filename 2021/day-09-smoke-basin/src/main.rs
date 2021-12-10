@@ -3,11 +3,15 @@ pub mod grid;
 use grid::Coordinate;
 use grid::Grid;
 
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fs;
+
+use itertools::Itertools;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -47,6 +51,46 @@ impl HeightMap {
             })
             .collect()
     }
+
+    fn basins(&self) -> HashMap<Coordinate, usize> {
+        let low_points: HashSet<Coordinate> =
+            self.low_points().iter().map(|(pos, _val)| *pos).collect();
+        let mut basin_sizes: HashMap<Coordinate, usize> = HashMap::new();
+        for (pos, val) in self.grid.iter() {
+            let basin = self.basin_for_point(&pos, val, &low_points);
+            if basin.is_some() {
+                let low_point = basin.unwrap();
+                let counter = basin_sizes.entry(low_point).or_insert(0);
+                *counter += 1;
+            }
+        }
+        basin_sizes
+    }
+
+    fn basin_for_point(
+        &self,
+        pos: &Coordinate,
+        val: &u8,
+        low_points: &HashSet<Coordinate>,
+    ) -> Option<Coordinate> {
+        if val == &9 {
+            // high point, ignore
+            None
+        } else if low_points.contains(&pos) {
+            Some(*pos)
+        } else {
+            let neighbours = self.grid.neighbours(&pos);
+            let lowest_neighbour = neighbours
+                .iter()
+                .min_by_key(|npos| self.grid.value(npos))
+                .unwrap();
+            self.basin_for_point(
+                lowest_neighbour,
+                self.grid.value(lowest_neighbour),
+                low_points,
+            )
+        }
+    }
 }
 
 fn part1(input: &str) -> usize {
@@ -60,11 +104,18 @@ fn part1(input: &str) -> usize {
         .sum()
 }
 
-// fn part2(input: &str) -> usize {
-//     let map = HeightMap::parse(input);
-//     println!("{:?}", map);
-//     map.execute()
-// }
+fn part2(input: &str) -> usize {
+    let map = HeightMap::parse(input);
+    println!("map: {:?}", map);
+    let basins = map.basins();
+    println!("basins: {:?}", basins);
+    basins
+        .values()
+        .sorted()
+        .rev()
+        .take(3)
+        .fold(1, |acc, val| acc * val)
+}
 
 #[cfg(test)]
 mod tests {
@@ -92,15 +143,15 @@ mod tests {
         assert_eq!(result, 564);
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(EXAMPLE1);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example1() {
+        let result = part2(EXAMPLE1);
+        assert_eq!(result, 1134);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 1038240);
+    }
 }
