@@ -3,7 +3,7 @@ use std::str::Chars;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -13,7 +13,7 @@ fn read_input_file() -> String {
 #[derive(Debug)]
 enum ParseResult {
     Legal,
-    Incomplete,
+    Incomplete(Vec<char>),
     Corrupted(char),
 }
 
@@ -53,10 +53,19 @@ impl Parser<'_> {
                 if self.open_chunks.len() == 0 {
                     Some(ParseResult::Legal)
                 } else {
-                    Some(ParseResult::Incomplete)
+                    let completion_chars = self.completion_chars();
+                    Some(ParseResult::Incomplete(completion_chars))
                 }
             }
         }
+    }
+
+    fn completion_chars(&self) -> Vec<char> {
+        self.open_chunks
+            .iter()
+            .map(|c| Parser::closing_delimiter(c))
+            .rev()
+            .collect()
     }
 
     fn open_chunk(&mut self, c: char) -> Option<ParseResult> {
@@ -83,18 +92,31 @@ impl Parser<'_> {
             _ => panic!("Invalid char: {}", c),
         }
     }
+
+    fn closing_delimiter(c: &char) -> char {
+        match c {
+            '<' => '>',
+            '{' => '}',
+            '[' => ']',
+            '(' => ')',
+            _ => panic!("Invalid char: {}", c),
+        }
+    }
 }
 
 fn part1(input: &str) -> usize {
     let results: Vec<ParseResult> = input.lines().map(|line| Parser::parse(line)).collect();
     println!("{:?}", results);
-    results.iter().map(|r| score_for_result(r)).sum()
+    results
+        .iter()
+        .filter_map(|r| part1_score_for_result(r))
+        .sum()
 }
 
-fn score_for_result(result: &ParseResult) -> usize {
+fn part1_score_for_result(result: &ParseResult) -> Option<usize> {
     match result {
-        ParseResult::Legal | ParseResult::Incomplete => 0,
-        ParseResult::Corrupted(c) => score_for_corrupting_char(c),
+        ParseResult::Legal | ParseResult::Incomplete(_) => None,
+        ParseResult::Corrupted(c) => Some(score_for_corrupting_char(c)),
     }
 }
 
@@ -108,11 +130,43 @@ fn score_for_corrupting_char(c: &char) -> usize {
     }
 }
 
-// fn part2(input: &str) -> usize {
-//     let data = Data::parse(input);
-//     println!("{:?}", data);
-//     data.execute()
-// }
+fn part2(input: &str) -> usize {
+    let results: Vec<ParseResult> = input.lines().map(|line| Parser::parse(line)).collect();
+    println!("{:?}", results);
+    let mut scores: Vec<usize> = results
+        .iter()
+        .filter_map(|r| part2_score_for_result(r))
+        .collect();
+    println!("{:?}", scores);
+    scores.sort();
+    scores[scores.len() / 2]
+}
+
+fn part2_score_for_result(result: &ParseResult) -> Option<usize> {
+    match result {
+        ParseResult::Legal => None,
+        ParseResult::Incomplete(completion_chars) => {
+            Some(score_for_completion_chars(&completion_chars))
+        }
+        ParseResult::Corrupted(_) => None,
+    }
+}
+
+fn score_for_completion_chars(chars: &[char]) -> usize {
+    chars
+        .iter()
+        .fold(0, |acc, c| acc * 5 + score_for_completion_char(c))
+}
+
+fn score_for_completion_char(c: &char) -> usize {
+    match c {
+        '>' => 4,
+        '}' => 3,
+        ']' => 2,
+        ')' => 1,
+        _ => panic!("Invalid char: {}", c),
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -145,15 +199,15 @@ mod tests {
         assert_eq!(result, 390993);
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(EXAMPLE1);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example1() {
+        let result = part2(EXAMPLE1);
+        assert_eq!(result, 288957);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 2391385187);
+    }
 }
