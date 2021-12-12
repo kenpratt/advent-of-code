@@ -125,6 +125,10 @@ impl<T> Grid<T> {
         }
     }
 
+    pub fn len(&self) -> usize {
+        self.cells.len()
+    }
+
     pub fn cell(&self, pos: &Coordinate) -> &Cell<T> {
         let index = coordinate_to_index(pos, &self.bounds);
         &self.cells[index]
