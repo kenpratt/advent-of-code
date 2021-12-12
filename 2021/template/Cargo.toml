@@ -2,7 +2,10 @@
 name = "advent-of-code-2021"
 version = "0.1.0"
 authors = ["Ken Pratt <ken@kenpratt.net>"]
-edition = "2021"
+edition = "2018"
+
+[profile.release]
+debug = 1
 
 [dependencies]
 cached = "0.26"
