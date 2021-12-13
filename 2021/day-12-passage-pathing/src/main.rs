@@ -10,75 +10,101 @@ fn read_input_file() -> String {
     fs::read_to_string("input.txt").expect("Something went wrong reading the file")
 }
 
-fn parse(input: &str) -> Vec<Connection> {
-    input.lines().map(|line| Connection::parse(line)).collect()
+const START: &str = "start";
+const END: &str = "end";
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+enum Cave {
+    Start,
+    End,
+    Big(u8),
+    Small(u8),
 }
 
-static START: &str = "start";
-static END: &str = "end";
+fn is_small_cave(name: &str) -> bool {
+    name.chars().all(|c| c.is_lowercase())
+}
 
 #[derive(Debug)]
-struct Connection {
-    from: String,
-    to: String,
+struct CaveMap {
+    aliases: HashMap<String, u8>,
+    connections: HashMap<Cave, Vec<Cave>>,
 }
 
-impl Connection {
-    fn parse(input: &str) -> Connection {
-        let parts: Vec<&str> = input.split("-").collect();
+impl CaveMap {
+    fn parse(input: &str) -> CaveMap {
+        let mut map = CaveMap {
+            aliases: HashMap::new(),
+            connections: HashMap::new(),
+        };
+        for line in input.lines() {
+            let (from, to) = map.parse_line(line);
+            map.add_connection(from, to);
+            map.add_connection(to, from);
+        }
+        map
+    }
+
+    fn parse_line(&mut self, line: &str) -> (Cave, Cave) {
+        let parts: Vec<Cave> = line.split("-").map(|s| self.parse_cave(s)).collect();
         assert_eq!(parts.len(), 2);
-        Connection {
-            from: parts[0].to_string(),
-            to: parts[1].to_string(),
+        (parts[0], parts[1])
+    }
+
+    fn parse_cave(&mut self, str: &str) -> Cave {
+        match str {
+            START => Cave::Start,
+            END => Cave::End,
+            _ if is_small_cave(str) => Cave::Small(self.alias(str.to_string())),
+            _ => Cave::Big(self.alias(str.to_string())),
         }
     }
-}
 
-type CaveMap = HashMap<String, Vec<String>>;
-
-fn build_route_map(connections: &[Connection]) -> CaveMap {
-    let mut map = HashMap::new();
-
-    // forwards
-    for connection in connections {
-        let entry = map.entry(connection.from.clone()).or_insert(vec![]);
-        entry.push(connection.to.clone());
+    fn alias(&mut self, str: String) -> u8 {
+        let maybe_value = self.aliases.get(&str);
+        match maybe_value {
+            Some(value) => *value,
+            None => {
+                let value = self.aliases.len() as u8;
+                self.aliases.insert(str, value);
+                value
+            }
+        }
     }
 
-    // backwards
-    for connection in connections {
-        let entry = map.entry(connection.to.clone()).or_insert(vec![]);
-        entry.push(connection.from.clone());
+    fn add_connection(&mut self, from: Cave, to: Cave) {
+        let entry = self.connections.entry(from).or_insert(vec![]);
+        entry.push(to);
     }
 
-    map
+    fn caves_leading_from(&self, from: &Cave) -> &Vec<Cave> {
+        self.connections.get(from).unwrap()
+    }
 }
 
 #[derive(Clone, Debug)]
 struct Route {
-    caves: Vec<String>,
+    caves: Vec<Cave>,
     used_double_visit: bool,
 }
 
 impl Route {
     fn starting_route() -> Route {
         Route {
-            caves: vec![START.to_string()],
+            caves: vec![Cave::Start],
             used_double_visit: false,
         }
     }
 }
 
-fn calculate_paths(connections: &[Connection], allow_double_visit: bool) -> Vec<Route> {
-    let route_map = build_route_map(connections);
-
+fn calculate_paths(map: &CaveMap, allow_double_visit: bool) -> Vec<Route> {
     let starting_route = Route::starting_route();
     let mut open_routes = vec![starting_route];
     let mut finished_routes = vec![];
 
     while open_routes.len() > 0 {
         let (next_open_routes, mut newly_finished_routes) =
-            follow_next_paths(&open_routes, &route_map, allow_double_visit);
+            follow_next_paths(&open_routes, &map, allow_double_visit);
         open_routes = next_open_routes;
         finished_routes.append(&mut newly_finished_routes);
     }
@@ -86,27 +112,22 @@ fn calculate_paths(connections: &[Connection], allow_double_visit: bool) -> Vec<
     finished_routes
 }
 
-fn is_small_cave(name: &str) -> bool {
-    name.chars().all(|c| c.is_lowercase())
-}
-
 fn follow_next_paths(
     starting_routes: &[Route],
-    route_map: &CaveMap,
+    map: &CaveMap,
     allow_double_visit: bool,
 ) -> (Vec<Route>, Vec<Route>) {
     let mut open_routes: Vec<Route> = vec![];
     let mut finished_routes: Vec<Route> = vec![];
     for route in starting_routes {
-        let possible_paths = route_map.get(route.caves.last().unwrap()).unwrap();
-        let paths_to_follow = possible_paths
+        let possible_caves = map.caves_leading_from(route.caves.last().unwrap());
+        let caves_to_visit = possible_caves
             .iter()
-            .filter_map(|p| should_follow(p, route, allow_double_visit));
-        for (path, counts_as_double_visit) in paths_to_follow {
-            let is_end = path == END;
-
+            .filter_map(|cave| should_visit(cave, route, allow_double_visit));
+        for (cave, counts_as_double_visit) in caves_to_visit {
+            let is_end = cave == Cave::End;
             let mut new_route: Route = route.clone();
-            new_route.caves.push(path);
+            new_route.caves.push(cave);
             if counts_as_double_visit && !new_route.used_double_visit {
                 new_route.used_double_visit = true;
             }
@@ -121,48 +142,40 @@ fn follow_next_paths(
 }
 
 // output:
-// - yes: Some(path, counts_as_double_visit)
+// - yes: Some(cave, counts_as_double_visit)
 // - no: None
-fn should_follow(path: &String, route: &Route, allow_double_visit: bool) -> Option<(String, bool)> {
-    if path == START {
-        // don't go back to start
-        None
-    } else if is_small_cave(path) {
-        if route.caves.contains(path) {
-            if allow_double_visit && !route.used_double_visit {
-                // small cave but first double visit
-                Some((path.to_string(), true))
+fn should_visit(cave: &Cave, route: &Route, allow_double_visit: bool) -> Option<(Cave, bool)> {
+    match cave {
+        Cave::Start => None,
+        Cave::Small(_) => {
+            if route.caves.contains(cave) {
+                if allow_double_visit && !route.used_double_visit {
+                    // small cave but first double visit
+                    Some((*cave, true))
+                } else {
+                    // small cave we don't want to revisit
+                    None
+                }
             } else {
-                // small cave we don't want to revisit
-                None
+                // small cave we haven't visited yet
+                Some((*cave, false))
             }
-        } else {
-            // small cave we haven't visited yet
-            Some((path.to_string(), false))
         }
-    } else {
-        // either:
         // - big cave, visit as many times as we want
         // - end, will only be visited once
-        Some((path.to_string(), false))
+        Cave::Big(_) | Cave::End => Some((*cave, false)),
     }
 }
 
 fn part1(input: &str) -> usize {
-    let connections = parse(input);
-    let paths = calculate_paths(&connections, false);
-    for p in &paths {
-        println!("{:?}", p);
-    }
+    let map = CaveMap::parse(input);
+    let paths = calculate_paths(&map, false);
     paths.len()
 }
 
 fn part2(input: &str) -> usize {
-    let connections = parse(input);
-    let paths = calculate_paths(&connections, true);
-    for p in &paths {
-        println!("{:?}", p);
-    }
+    let map = CaveMap::parse(input);
+    let paths = calculate_paths(&map, true);
     paths.len()
 }
 
