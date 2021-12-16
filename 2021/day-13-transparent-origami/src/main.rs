@@ -1,14 +1,14 @@
 use std::collections::HashSet;
 use std::collections::VecDeque;
-
+use std::fmt;
 use std::fs;
 
 use lazy_static::lazy_static;
 use regex::Regex;
 
 fn main() {
-    println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 1 result: {}", part1(&read_input_file()));
+    println!("part 2 result:\n{}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -47,8 +47,33 @@ impl Paper {
         self.dots = instruction.apply(&self.dots);
     }
 
+    fn apply_all_folds(&mut self) {
+        while !self.instructions.is_empty() {
+            self.fold();
+        }
+    }
+
     fn count_visible_dots(&self) -> usize {
         self.dots.len()
+    }
+}
+
+impl fmt::Display for Paper {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let max_x = self.dots.iter().map(|dot| dot.x).max().unwrap();
+        let max_y = self.dots.iter().map(|dot| dot.y).max().unwrap();
+        for y in 0..=max_y {
+            for x in 0..=max_x {
+                let dot = Dot { x: x, y: y };
+                if self.dots.contains(&dot) {
+                    write!(f, "#")?;
+                } else {
+                    write!(f, ".")?;
+                }
+            }
+            write!(f, "\n")?;
+        }
+        Ok(())
     }
 }
 
@@ -135,17 +160,15 @@ impl Instruction {
 
 fn part1(input: &str) -> usize {
     let mut paper = Paper::parse(input);
-    println!("{:?}", paper);
     paper.fold();
-    println!("{:?}", paper);
     paper.count_visible_dots()
 }
 
-// fn part2(input: &str) -> usize {
-//     let data = Paper::parse(input);
-//     println!("{:?}", data);
-//     data.execute()
-// }
+fn part2(input: &str) -> String {
+    let mut paper = Paper::parse(input);
+    paper.apply_all_folds();
+    format!("{}", paper)
+}
 
 #[cfg(test)]
 mod tests {
@@ -172,7 +195,7 @@ mod tests {
         2,14
         8,10
         9,0
-        
+
         fold along y=7
         fold along x=5
     "};
@@ -189,15 +212,32 @@ mod tests {
         assert_eq!(result, 695);
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(EXAMPLE1);
-    //     assert_eq!(result, 0);
-    // }
+    static PART2_EXAMPLE1_OUTPUT: &str = indoc! {"
+        #####
+        #...#
+        #...#
+        #...#
+        #####
+    "};
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example1() {
+        let result = part2(EXAMPLE1);
+        assert_eq!(result, PART2_EXAMPLE1_OUTPUT);
+    }
+
+    static PART2_SOLUTION_OUTPUT: &str = indoc! {"
+        .##....##.####..##..#....#..#.###....##
+        #..#....#....#.#..#.#....#..#.#..#....#
+        #.......#...#..#....#....#..#.#..#....#
+        #.##....#..#...#.##.#....#..#.###.....#
+        #..#.#..#.#....#..#.#....#..#.#....#..#
+        .###..##..####..###.####..##..#.....##.
+    "};
+
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, PART2_SOLUTION_OUTPUT);
+    }
 }
