@@ -1,5 +1,7 @@
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fs;
+use std::hash::Hash;
 
 use itertools::Itertools;
 use lazy_static::lazy_static;
@@ -7,7 +9,7 @@ use regex::Regex;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -18,10 +20,35 @@ lazy_static! {
     static ref RULE_RE: Regex = Regex::new(r"\A([A-Z])([A-Z]) \-> ([A-Z])\z").unwrap();
 }
 
+type Pair = (char, char);
+
+#[derive(Debug)]
+struct Counter<T>(HashMap<T, usize>);
+
+impl<T: Copy + Hash + Eq> Counter<T> {
+    fn new() -> Counter<T> {
+        Counter(HashMap::new())
+    }
+
+    fn add(&mut self, key: &T, increment: usize) {
+        let counter = self.0.entry(*key).or_insert(0);
+        *counter += increment;
+    }
+
+    fn min(&self) -> usize {
+        *self.0.values().min().unwrap()
+    }
+
+    fn max(&self) -> usize {
+        *self.0.values().max().unwrap()
+    }
+}
+
 #[derive(Debug)]
 struct Manual {
     template: Vec<char>,
-    rules: HashMap<(char, char), char>,
+    rules: HashMap<Pair, char>,
+    pair_output_map: HashMap<Pair, (Pair, Pair)>,
 }
 
 impl Manual {
@@ -34,10 +61,15 @@ impl Manual {
             .lines()
             .map(|line| Manual::parse_rule(line))
             .collect();
-        Manual { template, rules }
+        let pair_output_map = Manual::build_pair_output_map(&rules);
+        Manual {
+            template,
+            rules,
+            pair_output_map,
+        }
     }
 
-    fn parse_rule(input: &str) -> ((char, char), char) {
+    fn parse_rule(input: &str) -> (Pair, char) {
         let captures = RULE_RE.captures(input).unwrap();
         let input1 = captures.get(1).unwrap().as_str().chars().next().unwrap();
         let input2 = captures.get(2).unwrap().as_str().chars().next().unwrap();
@@ -45,59 +77,90 @@ impl Manual {
         ((input1, input2), output)
     }
 
-    fn run_n_iterations(&self, n: usize) -> Vec<char> {
-        let mut value = self.template.clone();
+    fn frequencies_after_n_iterations(&self, n: usize) -> Counter<char> {
+        let mut counts = self.starting_pair_counts();
         for _ in 1..=n {
-            value = self.iterate(&value);
+            counts = self.iterate(&counts);
         }
-        value
+
+        let mut element_frequencies = Counter::new();
+        for (pair, final_count) in &counts.0 {
+            element_frequencies.add(&pair.0, *final_count);
+        }
+
+        // need to add the last char in
+        element_frequencies.add(self.template.last().unwrap(), 1);
+
+        element_frequencies
     }
 
-    fn iterate(&self, value: &[char]) -> Vec<char> {
-        let mut result: Vec<char> = vec![];
-        for pair in value.iter().cloned().tuple_windows::<(_, _)>() {
-            // push first char
-            result.push(pair.0);
+    fn iterate(&self, last_counts: &Counter<Pair>) -> Counter<Pair> {
+        let mut counts = Counter::new();
+        for (last_pair, last_count) in &last_counts.0 {
+            let (next_pair1, next_pair2) = self.pair_output_map.get(last_pair).unwrap();
+            counts.add(next_pair1, *last_count);
+            counts.add(next_pair2, *last_count);
+        }
+        counts
+    }
 
-            // push new middle char, if applicable
-            match self.rules.get(&pair) {
-                Some(foo) => result.push(*foo),
-                None => {}
+    fn starting_pair_counts(&self) -> Counter<Pair> {
+        let mut counts = Counter::new();
+        for pair in self.template.iter().cloned().tuple_windows() {
+            counts.add(&pair, 1);
+        }
+        counts
+    }
+
+    fn possible_elements(rules: &HashMap<Pair, char>) -> HashSet<char> {
+        let mut out: HashSet<char> = HashSet::new();
+        for ((i1, i2), o) in rules {
+            out.insert(*i1);
+            out.insert(*i2);
+            out.insert(*o);
+        }
+        out
+    }
+
+    fn possible_element_pairs(rules: &HashMap<Pair, char>) -> Vec<Pair> {
+        let mut pairs: Vec<Pair> = vec![];
+        let elements = Manual::possible_elements(rules);
+        for c1 in &elements {
+            for c2 in &elements {
+                pairs.push((*c1, *c2));
             }
         }
+        pairs
+    }
 
-        // don't forget the last char
-        result.push(*value.last().unwrap());
+    fn build_pair_output_map(rules: &HashMap<Pair, char>) -> HashMap<Pair, (Pair, Pair)> {
+        Manual::possible_element_pairs(rules)
+            .iter()
+            .map(|pair| (*pair, Manual::output_for_pair(pair, rules)))
+            .collect()
+    }
 
-        result
+    fn output_for_pair(pair: &Pair, rules: &HashMap<Pair, char>) -> (Pair, Pair) {
+        match rules.get(pair) {
+            Some(new_char) => ((pair.0, *new_char), (*new_char, pair.1)),
+            None => panic!("Not expected"),
+        }
     }
 }
 
-fn frequency_per_char(input: &[char]) -> HashMap<char, usize> {
-    let mut result = HashMap::new();
-    for char in input.iter() {
-        let counter = result.entry(*char).or_insert(0);
-        *counter += 1;
-    }
-    result
+fn run_n_iterations_and_return_frequency_difference(input: &str, n: usize) -> usize {
+    let manual = Manual::parse(input);
+    let frequencies = manual.frequencies_after_n_iterations(n);
+    frequencies.max() - frequencies.min()
 }
 
 fn part1(input: &str) -> usize {
-    let manual = Manual::parse(input);
-    println!("{:?}", manual);
-    let result = manual.run_n_iterations(10);
-    let frequencies = frequency_per_char(&result);
-    println!("{:?}", frequencies);
-    let most_frequent = frequencies.values().max().unwrap();
-    let least_frequent = frequencies.values().min().unwrap();
-    most_frequent - least_frequent
+    run_n_iterations_and_return_frequency_difference(input, 10)
 }
 
-// fn part2(input: &str) -> usize {
-//     let data = Manual::parse(input);
-//     println!("{:?}", data);
-//     data.execute()
-// }
+fn part2(input: &str) -> usize {
+    run_n_iterations_and_return_frequency_difference(input, 40)
+}
 
 #[cfg(test)]
 mod tests {
@@ -138,15 +201,15 @@ mod tests {
         assert_eq!(result, 3587);
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(EXAMPLE1);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example1() {
+        let result = part2(EXAMPLE1);
+        assert_eq!(result, 2188189693529);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 3906445077999);
+    }
 }
