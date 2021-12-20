@@ -23,7 +23,6 @@ pub fn solve(
             .min_by_key(|(_pos, f_score)| *f_score)
             .unwrap()
             .0;
-        println!("current: {:?}", current);
 
         // finished?
         if current == *goal {
@@ -36,16 +35,10 @@ pub fn solve(
         open_set.remove(&current);
 
         let current_g_score = *g_score.get(&current).unwrap();
-        println!("current_g_score: {:?}", current_g_score);
 
         for neighbour in grid.neighbours(&current) {
-            println!("neighbour: {:?}", neighbour);
-
             let tentative_g_score = current_g_score + grid.value(&neighbour);
-            println!("tentative_g_score: {:?}", tentative_g_score);
-
             let neighbour_g_score = g_score.get(&neighbour);
-            println!("neighbour_g_score: {:?}", neighbour_g_score);
 
             if neighbour_g_score.is_none() || tentative_g_score < *neighbour_g_score.unwrap() {
                 // new best path to neighbour!
