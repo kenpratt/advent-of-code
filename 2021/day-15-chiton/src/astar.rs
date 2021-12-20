@@ -10,7 +10,7 @@ pub fn solve(
     start: &Coordinate,
     goal: &Coordinate,
 ) -> (Vec<Coordinate>, usize) {
-    let mut open_set: OpenSet = OpenSet::new();
+    let mut open_set: OpenSet<Coordinate> = OpenSet::new();
     let mut came_from: HashMap<Coordinate, Coordinate> = HashMap::new();
     let mut g_score: HashMap<Coordinate, usize> = HashMap::new();
 
@@ -72,18 +72,18 @@ fn reconstruct_path(
 }
 
 #[derive(Debug)]
-struct OpenSet(BinaryHeap<OpenSetEntry>);
+struct OpenSet<N>(BinaryHeap<OpenSetEntry<N>>);
 
-impl OpenSet {
-    fn new() -> OpenSet {
+impl<N: Ord> OpenSet<N> {
+    fn new() -> OpenSet<N> {
         OpenSet(BinaryHeap::new())
     }
 
-    fn add(&mut self, node: Coordinate, cost: usize) {
+    fn add(&mut self, node: N, cost: usize) {
         self.0.push(OpenSetEntry { node, cost });
     }
 
-    fn pop(&mut self) -> Option<(Coordinate, usize)> {
+    fn pop(&mut self) -> Option<(N, usize)> {
         match self.0.pop() {
             Some(entry) => Some((entry.node, entry.cost)),
             None => None,
@@ -96,12 +96,12 @@ impl OpenSet {
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-struct OpenSetEntry {
-    node: Coordinate,
+struct OpenSetEntry<N> {
+    node: N,
     cost: usize,
 }
 
-impl Ord for OpenSetEntry {
+impl<N: Ord> Ord for OpenSetEntry<N> {
     fn cmp(&self, other: &Self) -> Ordering {
         other
             .cost
@@ -110,7 +110,7 @@ impl Ord for OpenSetEntry {
     }
 }
 
-impl PartialOrd for OpenSetEntry {
+impl<N: Ord> PartialOrd for OpenSetEntry<N> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
