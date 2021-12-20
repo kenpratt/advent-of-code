@@ -13,7 +13,7 @@ static DIRECTIONS: &'static [Direction] = &[
     Direction::Down,
 ];
 
-#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Coordinate {
     x: usize,
     y: usize,

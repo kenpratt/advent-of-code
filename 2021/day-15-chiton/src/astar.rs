@@ -1,6 +1,8 @@
 use crate::grid::Coordinate;
 use crate::grid::Grid;
 
+use std::cmp::Ordering;
+use std::collections::BinaryHeap;
 use std::collections::HashMap;
 
 pub fn solve(
@@ -8,21 +10,17 @@ pub fn solve(
     start: &Coordinate,
     goal: &Coordinate,
 ) -> (Vec<Coordinate>, usize) {
-    let mut open_set: HashMap<Coordinate, usize> = HashMap::new();
+    let mut open_set: OpenSet = OpenSet::new();
     let mut came_from: HashMap<Coordinate, Coordinate> = HashMap::new();
     let mut g_score: HashMap<Coordinate, usize> = HashMap::new();
 
     // add start to open set
-    open_set.insert(*start, h(start, goal));
+    open_set.add(*start, h(start, goal));
     g_score.insert(*start, 0);
 
     while !open_set.is_empty() {
         // select lowest score in open_set
-        let current = *open_set
-            .iter()
-            .min_by_key(|(_pos, f_score)| *f_score)
-            .unwrap()
-            .0;
+        let (current, _score) = open_set.pop().unwrap();
 
         // finished?
         if current == *goal {
@@ -30,9 +28,6 @@ pub fn solve(
             let cost = *g_score.get(goal).unwrap();
             return (path, cost);
         }
-
-        // remove from open_set
-        open_set.remove(&current);
 
         let current_g_score = *g_score.get(&current).unwrap();
 
@@ -44,7 +39,7 @@ pub fn solve(
                 // new best path to neighbour!
                 came_from.insert(neighbour, current);
                 g_score.insert(neighbour, tentative_g_score);
-                open_set.insert(neighbour, tentative_g_score + h(&neighbour, goal));
+                open_set.add(neighbour, tentative_g_score + h(&neighbour, goal));
             }
         }
     }
@@ -73,5 +68,50 @@ fn reconstruct_path(
                 return path;
             }
         }
+    }
+}
+
+#[derive(Debug)]
+struct OpenSet(BinaryHeap<OpenSetEntry>);
+
+impl OpenSet {
+    fn new() -> OpenSet {
+        OpenSet(BinaryHeap::new())
+    }
+
+    fn add(&mut self, node: Coordinate, cost: usize) {
+        self.0.push(OpenSetEntry { node, cost });
+    }
+
+    fn pop(&mut self) -> Option<(Coordinate, usize)> {
+        match self.0.pop() {
+            Some(entry) => Some((entry.node, entry.cost)),
+            None => None,
+        }
+    }
+
+    fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+struct OpenSetEntry {
+    node: Coordinate,
+    cost: usize,
+}
+
+impl Ord for OpenSetEntry {
+    fn cmp(&self, other: &Self) -> Ordering {
+        other
+            .cost
+            .cmp(&self.cost)
+            .then_with(|| self.node.cmp(&other.node))
+    }
+}
+
+impl PartialOrd for OpenSetEntry {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }
