@@ -1,7 +1,7 @@
 use crate::bitstream::BitStream;
 
 #[derive(Debug, PartialEq)]
-enum Packet {
+pub enum Packet {
     Literal {
         version: usize,
         value: usize,
@@ -14,7 +14,7 @@ enum Packet {
 }
 
 impl Packet {
-    fn read(stream: &mut BitStream) -> Packet {
+    pub fn read(stream: &mut BitStream) -> Packet {
         let version = stream.read(3);
         let type_id = stream.read(3);
         match type_id {
@@ -74,10 +74,14 @@ mod tests {
     static EXAMPLE1: &str = "D2FE28";
     static EXAMPLE2: &str = "38006F45291200";
     static EXAMPLE3: &str = "EE00D40C823060";
+    static EXAMPLE4: &str = "8A004A801A8002F478";
+    static EXAMPLE5: &str = "620080001611562C8802118E34";
+    static EXAMPLE6: &str = "C0015000016115A2E0802F182340";
+    static EXAMPLE7: &str = "A0016C880162017C3686B18A3D4780";
 
     #[test]
     fn test_packet_read_example1() {
-        let mut stream = BitStream::new(EXAMPLE1.chars());
+        let mut stream = BitStream::from_str(EXAMPLE1);
         let packet = Packet::read(&mut stream);
         assert_eq!(
             packet,
@@ -90,7 +94,7 @@ mod tests {
 
     #[test]
     fn test_packet_read_example2() {
-        let mut stream = BitStream::new(EXAMPLE2.chars());
+        let mut stream = BitStream::from_str(EXAMPLE2);
         let packet = Packet::read(&mut stream);
         assert_eq!(
             packet,
@@ -113,7 +117,7 @@ mod tests {
 
     #[test]
     fn test_packet_read_example3() {
-        let mut stream = BitStream::new(EXAMPLE3.chars());
+        let mut stream = BitStream::from_str(EXAMPLE3);
         let packet = Packet::read(&mut stream);
         assert_eq!(
             packet,
@@ -134,6 +138,160 @@ mod tests {
                         value: 3,
                     },
                 ],
+            },
+        );
+    }
+
+    #[test]
+    fn test_packet_read_example4() {
+        let mut stream = BitStream::from_str(EXAMPLE4);
+        let packet = Packet::read(&mut stream);
+        assert_eq!(
+            packet,
+            Packet::Operator {
+                version: 4,
+                type_id: 2,
+                sub_packets: vec![Packet::Operator {
+                    version: 1,
+                    type_id: 2,
+                    sub_packets: vec![Packet::Operator {
+                        version: 5,
+                        type_id: 2,
+                        sub_packets: vec![Packet::Literal {
+                            version: 6,
+                            value: 15,
+                        }],
+                    }],
+                }],
+            },
+        );
+    }
+
+    #[test]
+    fn test_packet_read_example5() {
+        let mut stream = BitStream::from_str(EXAMPLE5);
+        let packet = Packet::read(&mut stream);
+        assert_eq!(
+            packet,
+            Packet::Operator {
+                version: 3,
+                type_id: 0,
+                sub_packets: vec![
+                    Packet::Operator {
+                        version: 0,
+                        type_id: 0,
+                        sub_packets: vec![
+                            Packet::Literal {
+                                version: 0,
+                                value: 10,
+                            },
+                            Packet::Literal {
+                                version: 5,
+                                value: 11,
+                            },
+                        ],
+                    },
+                    Packet::Operator {
+                        version: 1,
+                        type_id: 0,
+                        sub_packets: vec![
+                            Packet::Literal {
+                                version: 0,
+                                value: 12,
+                            },
+                            Packet::Literal {
+                                version: 3,
+                                value: 13,
+                            },
+                        ],
+                    },
+                ],
+            },
+        );
+    }
+
+    #[test]
+    fn test_packet_read_example6() {
+        let mut stream = BitStream::from_str(EXAMPLE6);
+        let packet = Packet::read(&mut stream);
+        assert_eq!(
+            packet,
+            Packet::Operator {
+                version: 6,
+                type_id: 0,
+                sub_packets: vec![
+                    Packet::Operator {
+                        version: 0,
+                        type_id: 0,
+                        sub_packets: vec![
+                            Packet::Literal {
+                                version: 0,
+                                value: 10,
+                            },
+                            Packet::Literal {
+                                version: 6,
+                                value: 11,
+                            },
+                        ],
+                    },
+                    Packet::Operator {
+                        version: 4,
+                        type_id: 0,
+                        sub_packets: vec![
+                            Packet::Literal {
+                                version: 7,
+                                value: 12,
+                            },
+                            Packet::Literal {
+                                version: 0,
+                                value: 13,
+                            },
+                        ],
+                    },
+                ],
+            },
+        );
+    }
+
+    #[test]
+    fn test_packet_read_example7() {
+        let mut stream = BitStream::from_str(EXAMPLE7);
+        let packet = Packet::read(&mut stream);
+        assert_eq!(
+            packet,
+            Packet::Operator {
+                version: 5,
+                type_id: 0,
+                sub_packets: vec![Packet::Operator {
+                    version: 1,
+                    type_id: 0,
+                    sub_packets: vec![Packet::Operator {
+                        version: 3,
+                        type_id: 0,
+                        sub_packets: vec![
+                            Packet::Literal {
+                                version: 7,
+                                value: 6,
+                            },
+                            Packet::Literal {
+                                version: 6,
+                                value: 6,
+                            },
+                            Packet::Literal {
+                                version: 5,
+                                value: 12,
+                            },
+                            Packet::Literal {
+                                version: 2,
+                                value: 15,
+                            },
+                            Packet::Literal {
+                                version: 2,
+                                value: 15,
+                            },
+                        ],
+                    }],
+                }],
             },
         );
     }

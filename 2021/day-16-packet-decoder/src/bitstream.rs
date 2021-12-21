@@ -8,9 +8,9 @@ pub struct BitStream<'a> {
 }
 
 impl BitStream<'_> {
-    pub fn new(input: Chars) -> BitStream {
+    pub fn from_str(input: &str) -> BitStream {
         BitStream {
-            input: input,
+            input: input.chars(),
             have_bits: 0,
             value: 0,
             bits_read: 0,
@@ -74,7 +74,7 @@ mod tests {
 
     #[test]
     fn test_bitstream_example1() {
-        let mut stream = BitStream::new(EXAMPLE1.chars());
+        let mut stream = BitStream::from_str(EXAMPLE1);
         assert_eq!(stream.read(3), 6);
         assert_eq!(stream.read(3), 4);
         assert_eq!(stream.read(1), 1);
@@ -88,7 +88,7 @@ mod tests {
 
     #[test]
     fn test_bitstream_example2() {
-        let mut stream = BitStream::new(EXAMPLE2.chars());
+        let mut stream = BitStream::from_str(EXAMPLE2);
         assert_eq!(stream.read(3), 1);
         assert_eq!(stream.read(3), 6);
         assert_eq!(stream.read(1), 0);
@@ -100,7 +100,7 @@ mod tests {
 
     #[test]
     fn test_bitstream_example3() {
-        let mut stream = BitStream::new(EXAMPLE3.chars());
+        let mut stream = BitStream::from_str(EXAMPLE3);
         assert_eq!(stream.read(3), 7);
         assert_eq!(stream.read(3), 3);
         assert_eq!(stream.read(1), 1);
