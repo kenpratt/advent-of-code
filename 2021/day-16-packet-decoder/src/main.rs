@@ -1,3 +1,5 @@
+pub mod bitstream;
+
 use std::fs;
 
 // use itertools::Itertools;
@@ -12,6 +14,11 @@ fn main() {
 fn read_input_file() -> String {
     fs::read_to_string("input.txt").expect("Something went wrong reading the file")
 }
+
+// fn decode(input: &str) -> Packet {
+//     let mut stream = BitStream::new(input.chars());
+//     Packet::decode(stream)
+// }
 
 #[derive(Debug)]
 struct Data {
@@ -56,17 +63,25 @@ fn part1(input: &str) -> usize {
 mod tests {
     use super::*;
 
-    use indoc::indoc;
+    static EXAMPLE1: &str = "D2FE28";
+    static EXAMPLE2: &str = "38006F45291200";
+    static EXAMPLE3: &str = "EE00D40C823060";
 
-    static EXAMPLE1: &str = indoc! {"
-        foo
-    "};
+    // #[test]
+    // fn test_decoder() {
+    //     let packet = Packet::decode("D2FE28");
+    //     assert_eq!(0, 0);
+    // }
 
-    #[test]
-    fn test_part1_example1() {
-        let result = part1(EXAMPLE1);
-        assert_eq!(result, 0);
-    }
+    // static EXAMPLE1: &str = indoc! {"
+    //     foo
+    // "};
+
+    // #[test]
+    // fn test_part1_example1() {
+    //     let result = part1(EXAMPLE1);
+    //     assert_eq!(result, 0);
+    // }
 
     // #[test]
     // fn test_part1_solution() {
