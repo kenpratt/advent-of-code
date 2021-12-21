@@ -1,4 +1,5 @@
 pub mod bitstream;
+pub mod packet;
 
 use std::fs;
 

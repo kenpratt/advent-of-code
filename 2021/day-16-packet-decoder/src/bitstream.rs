@@ -4,6 +4,7 @@ pub struct BitStream<'a> {
     input: Chars<'a>,
     have_bits: usize,
     value: usize,
+    bits_read: usize,
 }
 
 impl BitStream<'_> {
@@ -12,6 +13,7 @@ impl BitStream<'_> {
             input: input,
             have_bits: 0,
             value: 0,
+            bits_read: 0,
         }
     }
 
@@ -29,6 +31,7 @@ impl BitStream<'_> {
             let result = self.value;
             self.have_bits = 0;
             self.value = 0;
+            self.bits_read += bits_to_read;
             println!("aligned read({}), result={:b}", bits_to_read, result);
             result
         } else if self.have_bits > bits_to_read {
@@ -38,6 +41,7 @@ impl BitStream<'_> {
             let remainder = (self.value << rem_shift & 15) >> rem_shift;
             self.have_bits = extra_bits;
             self.value = remainder;
+            self.bits_read += bits_to_read;
             println!(
                 "normal read({}), result={:b}, extra_bits={}, remainder={:b}",
                 bits_to_read, result, extra_bits, remainder
@@ -53,6 +57,10 @@ impl BitStream<'_> {
             Some(c) => c.to_digit(16).map(|v| v as usize),
             None => None,
         }
+    }
+
+    pub fn bits_read(&self) -> usize {
+        self.bits_read
     }
 }
 
@@ -75,6 +83,7 @@ mod tests {
         assert_eq!(stream.read(4), 14);
         assert_eq!(stream.read(1), 0);
         assert_eq!(stream.read(4), 5);
+        assert_eq!(stream.bits_read(), 21);
     }
 
     #[test]
@@ -86,6 +95,7 @@ mod tests {
         assert_eq!(stream.read(15), 27);
         assert_eq!(stream.read(11), 0b11010001010);
         assert_eq!(stream.read(16), 0b0101001000100100);
+        assert_eq!(stream.bits_read(), 49);
     }
 
     #[test]
@@ -98,5 +108,6 @@ mod tests {
         assert_eq!(stream.read(11), 0b01010000001);
         assert_eq!(stream.read(11), 0b10010000010);
         assert_eq!(stream.read(11), 0b00110000011);
+        assert_eq!(stream.bits_read(), 51);
     }
 }
