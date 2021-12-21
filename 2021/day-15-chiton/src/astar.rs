@@ -1,22 +1,21 @@
-use crate::grid::Coordinate;
-
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::collections::HashMap;
+use std::hash::Hash;
 
-pub trait AStarInterface {
-    fn start(&self) -> &Coordinate;
-    fn goal(&self) -> &Coordinate;
-    fn heuristic(&self, from: &Coordinate, to: &Coordinate) -> usize;
-    fn neighbours(&self, from: &Coordinate) -> Vec<(Coordinate, usize)>;
+pub trait AStarInterface<N: Copy + Hash + Ord> {
+    fn start(&self) -> &N;
+    fn goal(&self) -> &N;
+    fn heuristic(&self, from: &N, to: &N) -> usize;
+    fn neighbours(&self, from: &N) -> Vec<(N, usize)>;
 
-    fn shortest_path(&self) -> (Vec<Coordinate>, usize) {
+    fn shortest_path(&self) -> (Vec<N>, usize) {
         let start = self.start();
         let goal = self.goal();
 
-        let mut open_set: OpenSet<Coordinate> = OpenSet::new();
-        let mut came_from: HashMap<Coordinate, Coordinate> = HashMap::new();
-        let mut g_score: HashMap<Coordinate, usize> = HashMap::new();
+        let mut open_set: OpenSet<N> = OpenSet::new();
+        let mut came_from: HashMap<N, N> = HashMap::new();
+        let mut g_score: HashMap<N, usize> = HashMap::new();
 
         // add start to open set
         open_set.add(*start, self.heuristic(start, goal));
@@ -28,7 +27,7 @@ pub trait AStarInterface {
 
             // finished?
             if current == *goal {
-                let path = reconstruct_path(goal, &came_from);
+                let path = Self::reconstruct_path(goal, &came_from);
                 let cost = *g_score.get(goal).unwrap();
                 return (path, cost);
             }
@@ -53,23 +52,20 @@ pub trait AStarInterface {
 
         panic!("No path to goal");
     }
-}
 
-fn reconstruct_path(
-    to: &Coordinate,
-    came_from: &HashMap<Coordinate, Coordinate>,
-) -> Vec<Coordinate> {
-    let mut path: Vec<Coordinate> = vec![*to];
-    let mut last = to;
-    loop {
-        match came_from.get(&last) {
-            Some(previous) => {
-                path.push(*previous);
-                last = previous;
-            }
-            None => {
-                path.reverse();
-                return path;
+    fn reconstruct_path(to: &N, came_from: &HashMap<N, N>) -> Vec<N> {
+        let mut path: Vec<N> = vec![*to];
+        let mut last = to;
+        loop {
+            match came_from.get(&last) {
+                Some(previous) => {
+                    path.push(*previous);
+                    last = previous;
+                }
+                None => {
+                    path.reverse();
+                    return path;
+                }
             }
         }
     }

@@ -54,7 +54,7 @@ impl Map {
     }
 }
 
-impl AStarInterface for Map {
+impl AStarInterface<Coordinate> for Map {
     fn start(&self) -> &Coordinate {
         &self.start
     }
