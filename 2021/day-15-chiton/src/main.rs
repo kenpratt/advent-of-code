@@ -1,6 +1,7 @@
 pub mod astar;
 pub mod grid;
 
+use astar::AStarInterface;
 use grid::Coordinate;
 use grid::Grid;
 
@@ -48,8 +49,30 @@ impl Map {
     }
 
     fn lowest_risk_path(&self) -> usize {
-        let (_path, cost) = astar::solve(&self.grid, &self.start, &self.goal);
+        let (_path, cost) = self.shortest_path();
         cost
+    }
+}
+
+impl AStarInterface for Map {
+    fn start(&self) -> &Coordinate {
+        &self.start
+    }
+
+    fn goal(&self) -> &Coordinate {
+        &self.goal
+    }
+
+    fn heuristic(&self, from: &Coordinate, to: &Coordinate) -> usize {
+        from.manhattan_distance(to)
+    }
+
+    fn neighbours(&self, from: &Coordinate) -> Vec<(Coordinate, usize)> {
+        self.grid
+            .neighbours(from)
+            .into_iter()
+            .map(|n| (n, *self.grid.value(&n)))
+            .collect()
     }
 }
 

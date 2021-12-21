@@ -1,54 +1,58 @@
 use crate::grid::Coordinate;
-use crate::grid::Grid;
 
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::collections::HashMap;
 
-pub fn solve(
-    grid: &Grid<usize>,
-    start: &Coordinate,
-    goal: &Coordinate,
-) -> (Vec<Coordinate>, usize) {
-    let mut open_set: OpenSet<Coordinate> = OpenSet::new();
-    let mut came_from: HashMap<Coordinate, Coordinate> = HashMap::new();
-    let mut g_score: HashMap<Coordinate, usize> = HashMap::new();
+pub trait AStarInterface {
+    fn start(&self) -> &Coordinate;
+    fn goal(&self) -> &Coordinate;
+    fn heuristic(&self, from: &Coordinate, to: &Coordinate) -> usize;
+    fn neighbours(&self, from: &Coordinate) -> Vec<(Coordinate, usize)>;
 
-    // add start to open set
-    open_set.add(*start, h(start, goal));
-    g_score.insert(*start, 0);
+    fn shortest_path(&self) -> (Vec<Coordinate>, usize) {
+        let start = self.start();
+        let goal = self.goal();
 
-    while !open_set.is_empty() {
-        // select lowest score in open_set
-        let (current, _score) = open_set.pop().unwrap();
+        let mut open_set: OpenSet<Coordinate> = OpenSet::new();
+        let mut came_from: HashMap<Coordinate, Coordinate> = HashMap::new();
+        let mut g_score: HashMap<Coordinate, usize> = HashMap::new();
 
-        // finished?
-        if current == *goal {
-            let path = reconstruct_path(goal, &came_from);
-            let cost = *g_score.get(goal).unwrap();
-            return (path, cost);
-        }
+        // add start to open set
+        open_set.add(*start, self.heuristic(start, goal));
+        g_score.insert(*start, 0);
 
-        let current_g_score = *g_score.get(&current).unwrap();
+        while !open_set.is_empty() {
+            // select lowest score in open_set
+            let (current, _score) = open_set.pop().unwrap();
 
-        for neighbour in grid.neighbours(&current) {
-            let tentative_g_score = current_g_score + grid.value(&neighbour);
-            let neighbour_g_score = g_score.get(&neighbour);
+            // finished?
+            if current == *goal {
+                let path = reconstruct_path(goal, &came_from);
+                let cost = *g_score.get(goal).unwrap();
+                return (path, cost);
+            }
 
-            if neighbour_g_score.is_none() || tentative_g_score < *neighbour_g_score.unwrap() {
-                // new best path to neighbour!
-                came_from.insert(neighbour, current);
-                g_score.insert(neighbour, tentative_g_score);
-                open_set.add(neighbour, tentative_g_score + h(&neighbour, goal));
+            let current_g_score = *g_score.get(&current).unwrap();
+
+            for (neighbour, cost_to_neighbour) in self.neighbours(&current) {
+                let tentative_g_score = current_g_score + cost_to_neighbour;
+                let neighbour_g_score = g_score.get(&neighbour);
+
+                if neighbour_g_score.is_none() || tentative_g_score < *neighbour_g_score.unwrap() {
+                    // new best path to neighbour!
+                    came_from.insert(neighbour, current);
+                    g_score.insert(neighbour, tentative_g_score);
+                    open_set.add(
+                        neighbour,
+                        tentative_g_score + self.heuristic(&neighbour, goal),
+                    );
+                }
             }
         }
+
+        panic!("No path to goal");
     }
-
-    panic!("No path to goal");
-}
-
-fn h(from: &Coordinate, to: &Coordinate) -> usize {
-    from.manhattan_distance(to)
 }
 
 fn reconstruct_path(
