@@ -6,10 +6,10 @@ pub enum Packet {
         version: usize,
         value: usize,
     },
-    Operator {
+    Operation {
         version: usize,
-        type_id: usize,
-        sub_packets: Vec<Packet>,
+        operator: Operator,
+        operands: Vec<Packet>,
     },
 }
 
@@ -37,15 +37,16 @@ impl Packet {
     }
 
     fn read_operator(stream: &mut BitStream, version: usize, type_id: usize) -> Packet {
-        let sub_packets = Self::read_operator_sub_packets(stream);
-        Self::Operator {
+        let operator = Operator::from_type_id(type_id);
+        let operands = Self::read_sub_packets(stream);
+        Self::Operation {
             version,
-            type_id,
-            sub_packets,
+            operator,
+            operands,
         }
     }
 
-    fn read_operator_sub_packets(stream: &mut BitStream) -> Vec<Packet> {
+    fn read_sub_packets(stream: &mut BitStream) -> Vec<Packet> {
         let length_type_id = stream.read(1);
         match length_type_id {
             0 => {
@@ -63,6 +64,67 @@ impl Packet {
                 (0..packets_to_read).map(|_| Self::read(stream)).collect()
             }
             _ => panic!("Unexpected length type id: {}", length_type_id),
+        }
+    }
+
+    pub fn value(&self) -> usize {
+        match self {
+            Self::Literal { version: _, value } => *value,
+            Self::Operation {
+                version: _,
+                operator,
+                operands,
+            } => {
+                let values: Vec<usize> = operands.iter().map(|p| p.value()).collect();
+                operator.apply(&values)
+            }
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Operator {
+    Sum,
+    Product,
+    Minimum,
+    Maximum,
+    GreaterThan,
+    LessThan,
+    EqualTo,
+}
+
+impl Operator {
+    fn from_type_id(type_id: usize) -> Operator {
+        match type_id {
+            0 => Self::Sum,
+            1 => Self::Product,
+            2 => Self::Minimum,
+            3 => Self::Maximum,
+            5 => Self::GreaterThan,
+            6 => Self::LessThan,
+            7 => Self::EqualTo,
+            _ => panic!("Unrecognized operation type id: {}", type_id),
+        }
+    }
+
+    fn apply(&self, values: &[usize]) -> usize {
+        match self {
+            Self::Sum => values.iter().sum(),
+            Self::Product => values.iter().fold(1, |acc, v| acc * v),
+            Self::Minimum => *values.iter().min().unwrap(),
+            Self::Maximum => *values.iter().max().unwrap(),
+            Self::GreaterThan => {
+                assert_eq!(values.len(), 2);
+                (values[0] > values[1]).into()
+            }
+            Self::LessThan => {
+                assert_eq!(values.len(), 2);
+                (values[0] < values[1]).into()
+            }
+            Self::EqualTo => {
+                assert_eq!(values.len(), 2);
+                (values[0] == values[1]).into()
+            }
         }
     }
 }
@@ -98,10 +160,10 @@ mod tests {
         let packet = Packet::read(&mut stream);
         assert_eq!(
             packet,
-            Packet::Operator {
+            Packet::Operation {
                 version: 1,
-                type_id: 6,
-                sub_packets: vec![
+                operator: Operator::LessThan,
+                operands: vec![
                     Packet::Literal {
                         version: 6,
                         value: 10,
@@ -121,10 +183,10 @@ mod tests {
         let packet = Packet::read(&mut stream);
         assert_eq!(
             packet,
-            Packet::Operator {
+            Packet::Operation {
                 version: 7,
-                type_id: 3,
-                sub_packets: vec![
+                operator: Operator::Maximum,
+                operands: vec![
                     Packet::Literal {
                         version: 2,
                         value: 1,
@@ -148,16 +210,16 @@ mod tests {
         let packet = Packet::read(&mut stream);
         assert_eq!(
             packet,
-            Packet::Operator {
+            Packet::Operation {
                 version: 4,
-                type_id: 2,
-                sub_packets: vec![Packet::Operator {
+                operator: Operator::Minimum,
+                operands: vec![Packet::Operation {
                     version: 1,
-                    type_id: 2,
-                    sub_packets: vec![Packet::Operator {
+                    operator: Operator::Minimum,
+                    operands: vec![Packet::Operation {
                         version: 5,
-                        type_id: 2,
-                        sub_packets: vec![Packet::Literal {
+                        operator: Operator::Minimum,
+                        operands: vec![Packet::Literal {
                             version: 6,
                             value: 15,
                         }],
@@ -173,14 +235,14 @@ mod tests {
         let packet = Packet::read(&mut stream);
         assert_eq!(
             packet,
-            Packet::Operator {
+            Packet::Operation {
                 version: 3,
-                type_id: 0,
-                sub_packets: vec![
-                    Packet::Operator {
+                operator: Operator::Sum,
+                operands: vec![
+                    Packet::Operation {
                         version: 0,
-                        type_id: 0,
-                        sub_packets: vec![
+                        operator: Operator::Sum,
+                        operands: vec![
                             Packet::Literal {
                                 version: 0,
                                 value: 10,
@@ -191,10 +253,10 @@ mod tests {
                             },
                         ],
                     },
-                    Packet::Operator {
+                    Packet::Operation {
                         version: 1,
-                        type_id: 0,
-                        sub_packets: vec![
+                        operator: Operator::Sum,
+                        operands: vec![
                             Packet::Literal {
                                 version: 0,
                                 value: 12,
@@ -216,14 +278,14 @@ mod tests {
         let packet = Packet::read(&mut stream);
         assert_eq!(
             packet,
-            Packet::Operator {
+            Packet::Operation {
                 version: 6,
-                type_id: 0,
-                sub_packets: vec![
-                    Packet::Operator {
+                operator: Operator::Sum,
+                operands: vec![
+                    Packet::Operation {
                         version: 0,
-                        type_id: 0,
-                        sub_packets: vec![
+                        operator: Operator::Sum,
+                        operands: vec![
                             Packet::Literal {
                                 version: 0,
                                 value: 10,
@@ -234,10 +296,10 @@ mod tests {
                             },
                         ],
                     },
-                    Packet::Operator {
+                    Packet::Operation {
                         version: 4,
-                        type_id: 0,
-                        sub_packets: vec![
+                        operator: Operator::Sum,
+                        operands: vec![
                             Packet::Literal {
                                 version: 7,
                                 value: 12,
@@ -259,16 +321,16 @@ mod tests {
         let packet = Packet::read(&mut stream);
         assert_eq!(
             packet,
-            Packet::Operator {
+            Packet::Operation {
                 version: 5,
-                type_id: 0,
-                sub_packets: vec![Packet::Operator {
+                operator: Operator::Sum,
+                operands: vec![Packet::Operation {
                     version: 1,
-                    type_id: 0,
-                    sub_packets: vec![Packet::Operator {
+                    operator: Operator::Sum,
+                    operands: vec![Packet::Operation {
                         version: 3,
-                        type_id: 0,
-                        sub_packets: vec![
+                        operator: Operator::Sum,
+                        operands: vec![
                             Packet::Literal {
                                 version: 7,
                                 value: 6,
@@ -294,5 +356,32 @@ mod tests {
                 }],
             },
         );
+    }
+
+    #[test]
+    fn test_packet_value_example1() {
+        let mut stream = BitStream::from_str(EXAMPLE1);
+        let packet = Packet::read(&mut stream);
+        assert_eq!(packet.value(), 2021)
+    }
+
+    static PART2_EXAMPLES: [(&str, usize); 8] = [
+        ("C200B40A82", 3),
+        ("04005AC33890", 54),
+        ("880086C3E88112", 7),
+        ("CE00C43D881120", 9),
+        ("D8005AC2A8F0", 1),
+        ("F600BC2D8F", 0),
+        ("9C005AC2F8F0", 0),
+        ("9C0141080250320F1802104A08", 1),
+    ];
+
+    #[test]
+    fn test_packet_value_part2_examples() {
+        for (input, expected_result) in PART2_EXAMPLES {
+            let mut stream = BitStream::from_str(input);
+            let packet = Packet::read(&mut stream);
+            assert_eq!(packet.value(), expected_result)
+        }
     }
 }

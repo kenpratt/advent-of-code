@@ -9,7 +9,7 @@ use std::fs;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -32,13 +32,13 @@ fn sum_versions(packet: &Packet) -> usize {
             Packet::Literal { version, value: _ } => {
                 sum += version;
             }
-            Packet::Operator {
+            Packet::Operation {
                 version,
-                type_id: _,
-                sub_packets,
+                operator: _,
+                operands,
             } => {
                 sum += version;
-                for p in sub_packets {
+                for p in operands {
                     to_visit.push_back(p);
                 }
             }
@@ -51,6 +51,12 @@ fn part1(input: &str) -> usize {
     let packet = decode(input);
     println!("{:?}", packet);
     sum_versions(&packet)
+}
+
+fn part2(input: &str) -> usize {
+    let packet = decode(input);
+    println!("{:?}", packet);
+    packet.value()
 }
 
 #[cfg(test)]
@@ -104,5 +110,11 @@ mod tests {
     fn test_part1_solution() {
         let result = part1(&read_input_file());
         assert_eq!(result, 889);
+    }
+
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 739303923668);
     }
 }
