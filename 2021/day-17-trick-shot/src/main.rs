@@ -1,12 +1,11 @@
 use std::fs;
 
-// use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::Regex;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -146,11 +145,11 @@ impl Projectile {
     }
 }
 
-fn part1(input: &str) -> isize {
+fn find_hits(input: &str) -> Vec<(isize, isize, isize, usize)> {
     let target = TargetArea::parse(input);
 
     let mut hits = vec![];
-    for vx in 0..target.x_max {
+    for vx in 0..=target.x_max {
         for vy in target.y_min..200 {
             let mut projectile = Projectile::new(vx, vy);
             let (hit, max_y, steps) = projectile.fire(&target);
@@ -160,7 +159,11 @@ fn part1(input: &str) -> isize {
             }
         }
     }
+    hits
+}
 
+fn part1(input: &str) -> isize {
+    let hits = find_hits(input);
     *hits
         .iter()
         .map(|(_vx, _vy, max_y, _steps)| max_y)
@@ -168,11 +171,10 @@ fn part1(input: &str) -> isize {
         .unwrap()
 }
 
-// fn part2(input: &str) -> usize {
-//     let data = TargetArea::parse(input);
-//     println!("{:?}", data);
-//     data.execute()
-// }
+fn part2(input: &str) -> usize {
+    let hits = find_hits(input);
+    hits.len()
+}
 
 #[cfg(test)]
 mod tests {
@@ -192,15 +194,15 @@ mod tests {
         assert_eq!(result, 3160);
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(EXAMPLE1);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example1() {
+        let result = part2(EXAMPLE1);
+        assert_eq!(result, 112);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 1928);
+    }
 }
