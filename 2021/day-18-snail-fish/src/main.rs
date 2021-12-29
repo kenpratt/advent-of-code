@@ -1,13 +1,16 @@
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::fmt;
+use std::fmt::Write;
 use std::fs;
 use std::rc::Rc;
 use std::str::Chars;
 
+use itertools::Itertools;
+
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -59,6 +62,13 @@ enum Element {
 }
 
 impl Element {
+    fn deep_clone(&self) -> Element {
+        match self {
+            Element::Value(val) => Element::Value(*val),
+            Element::Pair(left, right) => Element::Pair(left.deep_clone(), right.deep_clone()),
+        }
+    }
+
     fn value(&self) -> Option<u32> {
         match self {
             Element::Value(val) => Some(*val),
@@ -100,6 +110,10 @@ struct ElementRef(Rc<RefCell<Element>>);
 impl ElementRef {
     fn wrap(element: Element) -> Self {
         Self(Rc::new(RefCell::new(element)))
+    }
+
+    fn deep_clone(&self) -> Self {
+        Self::wrap(self.0.borrow().deep_clone())
     }
 
     fn value(&self) -> Option<u32> {
@@ -332,11 +346,31 @@ fn part1(input: &str) -> u32 {
     result.magnitude()
 }
 
-// fn part2(input: &str) -> usize {
-//     let data = Data::parse(input);
-//     println!("{:?}", data);
-//     data.execute()
-// }
+fn pretty_pairs(pairs: &[ElementRef]) -> String {
+    let mut s = String::new();
+    for p in pairs {
+        write!(&mut s, "\n  {}", p).unwrap();
+    }
+    s
+}
+
+fn part2(input: &str) -> u32 {
+    let pairs = parse(input);
+    println!("pairs: {}", pretty_pairs(&pairs));
+
+    pairs
+        .into_iter()
+        .permutations(2)
+        .map(|perm| {
+            let cloned: Vec<ElementRef> = perm.iter().map(|e| e.deep_clone()).collect();
+            println!("perm:{}", pretty_pairs(&cloned));
+            let foo = sum(cloned).magnitude();
+            println!("=> {:?}", foo);
+            foo
+        })
+        .max()
+        .unwrap()
+}
 
 #[cfg(test)]
 mod tests {
@@ -449,15 +483,14 @@ mod tests {
         assert_eq!(result, 2541);
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(EXAMPLE1);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example6() {
+        assert_eq!(part2(EXAMPLE6), 3993);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 4647);
+    }
 }
