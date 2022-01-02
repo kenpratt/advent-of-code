@@ -5,10 +5,12 @@ use std::fs;
 
 use itertools::Itertools;
 use lazy_static::lazy_static;
+use prehash::{DefaultPrehasher, PrehashedSet, Prehasher};
 use regex::Regex;
 
 lazy_static! {
     static ref SCANNER_NUMBER_RE: Regex = Regex::new(r"\A\-\-\- scanner (\d+) \-\-\-\z").unwrap();
+    static ref PREHASHER: DefaultPrehasher = DefaultPrehasher::new();
 }
 
 fn main() {
@@ -207,7 +209,7 @@ static BASE_ORIENTATION: &'static Orientation = &ORIENTATIONS[0];
 struct ScannerOrientation {
     orientation: &'static Orientation,
     beacons: HashSet<Beacon>,
-    beacon_offsets: HashMap<Beacon, HashSet<Beacon>>,
+    beacon_offsets: HashMap<Beacon, PrehashedSet<Beacon>>,
 }
 
 impl ScannerOrientation {
@@ -232,15 +234,19 @@ impl ScannerOrientation {
         }
     }
 
-    fn build_beacon_offsets(beacons: &HashSet<Beacon>) -> HashMap<Beacon, HashSet<Beacon>> {
+    fn build_beacon_offsets(beacons: &HashSet<Beacon>) -> HashMap<Beacon, PrehashedSet<Beacon>> {
         beacons
             .iter()
             .map(|b| (*b, Self::build_beacon_offset(b, beacons)))
             .collect()
     }
 
-    fn build_beacon_offset(base: &Beacon, beacons: &HashSet<Beacon>) -> HashSet<Beacon> {
-        beacons.iter().map(|b| b.subtract(base)).collect()
+    fn build_beacon_offset(base: &Beacon, beacons: &HashSet<Beacon>) -> PrehashedSet<Beacon> {
+        beacons
+            .iter()
+            .map(|b| b.subtract(base))
+            .map(|b| PREHASHER.prehash(b))
+            .collect()
     }
 
     fn overlaps(&self, other: &ScannerOrientation) -> Option<Beacon> {
