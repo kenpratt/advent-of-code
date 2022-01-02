@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use std::fmt;
 use std::fs;
 
+use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -12,7 +13,7 @@ lazy_static! {
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -112,6 +113,10 @@ impl Beacon {
         let y = self.y - other.y;
         let z = self.z - other.z;
         Beacon { x, y, z }
+    }
+
+    fn distance(&self, other: &Beacon) -> usize {
+        ((self.x - other.x).abs() + (self.y - other.y).abs() + (self.z - other.z).abs()) as usize
     }
 }
 
@@ -281,23 +286,26 @@ struct Solver<'a> {
     scanners: &'a HashMap<usize, Scanner>,
     base: ScannerOrientation,
     remaining: HashSet<usize>,
+    locations: HashMap<usize, Beacon>,
 }
 
 impl Solver<'_> {
-    fn solve(scanners: &HashMap<usize, Scanner>) -> ScannerOrientation {
+    fn solve(scanners: &HashMap<usize, Scanner>) -> (HashSet<Beacon>, HashMap<usize, Beacon>) {
         let base: ScannerOrientation = scanners
             .get(&0)
             .unwrap()
             .orientation(BASE_ORIENTATION)
             .clone();
         let remaining: HashSet<usize> = scanners.keys().map(|k| *k).filter(|k| k != &0).collect();
+        let locations = HashMap::new();
         let mut solver = Solver {
             scanners,
             base,
             remaining,
+            locations,
         };
         solver.run();
-        solver.base
+        (solver.base.beacons, solver.locations)
     }
 
     fn run(&mut self) {
@@ -317,6 +325,7 @@ impl Solver<'_> {
         let target_scanner = self.scanner(&num);
         let target_orientation = target_scanner.orientation(orientation);
         self.base = self.base.combine(target_orientation, &offset);
+        self.locations.insert(num, offset);
     }
 
     fn scanner(&self, num: &usize) -> &Scanner {
@@ -331,15 +340,20 @@ impl Solver<'_> {
 
 fn part1(input: &str) -> usize {
     let scanners = parse(input);
-    let combined = Solver::solve(&scanners);
-    combined.beacons.len()
+    let (beacons, _) = Solver::solve(&scanners);
+    beacons.len()
 }
 
-// fn part2(input: &str) -> usize {
-//     let data = Data::parse(input);
-//     println!("{:?}", data);
-//     data.execute()
-// }
+fn part2(input: &str) -> usize {
+    let scanners = parse(input);
+    let (_, locations) = Solver::solve(&scanners);
+    locations
+        .values()
+        .tuple_combinations()
+        .map(|(a, b)| a.distance(b))
+        .max()
+        .unwrap()
+}
 
 #[cfg(test)]
 mod tests {
@@ -361,15 +375,15 @@ mod tests {
         assert_eq!(result, 405);
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(EXAMPLE1);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example1() {
+        let result = part2(&read_example_file());
+        assert_eq!(result, 3621);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 12306);
+    }
 }
