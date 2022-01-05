@@ -5,7 +5,7 @@ use std::ops::RangeInclusive;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -43,12 +43,23 @@ impl Map {
         assert_eq!(parts.len(), 2);
         let algorithm = Algorithm::parse(parts[0]);
         let value_outside_bounds = false; // starts dark
-        let image = Image::parse(parts[1], value_outside_bounds); // starts dark
+        let image = Image::parse(parts[1], value_outside_bounds);
         Map { algorithm, image }
     }
 
     fn enhance(&mut self) {
         self.image = self.image.enhance(&self.algorithm);
+    }
+
+    fn enhance_times(&mut self, times: usize, print_each_iteration: bool) {
+        println!("before:\n{}", self);
+        for n in 1..=times {
+            self.enhance();
+            if print_each_iteration {
+                println!("enhance {}:\n{}", n, self);
+            }
+        }
+        println!("after:\n{}", self);
     }
 
     fn count_active(&self) -> usize {
@@ -234,19 +245,15 @@ impl Bounds {
 
 fn part1(input: &str) -> usize {
     let mut map = Map::parse(input);
-    println!("before:\n{}", map);
-    map.enhance();
-    println!("enhanced once:\n{}", map);
-    map.enhance();
-    println!("enhanced twice:\n{}", map);
+    map.enhance_times(2, true);
     map.count_active()
 }
 
-// fn part2(input: &str) -> usize {
-//     let data = Map::parse(input);
-//     println!("{:?}", data);
-//     data.execute()
-// }
+fn part2(input: &str) -> usize {
+    let mut map = Map::parse(input);
+    map.enhance_times(50, false);
+    map.count_active()
+}
 
 #[cfg(test)]
 mod tests {
@@ -268,15 +275,15 @@ mod tests {
         assert_eq!(result, 5218);
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(&read_example_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example1() {
+        let result = part2(&read_example_file());
+        assert_eq!(result, 3351);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 15527);
+    }
 }
