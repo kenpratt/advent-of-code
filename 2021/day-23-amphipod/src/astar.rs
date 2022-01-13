@@ -9,16 +9,19 @@ pub trait AStarInterface<N: Copy + Debug + Hash + Ord> {
     fn heuristic(&self, from: &N) -> usize;
     fn neighbours(&mut self, from: &N) -> Vec<(N, usize)>;
 
-    fn shortest_path(&mut self, start: &N) -> (Vec<(N, usize)>, usize) {
+    fn shortest_path(&mut self, start: &N, print_stats: bool) -> (Vec<(N, usize)>, usize) {
         let mut open_set: OpenSet<N> = OpenSet::new();
         let mut came_from: HashMap<N, (N, usize)> = HashMap::new();
         let mut g_score: HashMap<N, usize> = HashMap::new();
+        let mut iterations = 0;
 
         // add start to open set
         open_set.add(*start, self.heuristic(start));
         g_score.insert(*start, 0);
 
         while !open_set.is_empty() {
+            iterations += 1;
+
             // select lowest score in open_set
             let (current, _score) = open_set.pop().unwrap();
 
@@ -26,6 +29,13 @@ pub trait AStarInterface<N: Copy + Debug + Hash + Ord> {
             if self.at_goal(&current) {
                 let path = Self::reconstruct_path(&current, &came_from);
                 let cost = *g_score.get(&current).unwrap();
+                if print_stats {
+                    println!(
+                        "A* stats: {} iterations, {} states tracked",
+                        iterations,
+                        g_score.len()
+                    );
+                }
                 return (path, cost);
             }
 

@@ -175,7 +175,7 @@ impl Map {
             goal: to,
             grid: grid,
         };
-        let (path_with_costs, total_cost) = pathfinding.shortest_path(from);
+        let (path_with_costs, total_cost) = pathfinding.shortest_path(from, false);
         let path = path_with_costs.into_iter().map(|(l, _c)| l).collect();
         (path, total_cost)
     }
@@ -471,7 +471,7 @@ impl Solver<'_> {
             game_states: HashMap::new(),
         };
         let initial_state = solver.find_or_insert_game_state(initial_state);
-        let (path, cost) = solver.shortest_path(&initial_state);
+        let (path, cost) = solver.shortest_path(&initial_state, true);
         println!("solution (total cost: {})", cost);
         for (key, cost_for_step) in &path {
             let state = solver.game_state(key);
