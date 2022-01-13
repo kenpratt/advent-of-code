@@ -35,6 +35,7 @@ struct Map {
     hallways: Vec<Coordinate>,
     rooms: BTreeMap<Amphipod, BTreeSet<Coordinate>>,
     initial_positions: BTreeMap<Coordinate, Amphipod>,
+    paths: HashMap<(Coordinate, Coordinate), (Vec<Coordinate>, usize)>,
 }
 
 impl Map {
@@ -69,11 +70,19 @@ impl Map {
             .filter_map(|e| e)
             .collect();
 
+        let visitable_locations: Vec<Coordinate> = grid
+            .iter()
+            .filter(|c| c.value.is_hallway() || c.value.is_room())
+            .map(|c| c.position)
+            .collect();
+        let paths = Self::precompute_paths(&visitable_locations, &grid);
+
         Map {
             grid,
             hallways,
             rooms,
             initial_positions,
+            paths,
         }
     }
 
@@ -144,14 +153,35 @@ impl Map {
         self.rooms_for(kind).contains(location)
     }
 
-    fn path_between(&self, from: &Coordinate, to: &Coordinate) -> (Vec<Coordinate>, usize) {
+    fn precompute_paths(
+        locations: &[Coordinate],
+        grid: &Grid<Tile>,
+    ) -> HashMap<(Coordinate, Coordinate), (Vec<Coordinate>, usize)> {
+        let mut map = HashMap::new();
+        for from in locations {
+            for to in locations {
+                map.insert((*from, *to), Self::calculate_path_between(from, to, grid));
+            }
+        }
+        map
+    }
+
+    fn calculate_path_between(
+        from: &Coordinate,
+        to: &Coordinate,
+        grid: &Grid<Tile>,
+    ) -> (Vec<Coordinate>, usize) {
         let mut pathfinding = Pathfinding {
             goal: to,
-            grid: &self.grid,
+            grid: grid,
         };
         let (path_with_costs, total_cost) = pathfinding.shortest_path(from);
         let path = path_with_costs.into_iter().map(|(l, _c)| l).collect();
         (path, total_cost)
+    }
+
+    fn path_between(&self, from: &Coordinate, to: &Coordinate) -> &(Vec<Coordinate>, usize) {
+        self.paths.get(&(*from, *to)).unwrap()
     }
 }
 
