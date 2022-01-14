@@ -16,7 +16,7 @@ use std::hash::{Hash, Hasher};
 use indoc::indoc;
 use itertools::Itertools;
 
-static INPUT: &str = indoc! {"
+static INPUT1: &str = indoc! {"
     #############
     #...........#
     ###B#B#D#A###
@@ -24,9 +24,19 @@ static INPUT: &str = indoc! {"
       #########  
 "};
 
+static INPUT2: &str = indoc! {"
+    #############
+    #...........#
+    ###B#B#D#A###
+      #D#C#B#A#  
+      #D#B#A#C#  
+      #C#A#D#C#  
+      #########  
+"};
+
 fn main() {
-    println!("part 1 result: {:?}", part1(INPUT));
-    // println!("part 2 result: {:?}", part2(INPUT));
+    // println!("part 1 result: {:?}", lowest_cost_path(INPUT1));
+    println!("part 2 result: {:?}", lowest_cost_path(INPUT2));
 }
 
 #[derive(Debug)]
@@ -237,6 +247,13 @@ enum Amphipod {
     Desert,
 }
 
+static AMPHIPODS: [Amphipod; 4] = [
+    Amphipod::Amber,
+    Amphipod::Bronze,
+    Amphipod::Copper,
+    Amphipod::Desert,
+];
+
 impl Amphipod {
     fn parse(c: &char) -> Self {
         match c {
@@ -378,10 +395,30 @@ impl GameState {
     }
 
     fn available_moves(&self, map: &Map) -> Vec<(GameState, usize)> {
-        self.positions
-            .iter()
-            .flat_map(|(c, a)| self.available_moves_for_amphipod(c, a, map))
-            .collect()
+        let unoccupied_rooms = self.unoccupied_rooms(map);
+        let unoccupied_hallways = self.unoccupied_hallways(map);
+
+        let mut moves = vec![];
+
+        // TODO filter out amphipods that never need to move again (eg home + not blocking anything/empty spaces)
+        for (position, kind) in &self.positions {
+            // can always move to a room
+            let unoccupied_rooms_for_kind = unoccupied_rooms.get(kind).unwrap();
+            self.add_unobstructed_moves(
+                position,
+                kind,
+                map,
+                &unoccupied_rooms_for_kind,
+                &mut moves,
+            );
+
+            if map.is_room(position) {
+                // currently in the wrong room, could move to an open hallway spot as well as a room
+                self.add_unobstructed_moves(position, kind, map, &unoccupied_hallways, &mut moves);
+            }
+        }
+
+        moves
     }
 
     fn occupied(&self, location: &Coordinate) -> bool {
@@ -395,36 +432,37 @@ impl GameState {
             .collect()
     }
 
+    fn unoccupied_rooms<'a>(
+        &self,
+        map: &'a Map,
+    ) -> HashMap<&'static Amphipod, Vec<&'a Coordinate>> {
+        AMPHIPODS
+            .iter()
+            .map(|kind| (kind, self.unoccupied_rooms_for(kind, map)))
+            .collect()
+    }
+
     fn unoccupied_hallways<'a>(&self, map: &'a Map) -> Vec<&'a Coordinate> {
         map.hallways.iter().filter(|c| !self.occupied(c)).collect()
     }
 
-    fn available_moves_for_amphipod(
+    fn add_unobstructed_moves(
         &self,
         position: &Coordinate,
         kind: &Amphipod,
         map: &Map,
-    ) -> Vec<(GameState, usize)> {
-        // can always move to a room
-        let mut possible_destinations = self.unoccupied_rooms_for(kind, map);
-
-        if map.is_room(position) {
-            // currently in the wrong room, could move to an open hallways spot as well as a room
-            let mut hallways = self.unoccupied_hallways(map);
-            possible_destinations.append(&mut hallways);
-        }
-
-        let mut available_moves = vec![];
-        for destination in possible_destinations {
+        destinations: &[&Coordinate],
+        moves: &mut Vec<(GameState, usize)>,
+    ) {
+        for destination in destinations {
             let (path, distance) = map.path_between(position, destination);
             let is_obstructed = path.iter().any(|l| self.occupied(l));
             if !is_obstructed {
                 let cost = distance * kind.cost();
                 let m = (self.state_after_move(position, destination, kind), cost);
-                available_moves.push(m);
+                moves.push(m);
             }
         }
-        available_moves
     }
 
     fn state_after_move(&self, from: &Coordinate, to: &Coordinate, kind: &Amphipod) -> GameState {
@@ -521,23 +559,17 @@ fn calculate_hash<T: Hash>(t: &T) -> u64 {
     s.finish()
 }
 
-fn part1(input: &str) -> usize {
+fn lowest_cost_path(input: &str) -> usize {
     let map = Map::new(input);
     println!("{}", map.grid);
     Solver::solve(&map)
 }
 
-// fn part2(input: &str) -> usize {
-//     let data = Map::parse(input);
-//     println!("{:?}", data);
-//     data.execute()
-// }
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    static EXAMPLE: &str = indoc! {"
+    static EXAMPLE1: &str = indoc! {"
         #############
         #...........#
         ###B#C#B#D###
@@ -545,27 +577,37 @@ mod tests {
           #########  
     "};
 
+    static EXAMPLE2: &str = indoc! {"
+        #############
+        #...........#
+        ###B#C#B#D###
+          #D#C#B#A#  
+          #D#B#A#C#  
+          #A#D#C#A#  
+          #########  
+    "};
+
     #[test]
     fn test_part1_example() {
-        let result = part1(EXAMPLE);
+        let result = lowest_cost_path(EXAMPLE1);
         assert_eq!(result, 12521);
     }
 
     #[test]
     fn test_part1_solution() {
-        let result = part1(INPUT);
+        let result = lowest_cost_path(INPUT1);
         assert_eq!(result, 11608);
     }
 
-    // #[test]
-    // fn test_part2_example() {
-    //     let result = part2(EXAMPLE);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example() {
+        let result = lowest_cost_path(EXAMPLE2);
+        assert_eq!(result, 0);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(INPUT);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = lowest_cost_path(INPUT2);
+        assert_eq!(result, 0);
+    }
 }
