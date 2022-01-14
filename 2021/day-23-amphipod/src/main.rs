@@ -35,7 +35,7 @@ static INPUT2: &str = indoc! {"
 "};
 
 fn main() {
-    // println!("part 1 result: {:?}", lowest_cost_path(INPUT1));
+    println!("part 1 result: {:?}", lowest_cost_path(INPUT1));
     println!("part 2 result: {:?}", lowest_cost_path(INPUT2));
 }
 
@@ -43,7 +43,8 @@ fn main() {
 struct Map {
     grid: Grid<Tile>,
     hallways: Vec<Coordinate>,
-    rooms: BTreeMap<Amphipod, BTreeSet<Coordinate>>,
+    rooms: BTreeMap<Coordinate, Room>,
+    rooms_by_kind: BTreeMap<Amphipod, BTreeSet<Room>>,
     initial_positions: BTreeMap<Coordinate, Amphipod>,
     paths: HashMap<(Coordinate, Coordinate), (Vec<Coordinate>, usize)>,
 }
@@ -58,8 +59,8 @@ impl Map {
             .map(|row| row.iter().map(|(tile, _amphipod)| *tile).collect())
             .collect();
         let mut grid = Grid::new(tiles);
-        let rooms = Self::find_rooms(&grid);
-        Self::fix_entrances(&mut grid, &rooms);
+        let (rooms, rooms_by_kind) = Self::find_rooms(&grid);
+        Self::fix_entrances(&mut grid, &rooms_by_kind);
 
         let hallways = grid
             .iter()
@@ -91,6 +92,7 @@ impl Map {
             grid,
             hallways,
             rooms,
+            rooms_by_kind,
             initial_positions,
             paths,
         }
@@ -103,40 +105,82 @@ impl Map {
             .collect()
     }
 
-    fn find_rooms(grid: &Grid<Tile>) -> BTreeMap<Amphipod, BTreeSet<Coordinate>> {
-        let rooms: Vec<Coordinate> = grid
+    fn find_rooms(
+        grid: &Grid<Tile>,
+    ) -> (
+        BTreeMap<Coordinate, Room>,
+        BTreeMap<Amphipod, BTreeSet<Room>>,
+    ) {
+        let room_locations: Vec<Coordinate> = grid
             .iter()
             .filter(|c| c.value.is_room())
             .map(|c| c.position)
             .collect();
 
-        let x_coords: Vec<usize> = rooms.iter().map(|c| c.x).sorted().unique().collect();
+        let x_coords: Vec<usize> = room_locations
+            .iter()
+            .map(|c| c.x)
+            .sorted()
+            .unique()
+            .collect();
         let amphipod_mappings: BTreeMap<usize, Amphipod> = x_coords
             .into_iter()
             .enumerate()
             .map(|(i, x)| (x, Amphipod::nth(i)))
             .collect();
 
-        let mut output = BTreeMap::new();
-        for room in rooms {
-            let amphipod = *amphipod_mappings.get(&room.x).unwrap();
-            let v = output.entry(amphipod).or_insert(BTreeSet::new());
-            v.insert(room);
+        let mut rooms_locations_by_kind = HashMap::new();
+        for location in room_locations {
+            let kind = amphipod_mappings.get(&location.x).unwrap();
+            let v = rooms_locations_by_kind.entry(*kind).or_insert(vec![]);
+            v.push(location);
         }
-        output
+
+        let mut rooms_by_kind: BTreeMap<Amphipod, BTreeSet<Room>> = BTreeMap::new();
+        for (kind, locations) in rooms_locations_by_kind {
+            let entrance = Self::find_entrance(grid, &locations);
+            let deepest_room = locations
+                .iter()
+                .max_by_key(|location| Self::calculate_path_between(location, &entrance, &grid).1)
+                .unwrap();
+
+            let rooms = locations
+                .iter()
+                .map(|location| {
+                    let (_, depth) = Self::calculate_path_between(location, &entrance, &grid);
+                    let (blocks, _) = Self::calculate_path_between(location, &deepest_room, &grid);
+
+                    Room {
+                        kind: kind,
+                        position: *location,
+                        depth: depth,
+                        blocks: blocks,
+                    }
+                })
+                .collect();
+
+            rooms_by_kind.insert(kind, rooms);
+        }
+
+        let mut rooms_by_location = BTreeMap::new();
+        for (_kind, rooms) in &rooms_by_kind {
+            for room in rooms {
+                rooms_by_location.insert(room.position, room.clone());
+            }
+        }
+
+        (rooms_by_location, rooms_by_kind)
     }
 
-    fn fix_entrances(
-        grid: &mut Grid<Tile>,
-        amphipod_rooms: &BTreeMap<Amphipod, BTreeSet<Coordinate>>,
-    ) {
-        for (_kind, rooms) in amphipod_rooms.iter() {
-            let entrance = Self::find_entrance(grid, rooms);
+    fn fix_entrances(grid: &mut Grid<Tile>, rooms_by_kind: &BTreeMap<Amphipod, BTreeSet<Room>>) {
+        for (_kind, rooms) in rooms_by_kind.iter() {
+            let locations: Vec<Coordinate> = rooms.iter().map(|r| r.position).collect();
+            let entrance = Self::find_entrance(grid, &locations);
             grid.cell_mut(&entrance).value = Tile::Entrance;
         }
     }
 
-    fn find_entrance(grid: &Grid<Tile>, rooms: &BTreeSet<Coordinate>) -> Coordinate {
+    fn find_entrance(grid: &Grid<Tile>, rooms: &[Coordinate]) -> Coordinate {
         let entrances: Vec<Coordinate> = rooms
             .iter()
             .flat_map(|c| {
@@ -151,16 +195,16 @@ impl Map {
         entrances[0]
     }
 
-    fn rooms_for(&self, kind: &Amphipod) -> &BTreeSet<Coordinate> {
-        self.rooms.get(kind).unwrap()
+    fn tile(&self, location: &Coordinate) -> &Tile {
+        self.grid.value(location)
     }
 
-    fn is_room(&self, location: &Coordinate) -> bool {
-        self.grid.value(location).is_room()
+    fn rooms_for(&self, kind: &Amphipod) -> &BTreeSet<Room> {
+        self.rooms_by_kind.get(kind).unwrap()
     }
 
-    fn is_room_of_kind(&self, location: &Coordinate, kind: &Amphipod) -> bool {
-        self.rooms_for(kind).contains(location)
+    fn room(&self, location: &Coordinate) -> Option<&Room> {
+        self.rooms.get(location)
     }
 
     fn precompute_paths(
@@ -300,7 +344,7 @@ impl fmt::Display for Amphipod {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 enum Tile {
     Hallway,
     Entrance,
@@ -331,17 +375,11 @@ impl Tile {
     }
 
     fn is_room(&self) -> bool {
-        match self {
-            Self::Room => true,
-            _ => false,
-        }
+        *self == Self::Room
     }
 
     fn is_hallway(&self) -> bool {
-        match self {
-            Self::Hallway => true,
-            _ => false,
-        }
+        *self == Self::Hallway
     }
 }
 
@@ -349,6 +387,22 @@ impl fmt::Display for Tile {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.to_char())
     }
+}
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct Room {
+    kind: Amphipod,
+    position: Coordinate,
+    depth: usize,
+    blocks: Vec<Coordinate>,
+}
+
+#[derive(Debug, PartialEq)]
+enum AmphipodStatus {
+    InHallway,
+    InWrongRoom,
+    HomeButBlocking,
+    HomeAndHappy,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -363,61 +417,108 @@ impl GameState {
     }
 
     fn heuristic(&self, map: &Map) -> usize {
-        // TODO consider the case where a Amphipod is at home but blocking something else?
-        // it's probably slowing down astar a bunch to consider those already at home
         self.positions
             .iter()
-            .filter(|(c, a)| !map.is_room_of_kind(c, a)) // already in home room
-            .map(|(c, a)| self.cost_to_closest_unoccupied_room(c, a, map))
+            .map(|(c, a)| self.amphipod_heuristic(c, a, map))
             .sum()
     }
 
-    fn cost_to_closest_unoccupied_room(
+    fn amphipod_heuristic(&self, position: &Coordinate, kind: &Amphipod, map: &Map) -> usize {
+        let distance = match self.amphipod_status(position, kind, map) {
+            // in a hallway: for a heuristic, just use the cost to the closest room of the right kind.
+            // don't think we can only check unoccupied rooms, as another part of the heuristic might
+            // move the occupant somewhere else...
+            // in the wrong room: same as in hallway, assume best case scenario of movin gto the right
+            // kind of room in the top slot.
+            AmphipodStatus::InHallway | AmphipodStatus::InWrongRoom => {
+                self.distance_to_closest_room_of_kind(position, kind, map)
+            }
+
+            // we're blocking one or more amphipods in, so minimum cost will be to move out to a hallway
+            // and back in again. nearest hallway is depth + 1 can't stop at entrance, * 2 (out and back)
+            AmphipodStatus::HomeButBlocking => (map.room(position).unwrap().depth + 1) * 2,
+
+            // done!
+            AmphipodStatus::HomeAndHappy => 0,
+        };
+
+        // amphipod-specific move cost
+        distance * kind.cost()
+    }
+
+    fn distance_to_closest_room_of_kind(
         &self,
         from: &Coordinate,
         kind: &Amphipod,
         map: &Map,
     ) -> usize {
-        self.unoccupied_rooms_for(kind, map)
-            .iter()
-            .map(|to| {
-                let (_path, distance) = map.path_between(from, to);
-                distance * kind.cost()
-            })
-            .min()
-            .unwrap_or(0)
+        let room = map.rooms_for(kind).iter().find(|r| r.depth == 1).unwrap();
+        let (_path, distance) = map.path_between(from, &room.position);
+        *distance
     }
 
     fn is_complete(&self, map: &Map) -> bool {
         self.positions
             .iter()
-            .all(|(c, a)| map.is_room_of_kind(c, a))
+            .all(|(c, a)| self.amphipod_status(c, a, map) == AmphipodStatus::HomeAndHappy)
+    }
+
+    fn amphipod_status(&self, position: &Coordinate, kind: &Amphipod, map: &Map) -> AmphipodStatus {
+        match map.tile(position) {
+            Tile::Room => {
+                let room = map.room(position).unwrap();
+                if room.kind != *kind {
+                    AmphipodStatus::InWrongRoom
+                } else {
+                    let blocking = room
+                        .blocks
+                        .iter()
+                        .any(|blocked| self.occupant(blocked) != Some(kind));
+                    if blocking {
+                        AmphipodStatus::HomeButBlocking
+                    } else {
+                        AmphipodStatus::HomeAndHappy
+                    }
+                }
+            }
+            Tile::Hallway => AmphipodStatus::InHallway,
+            _ => panic!("Unreachable"),
+        }
     }
 
     fn available_moves(&self, map: &Map) -> Vec<(GameState, usize)> {
-        let unoccupied_rooms = self.unoccupied_rooms(map);
         let unoccupied_hallways = self.unoccupied_hallways(map);
 
+        let destination_room_for_kind: HashMap<&Amphipod, Option<&Room>> = AMPHIPODS
+            .iter()
+            .map(|kind| (kind, self.destination_room_for_kind(kind, map)))
+            .collect();
+
         let mut moves = vec![];
-
-        // TODO filter out amphipods that never need to move again (eg home + not blocking anything/empty spaces)
         for (position, kind) in &self.positions {
-            // can always move to a room
-            let unoccupied_rooms_for_kind = unoccupied_rooms.get(kind).unwrap();
-            self.add_unobstructed_moves(
-                position,
-                kind,
-                map,
-                &unoccupied_rooms_for_kind,
-                &mut moves,
-            );
+            let status = self.amphipod_status(position, kind, map);
 
-            if map.is_room(position) {
-                // currently in the wrong room, could move to an open hallway spot as well as a room
-                self.add_unobstructed_moves(position, kind, map, &unoccupied_hallways, &mut moves);
+            if status == AmphipodStatus::HomeAndHappy {
+                // done!
+                continue;
+            }
+
+            // whether in a room or hallway, we could try to move to our home room
+            match destination_room_for_kind.get(kind).unwrap() {
+                Some(room) => {
+                    self.add_move_if_unobstructed(position, kind, map, &room.position, &mut moves);
+                }
+                None => {}
+            };
+
+            // currently in the wrong room, or right room but blocking something
+            // - can move into unoccupied hallways too
+            if status == AmphipodStatus::InWrongRoom || status == AmphipodStatus::HomeButBlocking {
+                for hallway in &unoccupied_hallways {
+                    self.add_move_if_unobstructed(position, kind, map, hallway, &mut moves);
+                }
             }
         }
-
         moves
     }
 
@@ -425,43 +526,55 @@ impl GameState {
         self.positions.contains_key(location)
     }
 
-    fn unoccupied_rooms_for<'a>(&self, kind: &Amphipod, map: &'a Map) -> Vec<&'a Coordinate> {
+    fn occupant(&self, location: &Coordinate) -> Option<&Amphipod> {
+        self.positions.get(location)
+    }
+
+    fn unoccupied_rooms_for<'a>(&self, kind: &Amphipod, map: &'a Map) -> Vec<&'a Room> {
         map.rooms_for(kind)
             .iter()
-            .filter(|c| !self.occupied(c))
+            .filter(|r| !self.occupied(&r.position))
             .collect()
     }
 
-    fn unoccupied_rooms<'a>(
-        &self,
-        map: &'a Map,
-    ) -> HashMap<&'static Amphipod, Vec<&'a Coordinate>> {
-        AMPHIPODS
-            .iter()
-            .map(|kind| (kind, self.unoccupied_rooms_for(kind, map)))
-            .collect()
+    fn destination_room_for_kind<'a>(&self, kind: &Amphipod, map: &'a Map) -> Option<&'a Room> {
+        // will only move into a room if there are no amphipods of other kinds in the same cavern
+        // (and also no "holes" deeper, eg always prefer the deepest room).
+        // we don't need to consider rooms further up than this, because they will be filtered out in pathing.
+        let mut filtered = self
+            .unoccupied_rooms_for(kind, map)
+            .into_iter()
+            .filter(|room| {
+                !room
+                    .blocks
+                    .iter()
+                    .any(|blocked| self.occupant(blocked) != Some(kind))
+            });
+
+        // there should be only one option (the deepest room)
+        let result = filtered.next();
+        assert_eq!(None, filtered.next());
+        result
     }
 
     fn unoccupied_hallways<'a>(&self, map: &'a Map) -> Vec<&'a Coordinate> {
         map.hallways.iter().filter(|c| !self.occupied(c)).collect()
     }
 
-    fn add_unobstructed_moves(
+    fn add_move_if_unobstructed(
         &self,
         position: &Coordinate,
         kind: &Amphipod,
         map: &Map,
-        destinations: &[&Coordinate],
+        destination: &Coordinate,
         moves: &mut Vec<(GameState, usize)>,
     ) {
-        for destination in destinations {
-            let (path, distance) = map.path_between(position, destination);
-            let is_obstructed = path.iter().any(|l| self.occupied(l));
-            if !is_obstructed {
-                let cost = distance * kind.cost();
-                let m = (self.state_after_move(position, destination, kind), cost);
-                moves.push(m);
-            }
+        let (path, distance) = map.path_between(position, destination);
+        let is_obstructed = path.iter().any(|l| self.occupied(l));
+        if !is_obstructed {
+            let cost = distance * kind.cost();
+            let m = (self.state_after_move(position, destination, kind), cost);
+            moves.push(m);
         }
     }
 
@@ -602,12 +715,12 @@ mod tests {
     #[test]
     fn test_part2_example() {
         let result = lowest_cost_path(EXAMPLE2);
-        assert_eq!(result, 0);
+        assert_eq!(result, 44169);
     }
 
     #[test]
     fn test_part2_solution() {
         let result = lowest_cost_path(INPUT2);
-        assert_eq!(result, 0);
+        assert_eq!(result, 46754);
     }
 }
