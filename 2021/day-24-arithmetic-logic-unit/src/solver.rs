@@ -635,13 +635,17 @@ impl Branch {
         other_branch
     }
 
-    fn maximum_input_for_z_value_of_zero(&self, input_specs: &[InputSpec]) -> Option<Vec<isize>> {
+    fn solve_inputs_for_z_of_0(
+        &self,
+        input_specs: &[InputSpec],
+        goal: &Goal,
+    ) -> Option<Vec<isize>> {
         if !self.z.range().contains(0) {
             // cannot contain 0, don't need to solve it
             return None;
         }
 
-        Some(self.constraints.solve_for_maximum_input_values(input_specs))
+        Some(self.constraints.solve_inputs(input_specs, goal))
     }
 }
 
@@ -659,11 +663,16 @@ impl Constraints {
         self.list.push((constraint.clone(), *outcome));
     }
 
-    fn solve_for_maximum_input_values(&self, input_specs: &[InputSpec]) -> Vec<isize> {
+    fn solve_inputs(&self, input_specs: &[InputSpec], goal: &Goal) -> Vec<isize> {
         let mut values: HashMap<char, isize> = HashMap::new();
         let mut remaining_constraints = self.list.clone();
 
         for input in input_specs {
+            let mut value_range: Box<dyn Iterator<Item = isize>> = match goal {
+                Goal::Minimum => Box::new(input.min..=input.max),
+                Goal::Maximum => Box::new((input.min..=input.max).rev()),
+            };
+
             if !values.contains_key(&input.name) {
                 // find expressions with this input
                 let constraints_with_input: Vec<&mut (Expression, bool)> = remaining_constraints
@@ -671,8 +680,8 @@ impl Constraints {
                     .filter(|(e, _)| e.variable_names().into_iter().contains(&input.name))
                     .collect();
 
-                // find the highest input value that works for all the constraints
-                let target_value = (input.min..=input.max).rev().find(|val| {
+                // find the first input value that works for all the constraints
+                let target_value = value_range.find(|val| {
                     constraints_with_input
                         .iter()
                         .all(|(c, o)| c.valid_for_variable_value(&input.name, val, o))
@@ -765,10 +774,10 @@ impl<'a> Reducer<'a> {
         }
     }
 
-    pub fn maximum_input_for_z_value_of_zero(&self) -> Vec<isize> {
+    pub fn solve_inputs_for_z_of_0(&self, goal: &Goal) -> Vec<isize> {
         self.branches
             .iter()
-            .filter_map(|b| b.maximum_input_for_z_value_of_zero(self.input_specs))
+            .filter_map(|b| b.solve_inputs_for_z_of_0(self.input_specs, goal))
             .max()
             .unwrap()
     }

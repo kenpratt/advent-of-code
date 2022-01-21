@@ -142,3 +142,9 @@ impl RegisterOrValue {
         }
     }
 }
+
+#[derive(Debug)]
+pub enum Goal {
+    Minimum,
+    Maximum,
+}
