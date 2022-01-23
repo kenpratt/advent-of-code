@@ -1,10 +1,8 @@
-use std::collections::HashMap;
 use std::fmt;
 use std::fs;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -13,7 +11,7 @@ fn read_input_file() -> String {
 
 #[derive(Debug)]
 struct Map {
-    cucumbers: HashMap<Coordinate, Facing>,
+    cucumbers: Vec<Option<Facing>>,
     width: usize,
     height: usize,
 }
@@ -22,15 +20,10 @@ impl Map {
     fn parse(input: &str) -> Map {
         let width = input.lines().next().unwrap().chars().count();
         let height = input.lines().count();
-        let mut cucumbers = HashMap::new();
-        for (y, line) in input.lines().enumerate() {
-            for (x, c) in line.chars().enumerate() {
-                match Self::parse_char(&c) {
-                    Some(facing) => {
-                        cucumbers.insert(Coordinate::new(x, y), facing);
-                    }
-                    None => {}
-                };
+        let mut cucumbers = vec![];
+        for line in input.lines() {
+            for c in line.chars() {
+                cucumbers.push(Self::parse_char(&c));
             }
         }
         Map {
@@ -68,42 +61,51 @@ impl Map {
     }
 
     fn move_cucumbers(&mut self, facing_to_move: &Facing) -> usize {
-        let mut new_cucumbers = HashMap::new();
-        let mut num_moves = 0;
-
-        for (coord, facing) in &self.cucumbers {
-            if facing == facing_to_move {
-                // try_to_move
-                let new_position = self.try_to_move(coord, facing);
-                if new_position != *coord {
-                    num_moves += 1;
+        let mut changes = vec![];
+        for (current_position, value) in self.cucumbers.iter().enumerate() {
+            match value {
+                Some(facing) if facing == facing_to_move => {
+                    // try_to_move
+                    let new_position = self.try_to_move(current_position, facing);
+                    if new_position != current_position {
+                        changes.push((current_position, new_position));
+                    }
                 }
-                new_cucumbers.insert(new_position, *facing);
-            } else {
-                // not your turn
-                new_cucumbers.insert(*coord, *facing);
+                _ => {}
             }
         }
 
-        self.cucumbers = new_cucumbers;
-        num_moves
+        let num_changes = changes.len();
+        for (old_position, new_position) in changes {
+            self.cucumbers.swap(old_position, new_position);
+        }
+        num_changes
     }
 
-    fn try_to_move(&self, position: &Coordinate, facing: &Facing) -> Coordinate {
+    fn try_to_move(&self, position: usize, facing: &Facing) -> usize {
         let neighbour_pos = self.neighbour_position(position, facing);
-        if self.cucumbers.contains_key(&neighbour_pos) {
+        if self.cucumbers[neighbour_pos].is_some() {
             // occupied, stay in current position
-            *position
+            position
         } else {
             // empty, move to new position
             neighbour_pos
         }
     }
 
-    fn neighbour_position(&self, coord: &Coordinate, facing: &Facing) -> Coordinate {
+    fn neighbour_position(&self, coord: usize, facing: &Facing) -> usize {
         match facing {
-            Facing::East => Coordinate::new((coord.x + 1) % self.width, coord.y),
-            Facing::South => Coordinate::new(coord.x, (coord.y + 1) % self.height),
+            Facing::East => {
+                let x = coord % self.width;
+                let new_x = (x + 1) % self.width;
+                coord + new_x - x
+            }
+            Facing::South => {
+                let x = coord % self.width;
+                let y = coord / self.width;
+                let new_y = (y + 1) % self.height;
+                new_y * self.width + x
+            }
         }
     }
 }
@@ -112,8 +114,8 @@ impl fmt::Display for Map {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for y in 0..self.height {
             for x in 0..self.width {
-                let coord = Coordinate::new(x, y);
-                match self.cucumbers.get(&coord) {
+                let coord = self.width * y + x;
+                match self.cucumbers[coord] {
                     Some(Facing::East) => write!(f, ">")?,
                     Some(Facing::South) => write!(f, "v")?,
                     None => write!(f, ".")?,
@@ -122,18 +124,6 @@ impl fmt::Display for Map {
             write!(f, "\n")?;
         }
         Ok(())
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-struct Coordinate {
-    x: usize,
-    y: usize,
-}
-
-impl Coordinate {
-    fn new(x: usize, y: usize) -> Coordinate {
-        Coordinate { x, y }
     }
 }
 
@@ -148,12 +138,6 @@ fn part1(input: &str) -> usize {
     println!("initial:\n{}", map);
     map.run()
 }
-
-// fn part2(input: &str) -> usize {
-//     let data = Data::parse(input);
-//     println!("{:?}", data);
-//     data.execute()
-// }
 
 #[cfg(test)]
 mod tests {
@@ -184,16 +168,4 @@ mod tests {
         let result = part1(&read_input_file());
         assert_eq!(result, 308);
     }
-
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(EXAMPLE1);
-    //     assert_eq!(result, 0);
-    // }
-
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
 }
