@@ -1,12 +1,10 @@
 use std::fs;
 
-// use itertools::Itertools;
-// use lazy_static::lazy_static;
-// use regex::Regex;
+use itertools::Itertools;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -29,12 +27,14 @@ impl Elves {
         }
     }
 
-    fn execute(&self) -> usize {
+    fn top_calories(&self, num: usize) -> usize {
         self.inventories
             .iter()
             .map(|inv| inv.total_calories())
-            .max()
-            .unwrap()
+            .sorted()
+            .rev()
+            .take(num)
+            .sum()
     }
 }
 
@@ -55,16 +55,16 @@ impl Inventory {
 }
 
 fn part1(input: &str) -> usize {
-    let data = Elves::parse(input);
-    println!("{:?}", data);
-    data.execute()
+    let elves = Elves::parse(input);
+    println!("{:?}", elves);
+    elves.top_calories(1)
 }
 
-// fn part2(input: &str) -> usize {
-//     let data = Elves::parse(input);
-//     println!("{:?}", data);
-//     data.execute()
-// }
+fn part2(input: &str) -> usize {
+    let elves = Elves::parse(input);
+    println!("{:?}", elves);
+    elves.top_calories(3)
+}
 
 #[cfg(test)]
 mod tests {
@@ -101,15 +101,15 @@ mod tests {
         assert_eq!(result, 66186);
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(EXAMPLE1);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example1() {
+        let result = part2(EXAMPLE1);
+        assert_eq!(result, 45000);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 196804);
+    }
 }
