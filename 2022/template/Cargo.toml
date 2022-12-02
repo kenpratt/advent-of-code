@@ -1,0 +1,15 @@
+[package]
+name = "advent-of-code-2022"
+version = "0.1.0"
+authors = ["Ken Pratt <ken@kenpratt.net>"]
+edition = "2021"
+
+[profile.release]
+debug = 1
+
+[dependencies]
+cached = "0.40"
+indoc = "1.0"
+itertools = "0.10"
+lazy_static = "1"
+regex = "1"
