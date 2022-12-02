@@ -14,42 +14,138 @@ fn read_input_file() -> String {
 }
 
 #[derive(Debug)]
-struct Data {
-    parts: Vec<Part>,
+struct Strategy {
+    steps: Vec<StrategyStep>,
 }
 
-impl Data {
-    fn parse(input: &str) -> Data {
-        let parts = input.lines().map(|line| Part::parse(line)).collect();
-        Data { parts: parts }
+impl Strategy {
+    fn parse(input: &str) -> Strategy {
+        let steps = input
+            .lines()
+            .map(|line| StrategyStep::parse(line))
+            .collect();
+        Strategy { steps: steps }
     }
 
-    fn execute(&self) -> usize {
-        0
+    fn total_score(&self) -> usize {
+        self.steps.iter().map(|step| step.score()).sum()
     }
 }
 
 #[derive(Debug)]
-struct Part {
-    foo: usize,
+struct StrategyStep {
+    opponent: Shape,
+    response: Shape,
 }
 
-impl Part {
-    fn parse(input: &str) -> Part {
-        Part { foo: input.len() }
+impl StrategyStep {
+    fn parse(input: &str) -> StrategyStep {
+        let pieces: Vec<&str> = input.split(" ").collect();
+        assert_eq!(pieces.len(), 2);
+        let opponent = Self::parse_opponent(pieces[0]);
+        let response = Self::parse_response(pieces[1]);
+        StrategyStep {
+            opponent: opponent,
+            response: response,
+        }
+    }
+
+    fn parse_opponent(input: &str) -> Shape {
+        match input {
+            "A" => Shape::Rock,
+            "B" => Shape::Paper,
+            "C" => Shape::Scissors,
+            _ => panic!("Bad input for opponent move: {}", input),
+        }
+    }
+
+    fn parse_response(input: &str) -> Shape {
+        match input {
+            "X" => Shape::Rock,
+            "Y" => Shape::Paper,
+            "Z" => Shape::Scissors,
+            _ => panic!("Bad input for response move: {}", input),
+        }
+    }
+
+    fn play(&self) -> Outcome {
+        self.response.play(&self.opponent)
+    }
+
+    fn score(&self) -> usize {
+        let outcome = self.play();
+        println!(
+            "score: {:?} => {:?}, {:?} + {:?}",
+            self,
+            outcome,
+            outcome.score(),
+            self.response.score()
+        );
+        outcome.score() + self.response.score()
+    }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+enum Shape {
+    Rock,
+    Paper,
+    Scissors,
+}
+
+impl Shape {
+    fn play(&self, other: &Shape) -> Outcome {
+        use Outcome::*;
+        use Shape::*;
+
+        match (self, other) {
+            (x, y) if x == y => Draw,
+            (Paper, Rock) => Win,
+            (Scissors, Paper) => Win,
+            (Rock, Scissors) => Win,
+            _ => Loss,
+        }
+    }
+
+    fn score(&self) -> usize {
+        use Shape::*;
+
+        match self {
+            Rock => 1,
+            Paper => 2,
+            Scissors => 3,
+        }
+    }
+}
+
+#[derive(Debug)]
+enum Outcome {
+    Loss,
+    Draw,
+    Win,
+}
+
+impl Outcome {
+    fn score(&self) -> usize {
+        use Outcome::*;
+
+        match self {
+            Loss => 0,
+            Draw => 3,
+            Win => 6,
+        }
     }
 }
 
 fn part1(input: &str) -> usize {
-    let data = Data::parse(input);
-    println!("{:?}", data);
-    data.execute()
+    let strategy = Strategy::parse(input);
+    println!("{:?}", strategy);
+    strategy.total_score()
 }
 
 // fn part2(input: &str) -> usize {
-//     let data = Data::parse(input);
-//     println!("{:?}", data);
-//     data.execute()
+//     let strategy = Strategy::parse(input);
+//     println!("{:?}", strategy);
+//     strategy.execute()
 // }
 
 #[cfg(test)]
@@ -67,14 +163,14 @@ mod tests {
     #[test]
     fn test_part1_example1() {
         let result = part1(EXAMPLE1);
-        assert_eq!(result, 0);
+        assert_eq!(result, 15);
     }
 
-    // #[test]
-    // fn test_part1_solution() {
-    //     let result = part1(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part1_solution() {
+        let result = part1(&read_input_file());
+        assert_eq!(result, 11150);
+    }
 
     // #[test]
     // fn test_part2_example1() {
