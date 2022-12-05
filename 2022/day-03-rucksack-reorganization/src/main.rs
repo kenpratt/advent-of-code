@@ -1,8 +1,6 @@
 use std::fs;
 
-// use itertools::Itertools;
-// use lazy_static::lazy_static;
-// use regex::Regex;
+use std::collections::HashSet;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
@@ -14,42 +12,77 @@ fn read_input_file() -> String {
 }
 
 #[derive(Debug)]
-struct Data {
-    parts: Vec<Part>,
+struct RucksackList {
+    rucksacks: Vec<Rucksack>,
 }
 
-impl Data {
-    fn parse(input: &str) -> Data {
-        let parts = input.lines().map(|line| Part::parse(line)).collect();
-        Data { parts: parts }
+impl RucksackList {
+    fn parse(input: &str) -> RucksackList {
+        let rucksacks = input.lines().map(|line| Rucksack::parse(line)).collect();
+        RucksackList { rucksacks }
     }
 
-    fn execute(&self) -> usize {
-        0
+    fn sum_priorites_for_common_items(&self) -> usize {
+        self.rucksacks
+            .iter()
+            .map(|r| r.common_item_priority())
+            .sum()
     }
 }
 
 #[derive(Debug)]
-struct Part {
-    foo: usize,
+struct Rucksack {
+    first_compartment: HashSet<char>,
+    second_compartment: HashSet<char>,
 }
 
-impl Part {
-    fn parse(input: &str) -> Part {
-        Part { foo: input.len() }
+impl Rucksack {
+    fn parse(input: &str) -> Rucksack {
+        assert!(input.len() % 2 == 0);
+        let midpoint = input.len() / 2;
+        let first_compartment = input[0..midpoint].chars().collect();
+        let second_compartment = input[midpoint..].chars().collect();
+        Rucksack {
+            first_compartment,
+            second_compartment,
+        }
+    }
+
+    fn common_items(&self) -> HashSet<&char> {
+        self.first_compartment
+            .intersection(&self.second_compartment)
+            .collect()
+    }
+
+    fn common_item_priority(&self) -> usize {
+        let items = self.common_items();
+        assert_eq!(items.len(), 1);
+        let item = items.iter().next().unwrap();
+        Self::priority(item)
+    }
+
+    fn priority(item: &char) -> usize {
+        let n = *item as usize;
+        match n {
+            // a..z
+            97..=122 => (n - 97) + 1, // a=1
+            // A..Z
+            65..=90 => (n - 65) + 27, // A=27
+            _ => panic!("Unexpected char: {}", item),
+        }
     }
 }
 
 fn part1(input: &str) -> usize {
-    let data = Data::parse(input);
-    println!("{:?}", data);
-    data.execute()
+    let rucksacks = RucksackList::parse(input);
+    println!("{:?}", rucksacks);
+    rucksacks.sum_priorites_for_common_items()
 }
 
 // fn part2(input: &str) -> usize {
-//     let data = Data::parse(input);
-//     println!("{:?}", data);
-//     data.execute()
+//     let rucksacks = RucksackList::parseinput);
+//     println!("{:?}", rucksacks);
+//     rucksacks.sum_priorites_for_common_items()
 // }
 
 #[cfg(test)]
@@ -70,14 +103,14 @@ mod tests {
     #[test]
     fn test_part1_example1() {
         let result = part1(EXAMPLE1);
-        assert_eq!(result, 0);
+        assert_eq!(result, 157);
     }
 
-    // #[test]
-    // fn test_part1_solution() {
-    //     let result = part1(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part1_solution() {
+        let result = part1(&read_input_file());
+        assert_eq!(result, 7597);
+    }
 
     // #[test]
     // fn test_part2_example1() {
