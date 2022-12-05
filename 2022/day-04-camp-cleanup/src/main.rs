@@ -6,7 +6,7 @@ use regex::Regex;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -34,11 +34,18 @@ fn parse_pair(input: &str) -> Pair {
     pair
 }
 
-fn contains_range<U>(range: &RangeInclusive<U>, other: &RangeInclusive<U>) -> bool
+fn fully_contains_range<U>(range: &RangeInclusive<U>, other: &RangeInclusive<U>) -> bool
 where
     U: PartialOrd,
 {
     range.contains(other.start()) && range.contains(other.end())
+}
+
+fn partially_contains_range<U>(range: &RangeInclusive<U>, other: &RangeInclusive<U>) -> bool
+where
+    U: PartialOrd,
+{
+    range.contains(other.start()) || range.contains(other.end())
 }
 
 fn part1(input: &str) -> usize {
@@ -46,15 +53,18 @@ fn part1(input: &str) -> usize {
     println!("{:?}", pairs);
     pairs
         .into_iter()
-        .filter(|(a, b)| contains_range(a, b) || contains_range(b, a))
+        .filter(|(a, b)| fully_contains_range(a, b) || fully_contains_range(b, a))
         .count()
 }
 
-// fn part2(input: &str) -> usize {
-//     let data = Data::parse(input);
-//     println!("{:?}", data);
-//     data.execute()
-// }
+fn part2(input: &str) -> usize {
+    let pairs = parse_pairs(input);
+    println!("{:?}", pairs);
+    pairs
+        .into_iter()
+        .filter(|(a, b)| partially_contains_range(a, b) || partially_contains_range(b, a))
+        .count()
+}
 
 #[cfg(test)]
 mod tests {
@@ -83,15 +93,15 @@ mod tests {
         assert_eq!(result, 599);
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(EXAMPLE1);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example1() {
+        let result = part2(EXAMPLE1);
+        assert_eq!(result, 4);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 928);
+    }
 }
