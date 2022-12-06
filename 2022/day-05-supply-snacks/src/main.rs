@@ -6,7 +6,7 @@ use regex::Regex;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -34,11 +34,16 @@ impl Ship {
         }
     }
 
-    fn execute_instructions(&mut self) {
+    fn execute_instructions(&mut self, one_crate_at_a_time: bool) {
         for inst in self.instructions.iter() {
             println!("applying {:?}", inst);
-            for _ in 0..inst.quantity {
-                self.crates.move_crate(&inst.from, &inst.to);
+            if one_crate_at_a_time {
+                for _ in 0..inst.quantity {
+                    self.crates.move_crates(&inst.from, &inst.to, &1);
+                }
+            } else {
+                self.crates
+                    .move_crates(&inst.from, &inst.to, &inst.quantity);
             }
             println!("{:?}", self.crates);
         }
@@ -92,17 +97,20 @@ impl Crates {
         (1..chars.len()).step_by(4).map(|i| chars[i]).collect()
     }
 
-    fn move_crate(&mut self, from_stack_id: &char, to_stack_id: &char) {
-        let value = self.pop(from_stack_id);
-        self.push(to_stack_id, value);
+    fn move_crates(&mut self, from_stack_id: &char, to_stack_id: &char, quantity: &usize) {
+        let values = self.pop(from_stack_id, quantity);
+        self.push(to_stack_id, values);
     }
 
-    fn push(&mut self, stack_id: &char, value: char) {
-        self.stacks.get_mut(stack_id).unwrap().push(value);
+    fn push(&mut self, stack_id: &char, mut values: Vec<char>) {
+        let stack = self.stacks.get_mut(stack_id).unwrap();
+        stack.append(&mut values);
     }
 
-    fn pop(&mut self, stack_id: &char) -> char {
-        self.stacks.get_mut(stack_id).unwrap().pop().unwrap()
+    fn pop(&mut self, stack_id: &char, quantity: &usize) -> Vec<char> {
+        let stack = self.stacks.get_mut(stack_id).unwrap();
+        let start = stack.len() - quantity;
+        stack.drain(start..).collect()
     }
 
     fn top_of_each_stack(&self) -> String {
@@ -139,15 +147,16 @@ impl Instruction {
 fn part1(input: &str) -> String {
     let mut ship = Ship::parse(input);
     println!("{:?}", ship);
-    ship.execute_instructions();
+    ship.execute_instructions(true);
     ship.top_of_each_stack()
 }
 
-// fn part2(input: &str) -> usize {
-//     let crates = Crates::parse(input);
-//     println!("{:?}", crates);
-//     crates.execute()
-// }
+fn part2(input: &str) -> String {
+    let mut ship = Ship::parse(input);
+    println!("{:?}", ship);
+    ship.execute_instructions(false);
+    ship.top_of_each_stack()
+}
 
 #[cfg(test)]
 mod tests {
@@ -179,15 +188,15 @@ mod tests {
         assert_eq!(result, "WSFTMRHPP");
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(EXAMPLE1);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example1() {
+        let result = part2(EXAMPLE1);
+        assert_eq!(result, "MCD");
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, "GSLCMFBRP");
+    }
 }
