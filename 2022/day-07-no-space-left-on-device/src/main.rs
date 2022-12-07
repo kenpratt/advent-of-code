@@ -3,7 +3,7 @@ use std::fs;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -218,11 +218,33 @@ fn part1(input: &str) -> usize {
         .sum()
 }
 
-// fn part2(input: &str) -> usize {
-//     let data = Data::parse(input);
-//     println!("{:?}", data);
-//     data.execute()
-// }
+fn part2(input: &str) -> usize {
+    let commands = Command::parse_commands(input);
+    println!("commands: {:?}", commands);
+
+    let mut interpreter = Interpreter::new();
+    interpreter.execute_commands(&commands);
+    println!("final interpreter state: {:?}", interpreter);
+
+    let dir_sizes = interpreter.directory_sizes();
+    println!("directory sizes: {:?}", dir_sizes);
+
+    let root_size = dir_sizes.get(&vec!["/".to_string()]).unwrap();
+    println!("root size: {:?}", root_size);
+
+    let free_space = 70000000 - root_size;
+    println!("free space: {:?}", free_space);
+
+    let need_space = 30000000 - free_space;
+    println!("need space: {:?}", need_space);
+
+    dir_sizes
+        .into_iter()
+        .filter(|(_, size)| *size > need_space)
+        .map(|(_, size)| size)
+        .min()
+        .unwrap()
+}
 
 #[cfg(test)]
 mod tests {
@@ -268,15 +290,15 @@ mod tests {
         assert_eq!(result, 1648397);
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(EXAMPLE1);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example1() {
+        let result = part2(EXAMPLE1);
+        assert_eq!(result, 24933642);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 1815525);
+    }
 }
