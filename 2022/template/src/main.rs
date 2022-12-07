@@ -19,9 +19,9 @@ struct Data {
 }
 
 impl Data {
-    fn parse(input: &str) -> Data {
+    fn parse(input: &str) -> Self {
         let parts = input.lines().map(|line| Part::parse(line)).collect();
-        Data { parts: parts }
+        Self { parts: parts }
     }
 
     fn execute(&self) -> usize {
@@ -35,8 +35,8 @@ struct Part {
 }
 
 impl Part {
-    fn parse(input: &str) -> Part {
-        Part { foo: input.len() }
+    fn parse(input: &str) -> Self {
+        Self { foo: input.len() }
     }
 }
 
