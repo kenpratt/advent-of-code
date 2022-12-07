@@ -3,7 +3,7 @@ use std::fs;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -11,8 +11,16 @@ fn read_input_file() -> String {
 }
 
 fn find_start_of_packet_marker(input: &str) -> Option<usize> {
-    (4..input.len()).find(|r| {
-        let l = r - 4;
+    find_marker(input, 4)
+}
+
+fn find_start_of_message_marker(input: &str) -> Option<usize> {
+    find_marker(input, 14)
+}
+
+fn find_marker(input: &str, message_length: usize) -> Option<usize> {
+    (message_length..input.len()).find(|r| {
+        let l = r - message_length;
         all_different_chars(&input[l..*r])
     })
 }
@@ -25,11 +33,9 @@ fn part1(input: &str) -> usize {
     find_start_of_packet_marker(input).unwrap()
 }
 
-// fn part2(input: &str) -> usize {
-//     let data = Data::parse(input);
-//     println!("{:?}", data);
-//     data.execute()
-// }
+fn part2(input: &str) -> usize {
+    find_start_of_message_marker(input).unwrap()
+}
 
 #[cfg(test)]
 mod tests {
@@ -56,15 +62,18 @@ mod tests {
         assert_eq!(result, 1538);
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(EXAMPLE1);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_examples() {
+        assert_eq!(part2(EXAMPLE1), 19);
+        assert_eq!(part2(EXAMPLE2), 23);
+        assert_eq!(part2(EXAMPLE3), 23);
+        assert_eq!(part2(EXAMPLE4), 29);
+        assert_eq!(part2(EXAMPLE5), 26);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 2315);
+    }
 }
