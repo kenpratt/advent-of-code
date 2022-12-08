@@ -1,10 +1,9 @@
 use std::collections::HashMap;
-use std::collections::HashSet;
 use std::fs;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -83,38 +82,87 @@ impl TreeHeights {
 }
 
 #[derive(Debug)]
-struct VisibleTrees {
-    trees: HashMap<Coord, HashSet<Side>>,
+struct TreeMetadata {
+    sides: HashMap<Side, (bool, usize)>,
 }
 
-impl VisibleTrees {
+impl TreeMetadata {
+    fn new() -> Self {
+        Self {
+            sides: HashMap::new(),
+        }
+    }
+
+    fn set(&mut self, s: &Side, metadata: (bool, usize)) {
+        self.sides.insert(*s, metadata);
+    }
+
+    fn unobstructed_view(&self) -> bool {
+        // unobstructed from at least one edge
+        self.sides.iter().any(|(_, (blocked, _))| !blocked)
+    }
+
+    fn scenic_score(&self) -> usize {
+        self.sides
+            .iter()
+            .map(|(_, (_, d))| *d)
+            .reduce(|acc, m| acc * m)
+            .unwrap()
+    }
+}
+
+#[derive(Debug)]
+struct TreeMetadataMap {
+    trees: HashMap<Coord, TreeMetadata>,
+}
+
+impl TreeMetadataMap {
     fn calculate(heights: &TreeHeights) -> Self {
-        let mut visible = Self::new();
+        let mut map = Self::new();
 
         let width = heights.width;
         let height = heights.height;
 
         for side in SIDES {
+            println!("\n{:?}", side);
             for coords in side.lanes(width, height) {
-                let mut coords_heights = coords.map(|c| {
+                let mut coords_with_heights = coords.map(|c| {
                     let h = heights.get(&c);
                     (c, h)
                 });
 
-                let (first_coord, first_height) = coords_heights.next().unwrap();
-                visible.add(&first_coord, &side);
+                let (first_coord, first_height) = coords_with_heights.next().unwrap();
+                map.set(&first_coord, &side, (false, 0));
 
-                let mut max_height = first_height;
-                for (curr_coord, curr_height) in coords_heights {
-                    if curr_height > max_height {
-                        visible.add(&curr_coord, &side);
-                        max_height = curr_height;
+                let mut distance_to_edge = 0;
+                let mut distance_to_tree_height: HashMap<u32, usize> = HashMap::new();
+                distance_to_tree_height.insert(first_height, 0);
+
+                for (curr_coord, curr_height) in coords_with_heights {
+                    // increase distances to edge & other trees
+                    distance_to_edge += 1;
+                    for (_h, d) in distance_to_tree_height.iter_mut() {
+                        *d += 1;
                     }
+
+                    // find distance to a tree blocking the view (or edge)
+                    let result = match distance_to_tree_height
+                        .iter()
+                        .filter(|(h, _d)| **h >= curr_height)
+                        .min_by_key(|(_h, d)| *d)
+                    {
+                        Some((_h, d)) => (true, *d),
+                        None => (false, distance_to_edge),
+                    };
+                    map.set(&curr_coord, &side, result);
+
+                    // will overwrite an existing tree of the same height
+                    distance_to_tree_height.insert(curr_height, 0);
                 }
             }
         }
 
-        visible
+        map
     }
 
     fn new() -> Self {
@@ -123,8 +171,26 @@ impl VisibleTrees {
         }
     }
 
-    fn add(&mut self, c: &Coord, s: &Side) {
-        self.trees.entry(*c).or_insert(HashSet::new()).insert(*s);
+    fn set(&mut self, c: &Coord, s: &Side, metadata: (bool, usize)) {
+        self.trees
+            .entry(*c)
+            .or_insert(TreeMetadata::new())
+            .set(s, metadata);
+    }
+
+    fn num_visible_from_edge(&self) -> usize {
+        self.trees
+            .iter()
+            .filter(|(_, metadata)| metadata.unobstructed_view())
+            .count()
+    }
+
+    fn highest_scenic_score(&self) -> usize {
+        self.trees
+            .iter()
+            .map(|(_, metadata)| metadata.scenic_score())
+            .max()
+            .unwrap()
     }
 }
 
@@ -132,17 +198,21 @@ fn part1(input: &str) -> usize {
     let heights = TreeHeights::parse(input);
     println!("heights: {:?}", heights);
 
-    let visible = VisibleTrees::calculate(&heights);
+    let visible = TreeMetadataMap::calculate(&heights);
     println!("visible: {:?}", visible);
 
-    visible.trees.len()
+    visible.num_visible_from_edge()
 }
 
-// fn part2(input: &str) -> usize {
-//     let data = TreeHeights::parse(input);
-//     println!("{:?}", data);
-//     data.execute()
-// }
+fn part2(input: &str) -> usize {
+    let heights = TreeHeights::parse(input);
+    println!("heights: {:?}", heights);
+
+    let visible = TreeMetadataMap::calculate(&heights);
+    println!("visible: {:?}", visible);
+
+    visible.highest_scenic_score()
+}
 
 #[cfg(test)]
 mod tests {
@@ -170,15 +240,15 @@ mod tests {
         assert_eq!(result, 1832);
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(EXAMPLE1);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example1() {
+        let result = part2(EXAMPLE1);
+        assert_eq!(result, 8);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 157320);
+    }
 }
