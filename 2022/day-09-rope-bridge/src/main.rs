@@ -1,13 +1,9 @@
 use std::collections::HashSet;
 use std::fs;
 
-// use itertools::Itertools;
-// use lazy_static::lazy_static;
-// use regex::Regex;
-
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -86,17 +82,18 @@ impl Instruction {
 
 #[derive(Debug)]
 struct Rope {
-    head: Coord,
-    tail: Coord,
+    knots: Vec<Coord>,
     tail_visited: HashSet<Coord>,
 }
 
 impl Rope {
-    fn new() -> Self {
+    fn new(num_knots: usize) -> Self {
+        let knots: Vec<Coord> = (0..num_knots).map(|_| Coord::new(0, 0)).collect();
+        let mut tail_visited = HashSet::new();
+        tail_visited.insert(*knots.iter().last().unwrap());
         Self {
-            head: Coord::new(0, 0),
-            tail: Coord::new(0, 0),
-            tail_visited: HashSet::new(),
+            knots,
+            tail_visited,
         }
     }
 
@@ -110,34 +107,47 @@ impl Rope {
         println!("instruction: {:?}", instruction);
         for _ in 0..instruction.distance {
             self.move_in_direction(&instruction.direction);
+            for (i, knot) in self.knots.iter().enumerate() {
+                println!("    {}: {:?}", i, knot);
+            }
         }
     }
 
     fn move_in_direction(&mut self, direction: &Direction) {
         println!("  direction: {:?}", direction);
-        self.head = self.head.shift_in_direction(direction, 1);
-        self.tail = Self::follow_head(&self.head, &self.tail);
-        self.tail_visited.insert(self.tail);
-        println!("    head: {:?}", self.head);
-        println!("    tail: {:?}", self.tail);
+
+        let mut iter = self.knots.iter_mut();
+
+        // first knot moves
+        let first_knot = iter.next().unwrap();
+        *first_knot = first_knot.shift_in_direction(direction, 1);
+
+        // rest of knots follow previous knot
+        let mut prev_knot: &Coord = first_knot;
+        for knot in iter {
+            *knot = Self::follow(prev_knot, knot);
+            prev_knot = knot;
+        }
+
+        self.tail_visited.insert(*prev_knot);
     }
 
-    fn follow_head(head: &Coord, tail: &Coord) -> Coord {
-        let dx = head.x - tail.x;
-        let dy = head.y - tail.y;
+    fn follow(to_follow: &Coord, curr: &Coord) -> Coord {
+        let dx = to_follow.x - curr.x;
+        let dy = to_follow.y - curr.y;
 
         if dx.abs() <= 1 && dy.abs() <= 1 {
-            // head & tail are touching, don't need to move
-            *tail
+            // to_follow & curr are touching, don't need to move
+            *curr
         } else if dx == 0 {
             // same column but different row, shift up/down
-            Coord::new(tail.x, tail.y + dy.signum())
+            Coord::new(curr.x, curr.y + dy.signum())
         } else if dy == 0 {
             // same row but different column, shift left/right
-            Coord::new(tail.x + dx.signum(), tail.y)
+            Coord::new(curr.x + dx.signum(), curr.y)
         } else {
             // not touching & different row and column, do a diagonal catch-up move
-            Coord::new(tail.x + dx.signum(), tail.y + dy.signum())
+            Coord::new(curr.x + dx.signum(), curr.y + dy.signum())
         }
     }
 }
@@ -146,17 +156,21 @@ fn part1(input: &str) -> usize {
     let instructions = Instruction::parse_instructions(input);
     println!("{:?}", instructions);
 
-    let mut rope = Rope::new();
+    let mut rope = Rope::new(2);
     rope.execute_instructions(&instructions);
 
     rope.tail_visited.len()
 }
 
-// fn part2(input: &str) -> usize {
-//     let data = Instruction::parse(input);
-//     println!("{:?}", data);
-//     data.execute()
-// }
+fn part2(input: &str) -> usize {
+    let instructions = Instruction::parse_instructions(input);
+    println!("{:?}", instructions);
+
+    let mut rope = Rope::new(10);
+    rope.execute_instructions(&instructions);
+
+    rope.tail_visited.len()
+}
 
 #[cfg(test)]
 mod tests {
@@ -175,6 +189,17 @@ mod tests {
         R 2
     "};
 
+    static EXAMPLE2: &str = indoc! {"
+        R 5
+        U 8
+        L 8
+        D 3
+        R 17
+        D 10
+        L 25
+        U 20
+    "};
+
     #[test]
     fn test_part1_example1() {
         let result = part1(EXAMPLE1);
@@ -187,15 +212,21 @@ mod tests {
         assert_eq!(result, 6406);
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(EXAMPLE1);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example1() {
+        let result = part2(EXAMPLE1);
+        assert_eq!(result, 1);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example2() {
+        let result = part2(EXAMPLE2);
+        assert_eq!(result, 36);
+    }
+
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 2643);
+    }
 }
