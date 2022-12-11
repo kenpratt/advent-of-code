@@ -1,12 +1,10 @@
 use std::fs;
 
-// use itertools::Itertools;
-// use lazy_static::lazy_static;
-// use regex::Regex;
+use itertools::Itertools;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -50,7 +48,7 @@ impl CPU {
         Self {
             x: 1,
             cycle_count: 0,
-            x_history: vec![],
+            x_history: vec![1],
         }
     }
 
@@ -80,6 +78,25 @@ impl CPU {
     }
 }
 
+fn register_history_to_pixels(x_history: &[isize]) -> String {
+    let width = 40;
+    let height = 6;
+
+    let pixels: Vec<char> = x_history[..(width * height)]
+        .iter()
+        .enumerate()
+        .map(|(i, x)| (i % width, x)) // iterate 0-39 repeatedly
+        .map(|(i, x)| (i as isize - x).abs() <= 1) // sprite is 3 pixels wide
+        .map(|b| if b { '#' } else { '.' })
+        .collect();
+
+    pixels
+        .chunks(width)
+        .map(|chunk| chunk.iter().collect::<String>())
+        .join("\n")
+        + "\n"
+}
+
 fn part1(input: &str) -> isize {
     let instructions = Instruction::parse_instructions(input);
     println!("{:?}", instructions);
@@ -89,9 +106,8 @@ fn part1(input: &str) -> isize {
 
     cpu.execute(&instructions);
 
-    // offset -1 for 0-based indexing, and -1 because we want the value during
-    // the operation, and the register history is afterward
-    let offset = 2;
+    // offset for 0-based indexing
+    let offset = 1;
 
     cpu.x_history
         .iter()
@@ -102,15 +118,25 @@ fn part1(input: &str) -> isize {
         .sum()
 }
 
-// fn part2(input: &str) -> usize {
-//     let data = Instruction::parse(input);
-//     println!("{:?}", data);
-//     data.execute()
-// }
+fn part2(input: &str) -> String {
+    let instructions = Instruction::parse_instructions(input);
+    println!("{:?}", instructions);
+
+    let mut cpu = CPU::new();
+    println!("{:?}", cpu);
+
+    cpu.execute(&instructions);
+
+    let pixels = register_history_to_pixels(&cpu.x_history);
+    println!("{}", pixels);
+    pixels
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use indoc::indoc;
 
     fn read_example_file() -> String {
         fs::read_to_string("example.txt").expect("Something went wrong reading the example file")
@@ -128,15 +154,33 @@ mod tests {
         assert_eq!(result, 17180);
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(EXAMPLE1);
-    //     assert_eq!(result, 0);
-    // }
+    static EXAMPLE1_PART2_RESULT: &str = indoc! {"
+        ##..##..##..##..##..##..##..##..##..##..
+        ###...###...###...###...###...###...###.
+        ####....####....####....####....####....
+        #####.....#####.....#####.....#####.....
+        ######......######......######......####
+        #######.......#######.......#######.....
+    "};
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example1() {
+        let result = part2(&read_example_file());
+        assert_eq!(result, EXAMPLE1_PART2_RESULT);
+    }
+
+    static PART2_SOLUTION: &str = indoc! {"
+        ###..####.#..#.###..###..#....#..#.###..
+        #..#.#....#..#.#..#.#..#.#....#..#.#..#.
+        #..#.###..####.#..#.#..#.#....#..#.###..
+        ###..#....#..#.###..###..#....#..#.#..#.
+        #.#..#....#..#.#....#.#..#....#..#.#..#.
+        #..#.####.#..#.#....#..#.####..##..###..
+    "};
+
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, PART2_SOLUTION);
+    }
 }
