@@ -42,13 +42,13 @@ impl Part {
 
 fn part1(input: &str) -> usize {
     let data = Data::parse(input);
-    println!("{:?}", data);
+    dbg!(&data);
     data.execute()
 }
 
 // fn part2(input: &str) -> usize {
 //     let data = Data::parse(input);
-//     println!("{:?}", data);
+//     dbg!(&data);
 //     data.execute()
 // }
 
