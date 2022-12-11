@@ -7,7 +7,7 @@ use regex::Regex;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -35,10 +35,10 @@ impl Monkeys {
         }
     }
 
-    fn run(&mut self, num_rounds: usize) {
+    fn run(&mut self, num_rounds: usize, reduce_fn: impl Fn(usize) -> usize) {
         for r in 0..num_rounds {
             println!("round {}:", r + 1);
-            self.run_round();
+            self.run_round(&reduce_fn);
 
             for id in &self.monkey_ids {
                 println!(
@@ -49,9 +49,9 @@ impl Monkeys {
         }
     }
 
-    fn run_round(&mut self) {
+    fn run_round(&mut self, reduce_fn: &dyn Fn(usize) -> usize) {
         for id in &self.monkey_ids {
-            let thrown = self.monkeys.get_mut(id).unwrap().throw_items();
+            let thrown = self.monkeys.get_mut(id).unwrap().throw_items(reduce_fn);
             for (thrown_id, thrown_item) in thrown {
                 self.monkeys.get_mut(&thrown_id).unwrap().catch(thrown_item);
             }
@@ -108,12 +108,13 @@ impl Monkey {
     }
 
     // calculate where to throw items to, and new priorities
-    fn throw_items(&mut self) -> Vec<(usize, usize)> {
+    fn throw_items(&mut self, reduce_fn: &dyn Fn(usize) -> usize) -> Vec<(usize, usize)> {
         self.num_inspected += self.items.len();
         self.items
             .drain(..)
             .map(|item| {
-                let new_priority = self.operation.apply(item) / 3;
+                let base_new_priority = self.operation.apply(item);
+                let new_priority = reduce_fn(base_new_priority);
                 let new_id = self.test.apply(new_priority);
                 (new_id, new_priority)
             })
@@ -252,10 +253,18 @@ impl Test {
     }
 }
 
+fn least_common_multiple(values: &[usize]) -> usize {
+    values
+        .iter()
+        .cloned()
+        .reduce(|acc, val| num::integer::lcm(acc, val))
+        .unwrap()
+}
+
 fn part1(input: &str) -> usize {
     let mut monkeys = Monkeys::parse(input);
     dbg!(&monkeys);
-    monkeys.run(20);
+    monkeys.run(20, |n| n / 3);
     monkeys
         .monkeys
         .iter()
@@ -267,11 +276,29 @@ fn part1(input: &str) -> usize {
         .unwrap()
 }
 
-// fn part2(input: &str) -> usize {
-//     let data = Data::parse(input);
-//     dbg!(&data);
-//     data.execute()
-// }
+fn part2(input: &str) -> usize {
+    let mut monkeys = Monkeys::parse(input);
+    dbg!(&monkeys);
+
+    let divisors: Vec<usize> = monkeys
+        .monkeys
+        .iter()
+        .map(|(_, m)| m.test.divisor)
+        .collect();
+    let lcm = least_common_multiple(&divisors);
+
+    monkeys.run(10000, |n| n % lcm);
+
+    monkeys
+        .monkeys
+        .iter()
+        .map(|(_, m)| m.num_inspected)
+        .sorted()
+        .rev()
+        .take(2)
+        .reduce(|acc, v| acc * v)
+        .unwrap()
+}
 
 #[cfg(test)]
 mod tests {
@@ -321,15 +348,15 @@ mod tests {
         assert_eq!(result, 182293);
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(EXAMPLE1);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example1() {
+        let result = part2(EXAMPLE1);
+        assert_eq!(result, 2713310158);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 54832778815);
+    }
 }
