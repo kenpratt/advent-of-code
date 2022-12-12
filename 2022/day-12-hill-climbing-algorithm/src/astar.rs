@@ -9,7 +9,7 @@ pub trait AStarInterface<N: Copy + Debug + Hash + Ord> {
     fn heuristic(&self, from: &N) -> usize;
     fn neighbours(&self, from: &N) -> Vec<(N, usize)>;
 
-    fn shortest_path(&self, start: &N, print_stats: bool) -> (Vec<(N, usize)>, usize) {
+    fn shortest_path(&self, start: &N, print_stats: bool) -> Option<(Vec<(N, usize)>, usize)> {
         let mut open_set: OpenSet<N> = OpenSet::new();
         let mut came_from: HashMap<N, (N, usize)> = HashMap::new();
         let mut g_score: HashMap<N, usize> = HashMap::new();
@@ -36,7 +36,7 @@ pub trait AStarInterface<N: Copy + Debug + Hash + Ord> {
                         g_score.len()
                     );
                 }
-                return (path, cost);
+                return Some((path, cost));
             }
 
             let current_g_score = *g_score.get(&current).unwrap();
@@ -54,7 +54,7 @@ pub trait AStarInterface<N: Copy + Debug + Hash + Ord> {
             }
         }
 
-        panic!("No path to goal");
+        None
     }
 
     fn reconstruct_path(to: &N, came_from: &HashMap<N, (N, usize)>) -> Vec<(N, usize)> {

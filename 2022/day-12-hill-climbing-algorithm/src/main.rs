@@ -6,13 +6,9 @@ use grid::*;
 
 use std::fs;
 
-// use itertools::Itertools;
-// use lazy_static::lazy_static;
-// use regex::Regex;
-
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -43,8 +39,22 @@ impl Solver {
     }
 
     fn run(&self) -> usize {
-        let (_path, length) = self.shortest_path(&self.start, true);
+        let (_path, length) = self.shortest_path(&self.start, true).unwrap();
         length
+    }
+
+    fn run_with_multiple_start_positions(&self) -> usize {
+        let start_positions = self
+            .map
+            .iter()
+            .filter(|c| c.value == 'a')
+            .map(|c| c.position);
+        start_positions
+            .map(|pos| self.shortest_path(&pos, true))
+            .filter_map(|s| s) // filter out bad solutions
+            .map(|(_path, length)| length)
+            .min()
+            .unwrap()
     }
 }
 
@@ -73,11 +83,10 @@ fn part1(input: &str) -> usize {
     solver.run()
 }
 
-// fn part2(input: &str) -> usize {
-//     let data = Data::parse(input);
-//     dbg!(&data);
-//     data.execute()
-// }
+fn part2(input: &str) -> usize {
+    let solver = Solver::parse(input);
+    solver.run_with_multiple_start_positions()
+}
 
 #[cfg(test)]
 mod tests {
@@ -105,15 +114,15 @@ mod tests {
         assert_eq!(result, 472);
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(EXAMPLE1);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example1() {
+        let result = part2(EXAMPLE1);
+        assert_eq!(result, 29);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 465);
+    }
 }
