@@ -71,9 +71,8 @@ impl AStarInterface<Coordinate> for Solver {
         let h = *self.map.value(from) as isize;
         self.map
             .neighbours(from)
-            .iter()
             .filter(|n| (*self.map.value(n) as isize - h) <= 1)
-            .map(|n| (*n, 1))
+            .map(|n| (n, 1))
             .collect()
     }
 }

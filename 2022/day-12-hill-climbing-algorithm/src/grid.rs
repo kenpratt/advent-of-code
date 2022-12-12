@@ -45,11 +45,11 @@ fn index_to_coordinate(index: &usize, bounds: &Bounds) -> Coordinate {
     Coordinate::new(index % bounds.width, index / bounds.width)
 }
 
-fn neighbours(pos: &Coordinate, bounds: &Bounds) -> Vec<Coordinate> {
-    DIRECTIONS
-        .iter()
-        .filter_map(|d| neighbour(pos, d, bounds))
-        .collect()
+fn neighbours<'a>(
+    pos: &'a Coordinate,
+    bounds: &'a Bounds,
+) -> impl Iterator<Item = Coordinate> + 'a {
+    DIRECTIONS.iter().filter_map(|d| neighbour(pos, d, bounds))
 }
 
 fn neighbour(pos: &Coordinate, direction: &Direction, bounds: &Bounds) -> Option<Coordinate> {
@@ -132,7 +132,7 @@ impl<T> Grid<T> {
         &self.cell(pos).value
     }
 
-    pub fn neighbours(&self, pos: &Coordinate) -> Vec<Coordinate> {
+    pub fn neighbours<'a>(&'a self, pos: &'a Coordinate) -> impl Iterator<Item = Coordinate> + 'a {
         neighbours(pos, &self.bounds)
     }
 
