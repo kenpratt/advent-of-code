@@ -5,7 +5,7 @@ use itertools::Itertools;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -71,7 +71,7 @@ impl Tokenizer {
 
 type NodeList = Vec<Node>;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 enum Node {
     List(NodeList),
     Number(u32),
@@ -179,11 +179,25 @@ fn part1(input: &str) -> usize {
         .sum()
 }
 
-// fn part2(input: &str) -> usize {
-//     let data = Data::parse(input);
-//     dbg!(&data);
-//     data.execute()
-// }
+fn part2(input: &str) -> usize {
+    let divider_packets = vec![
+        vec![Node::List(vec![Node::Number(2)])],
+        vec![Node::List(vec![Node::Number(6)])],
+    ];
+
+    let mut packets = divider_packets.clone();
+    let pairs = parse_packet_pairs(input);
+    for pair in pairs {
+        packets.push(pair.left);
+        packets.push(pair.right);
+    }
+    packets.sort();
+
+    divider_packets
+        .iter()
+        .map(|d| packets.iter().position(|p| p == d).unwrap() + 1)
+        .product()
+}
 
 #[cfg(test)]
 mod tests {
@@ -229,15 +243,15 @@ mod tests {
         assert_eq!(result, 5852);
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(EXAMPLE1);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example1() {
+        let result = part2(EXAMPLE1);
+        assert_eq!(result, 140);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 24190);
+    }
 }
