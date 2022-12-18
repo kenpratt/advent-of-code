@@ -5,13 +5,9 @@ use coordinate::*;
 use std::collections::HashMap;
 use std::fs;
 
-// use itertools::Itertools;
-// use lazy_static::lazy_static;
-// use regex::Regex;
-
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -47,6 +43,8 @@ enum ShiftSandResult {
     Overflowed,
 }
 
+static SAND_STARTING_POINT: Coordinate = Coordinate { x: 500, y: 0 };
+
 static SHIFT_SAND_OFFSETS: &'static [Coordinate] = &[
     Coordinate { x: 0, y: 1 },  // one step down
     Coordinate { x: -1, y: 1 }, // one step down and to the left
@@ -57,28 +55,36 @@ static SHIFT_SAND_OFFSETS: &'static [Coordinate] = &[
 struct Simulation {
     occupied: HashMap<Coordinate, Material>,
     max_y: isize,
+    has_floor: bool,
 }
 
 impl Simulation {
-    fn new() -> Self {
+    fn new(has_floor: bool) -> Self {
         Self {
             occupied: HashMap::new(),
             max_y: 0,
+            has_floor: has_floor,
         }
     }
 
-    fn run(paths: &[Path]) -> Self {
-        let mut sim = Self::new();
+    fn run(paths: &[Path], has_floor: bool) -> Self {
+        let mut sim = Self::new(has_floor);
 
         // add rock paths
         for path in paths {
             sim.add_rock_path(path);
         }
 
-        // continue adding sands grains until an overflow occurs
-        let mut overflowed = false;
-        while !overflowed {
-            overflowed = sim.add_sand_grain();
+        // adjust max_y to floor, if applicable
+        if has_floor {
+            sim.max_y += 2;
+        }
+
+        // continue adding sands grains until an overflow occurs,
+        // or the starting point is blocked
+        let mut halt = false;
+        while !halt {
+            halt = sim.add_sand_grain();
         }
 
         sim
@@ -95,11 +101,17 @@ impl Simulation {
         }
     }
 
-    // result = overflowed?
+    // result = overflowed | starting point blocked
     fn add_sand_grain(&mut self) -> bool {
         use ShiftSandResult::*;
 
-        let mut c = Coordinate::new(500, 0);
+        if self.is_blocked(&SAND_STARTING_POINT) {
+            return true;
+        }
+
+        self.occupied.insert(SAND_STARTING_POINT, Material::Sand);
+
+        let mut c = SAND_STARTING_POINT;
         loop {
             match self.shift_sand_grain(&c) {
                 Moved(new_c) => c = new_c, // keep flowing sand
@@ -112,7 +124,7 @@ impl Simulation {
     fn shift_sand_grain(&mut self, location: &Coordinate) -> ShiftSandResult {
         for offset in SHIFT_SAND_OFFSETS.iter() {
             let new_loc = *location + *offset;
-            if !self.occupied.contains_key(&new_loc) {
+            if !self.is_blocked(&new_loc) {
                 // we can move here
                 self.occupied.remove(location);
 
@@ -130,24 +142,38 @@ impl Simulation {
         // all locations are blocked
         ShiftSandResult::Blocked
     }
+
+    fn is_blocked(&self, location: &Coordinate) -> bool {
+        if self.has_floor && location.y == self.max_y {
+            true
+        } else {
+            self.occupied.contains_key(location)
+        }
+    }
+
+    fn count_sand(&self) -> usize {
+        self.occupied
+            .values()
+            .filter(|m| m == &&Material::Sand)
+            .count()
+    }
 }
 
 fn part1(input: &str) -> usize {
     let paths = Path::parse_paths(input);
     dbg!(&paths);
-    let sim = Simulation::run(&paths);
+    let sim = Simulation::run(&paths, false);
     dbg!(&sim);
-    sim.occupied
-        .values()
-        .filter(|m| m == &&Material::Sand)
-        .count()
+    sim.count_sand()
 }
 
-// fn part2(input: &str) -> usize {
-//     let data = Data::parse(input);
-//     dbg!(&data);
-//     data.execute()
-// }
+fn part2(input: &str) -> usize {
+    let paths = Path::parse_paths(input);
+    dbg!(&paths);
+    let sim = Simulation::run(&paths, true);
+    dbg!(&sim);
+    sim.count_sand()
+}
 
 #[cfg(test)]
 mod tests {
@@ -172,15 +198,15 @@ mod tests {
         assert_eq!(result, 1001);
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(EXAMPLE1);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example1() {
+        let result = part2(EXAMPLE1);
+        assert_eq!(result, 93);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 27976);
+    }
 }
