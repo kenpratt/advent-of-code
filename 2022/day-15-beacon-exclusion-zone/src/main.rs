@@ -1,11 +1,17 @@
-use std::fs;
+pub mod coordinate;
 
-// use itertools::Itertools;
-// use lazy_static::lazy_static;
-// use regex::Regex;
+use coordinate::*;
+
+use std::cmp;
+use std::collections::HashSet;
+use std::fs;
+use std::ops::RangeInclusive;
+
+use lazy_static::lazy_static;
+use regex::Regex;
 
 fn main() {
-    println!("part 1 result: {:?}", part1(&read_input_file()));
+    println!("part 1 result: {:?}", part1(&read_input_file(), 2000000));
     // println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
@@ -14,36 +20,107 @@ fn read_input_file() -> String {
 }
 
 #[derive(Debug)]
-struct Data {
-    parts: Vec<Part>,
+struct Reading {
+    sensor: Coordinate,
+    beacon: Coordinate,
 }
 
-impl Data {
+impl Reading {
+    fn parse_list(input: &str) -> Vec<Self> {
+        input.lines().map(|line| Self::parse(line)).collect()
+    }
+
     fn parse(input: &str) -> Self {
-        let parts = input.lines().map(|line| Part::parse(line)).collect();
-        Self { parts: parts }
+        lazy_static! {
+            static ref READING_RE: Regex = Regex::new(r"\ASensor at x=([\-\d]+), y=([\-\d]+): closest beacon is at x=([\-\d]+), y=([\-\d]+)\z").unwrap();
+        }
+
+        let caps = READING_RE.captures(input).unwrap();
+        let nums: Vec<i32> = caps
+            .iter()
+            .skip(1)
+            .map(|s| s.unwrap().as_str().parse::<i32>().unwrap())
+            .collect();
+        assert_eq!(nums.len(), 4);
+
+        let sensor = Coordinate::new(nums[0], nums[1]);
+        let beacon = Coordinate::new(nums[2], nums[3]);
+
+        Self { sensor, beacon }
     }
 
-    fn execute(&self) -> usize {
-        0
+    fn distance(&self) -> i32 {
+        self.sensor.manhattan_distance(&self.beacon)
+    }
+
+    fn x_range_at_row(&self, y: i32) -> Option<RangeInclusive<i32>> {
+        let beacon_distance = self.distance();
+        let dy = abs_diff(self.sensor.y, y);
+        if dy > beacon_distance {
+            None
+        } else {
+            let dx = beacon_distance - dy;
+            Some((self.sensor.x - dx)..=(self.sensor.x + dx))
+        }
+    }
+
+    fn beacon_at_row(&self, y: i32) -> Option<Coordinate> {
+        if self.beacon.y == y {
+            Some(self.beacon)
+        } else {
+            None
+        }
     }
 }
 
-#[derive(Debug)]
-struct Part {
-    foo: usize,
+fn num_positions_cannot_contain_beacon(readings: &[Reading], row: i32) -> usize {
+    let ranges: Vec<RangeInclusive<i32>> = readings
+        .iter()
+        .flat_map(|r| r.x_range_at_row(row))
+        .collect();
+
+    let combined_ranges = combine_ranges(ranges);
+    let beacons: HashSet<Coordinate> = readings.iter().flat_map(|r| r.beacon_at_row(row)).collect();
+
+    combined_ranges
+        .iter()
+        .map(|r| (r.end() - r.start() + 1) as usize)
+        .sum::<usize>()
+        - beacons.len()
 }
 
-impl Part {
-    fn parse(input: &str) -> Self {
-        Self { foo: input.len() }
+fn combine_ranges(mut ranges: Vec<RangeInclusive<i32>>) -> Vec<RangeInclusive<i32>> {
+    ranges.sort_by(|a, b| {
+        if a.start() == b.start() {
+            a.end().cmp(b.end())
+        } else {
+            a.start().cmp(b.start())
+        }
+    });
+
+    let mut output = vec![];
+
+    let mut iter = ranges.into_iter();
+    let mut curr = iter.next().unwrap();
+
+    while let Some(next) = iter.next() {
+        if next.start() <= curr.end() {
+            // overlap detected, combine
+            curr = *curr.start()..=*cmp::max(curr.end(), next.end());
+        } else {
+            // no overlap
+            output.push(curr);
+            curr = next;
+        }
     }
+
+    output.push(curr);
+    output
 }
 
-fn part1(input: &str) -> usize {
-    let data = Data::parse(input);
-    dbg!(&data);
-    data.execute()
+fn part1(input: &str, row: i32) -> usize {
+    let readings = Reading::parse_list(input);
+    num_positions_cannot_contain_beacon(&readings, row)
 }
 
 // fn part2(input: &str) -> usize {
@@ -77,15 +154,15 @@ mod tests {
 
     #[test]
     fn test_part1_example1() {
-        let result = part1(EXAMPLE1);
-        assert_eq!(result, 0);
+        let result = part1(EXAMPLE1, 10);
+        assert_eq!(result, 26);
     }
 
-    // #[test]
-    // fn test_part1_solution() {
-    //     let result = part1(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part1_solution() {
+        let result = part1(&read_input_file(), 2000000);
+        assert_eq!(result, 5564017);
+    }
 
     // #[test]
     // fn test_part2_example1() {
