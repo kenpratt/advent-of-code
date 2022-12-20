@@ -1,4 +1,5 @@
 use std::ops::Add;
+use std::ops::RangeInclusive;
 
 #[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Coordinate {
@@ -37,6 +38,10 @@ impl Coordinate {
 
     pub fn manhattan_distance(&self, other: &Coordinate) -> i32 {
         abs_diff(self.x, other.x) + abs_diff(self.y, other.y)
+    }
+
+    pub fn in_range(&self, range: &RangeInclusive<i32>) -> bool {
+        range.contains(&self.x) && range.contains(&self.y)
     }
 }
 

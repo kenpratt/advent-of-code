@@ -7,12 +7,13 @@ use std::collections::HashSet;
 use std::fs;
 use std::ops::RangeInclusive;
 
+use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::Regex;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file(), 2000000));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file(), 0, 4000000));
 }
 
 fn read_input_file() -> String {
@@ -23,11 +24,16 @@ fn read_input_file() -> String {
 struct Reading {
     sensor: Coordinate,
     beacon: Coordinate,
+    distance: i32,
 }
 
 impl Reading {
     fn parse_list(input: &str) -> Vec<Self> {
-        input.lines().map(|line| Self::parse(line)).collect()
+        input
+            .lines()
+            .map(|line| Self::parse(line))
+            .sorted_by_cached_key(|r| r.sensor.x)
+            .collect()
     }
 
     fn parse(input: &str) -> Self {
@@ -45,21 +51,21 @@ impl Reading {
 
         let sensor = Coordinate::new(nums[0], nums[1]);
         let beacon = Coordinate::new(nums[2], nums[3]);
+        let distance = sensor.manhattan_distance(&beacon);
 
-        Self { sensor, beacon }
-    }
-
-    fn distance(&self) -> i32 {
-        self.sensor.manhattan_distance(&self.beacon)
+        Self {
+            sensor,
+            beacon,
+            distance,
+        }
     }
 
     fn x_range_at_row(&self, y: i32) -> Option<RangeInclusive<i32>> {
-        let beacon_distance = self.distance();
         let dy = abs_diff(self.sensor.y, y);
-        if dy > beacon_distance {
+        if dy > self.distance {
             None
         } else {
-            let dx = beacon_distance - dy;
+            let dx = self.distance - dy;
             Some((self.sensor.x - dx)..=(self.sensor.x + dx))
         }
     }
@@ -73,38 +79,17 @@ impl Reading {
     }
 }
 
-fn num_positions_cannot_contain_beacon(readings: &[Reading], row: i32) -> usize {
-    let ranges: Vec<RangeInclusive<i32>> = readings
+fn ranges_for_row(readings: &[Reading], row: i32) -> Vec<RangeInclusive<i32>> {
+    let mut iter = readings
         .iter()
         .flat_map(|r| r.x_range_at_row(row))
-        .collect();
-
-    let combined_ranges = combine_ranges(ranges);
-    let beacons: HashSet<Coordinate> = readings.iter().flat_map(|r| r.beacon_at_row(row)).collect();
-
-    combined_ranges
-        .iter()
-        .map(|r| (r.end() - r.start() + 1) as usize)
-        .sum::<usize>()
-        - beacons.len()
-}
-
-fn combine_ranges(mut ranges: Vec<RangeInclusive<i32>>) -> Vec<RangeInclusive<i32>> {
-    ranges.sort_by(|a, b| {
-        if a.start() == b.start() {
-            a.end().cmp(b.end())
-        } else {
-            a.start().cmp(b.start())
-        }
-    });
+        .sorted_by_cached_key(|r| *r.start());
 
     let mut output = vec![];
-
-    let mut iter = ranges.into_iter();
     let mut curr = iter.next().unwrap();
 
     while let Some(next) = iter.next() {
-        if next.start() <= curr.end() {
+        if (next.start() - curr.end()) <= 1 {
             // overlap detected, combine
             curr = *curr.start()..=*cmp::max(curr.end(), next.end());
         } else {
@@ -118,16 +103,40 @@ fn combine_ranges(mut ranges: Vec<RangeInclusive<i32>>) -> Vec<RangeInclusive<i3
     output
 }
 
+fn num_positions_cannot_contain_beacon(readings: &[Reading], row: i32) -> usize {
+    let combined_ranges = ranges_for_row(readings, row);
+    let beacons: HashSet<Coordinate> = readings.iter().flat_map(|r| r.beacon_at_row(row)).collect();
+
+    combined_ranges
+        .iter()
+        .map(|r| (r.end() - r.start() + 1) as usize)
+        .sum::<usize>()
+        - beacons.len()
+}
+
 fn part1(input: &str, row: i32) -> usize {
     let readings = Reading::parse_list(input);
     num_positions_cannot_contain_beacon(&readings, row)
 }
 
-// fn part2(input: &str) -> usize {
-//     let data = Data::parse(input);
-//     dbg!(&data);
-//     data.execute()
-// }
+fn part2(input: &str, min: i32, max: i32) -> u64 {
+    let readings = Reading::parse_list(input);
+    let ys_with_multiple_ranges: Vec<(i32, Vec<RangeInclusive<i32>>)> = (min..=max)
+        .map(|y| (y, ranges_for_row(&readings, y)))
+        .filter(|(_, rs)| rs.len() > 1)
+        .collect();
+
+    assert_eq!(ys_with_multiple_ranges.len(), 1);
+    let (y, ranges) = &ys_with_multiple_ranges[0];
+    assert_eq!(ranges.len(), 2);
+
+    let x1 = ranges[0].end();
+    let x2 = ranges[1].start();
+    assert_eq!(x2 - x1, 2);
+    let x = x1 + 1;
+
+    (x as u64) * 4000000 + (*y as u64)
+}
 
 #[cfg(test)]
 mod tests {
@@ -164,15 +173,15 @@ mod tests {
         assert_eq!(result, 5564017);
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(EXAMPLE1);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example1() {
+        let result = part2(EXAMPLE1, 0, 20);
+        assert_eq!(result, 56000011);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file(), 0, 4000000);
+        assert_eq!(result, 11558423398893);
+    }
 }
