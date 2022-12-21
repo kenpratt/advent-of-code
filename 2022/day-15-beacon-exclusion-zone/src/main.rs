@@ -1,6 +1,5 @@
-pub mod coordinate;
-
-use coordinate::*;
+pub mod geometry;
+use geometry::*;
 
 use std::cmp;
 use std::collections::HashSet;
@@ -22,8 +21,8 @@ fn read_input_file() -> String {
 
 #[derive(Debug)]
 struct Reading {
-    sensor: Coordinate,
-    beacon: Coordinate,
+    sensor: Point,
+    beacon: Point,
     distance: i32,
 }
 
@@ -49,8 +48,8 @@ impl Reading {
             .collect();
         assert_eq!(nums.len(), 4);
 
-        let sensor = Coordinate::new(nums[0], nums[1]);
-        let beacon = Coordinate::new(nums[2], nums[3]);
+        let sensor = point(nums[0], nums[1]);
+        let beacon = point(nums[2], nums[3]);
         let distance = sensor.manhattan_distance(&beacon);
 
         Self {
@@ -61,7 +60,7 @@ impl Reading {
     }
 
     fn x_range_at_row(&self, y: i32) -> Option<RangeInclusive<i32>> {
-        let dy = abs_diff(self.sensor.y, y);
+        let dy = (self.sensor.y - y).abs();
         if dy > self.distance {
             None
         } else {
@@ -70,12 +69,25 @@ impl Reading {
         }
     }
 
-    fn beacon_at_row(&self, y: i32) -> Option<Coordinate> {
+    fn beacon_at_row(&self, y: i32) -> Option<Point> {
         if self.beacon.y == y {
             Some(self.beacon)
         } else {
             None
         }
+    }
+
+    fn edges(&self) -> Vec<Edge> {
+        let top = point(self.sensor.x, self.sensor.y + self.distance);
+        let bottom = point(self.sensor.x, self.sensor.y - self.distance);
+        let left = point(self.sensor.x - self.distance, self.sensor.y);
+        let right = point(self.sensor.x + self.distance, self.sensor.y);
+        vec![
+            segment(left, top).edge(Facing::Right),
+            segment(top, right).edge(Facing::Left),
+            segment(right, bottom).edge(Facing::Left),
+            segment(bottom, left).edge(Facing::Right),
+        ]
     }
 }
 
@@ -105,7 +117,7 @@ fn ranges_for_row(readings: &[Reading], row: i32) -> Vec<RangeInclusive<i32>> {
 
 fn num_positions_cannot_contain_beacon(readings: &[Reading], row: i32) -> usize {
     let combined_ranges = ranges_for_row(readings, row);
-    let beacons: HashSet<Coordinate> = readings.iter().flat_map(|r| r.beacon_at_row(row)).collect();
+    let beacons: HashSet<Point> = readings.iter().flat_map(|r| r.beacon_at_row(row)).collect();
 
     combined_ranges
         .iter()
@@ -121,21 +133,46 @@ fn part1(input: &str, row: i32) -> usize {
 
 fn part2(input: &str, min: i32, max: i32) -> u64 {
     let readings = Reading::parse_list(input);
-    let ys_with_multiple_ranges: Vec<(i32, Vec<RangeInclusive<i32>>)> = (min..=max)
-        .map(|y| (y, ranges_for_row(&readings, y)))
-        .filter(|(_, rs)| rs.len() > 1)
-        .collect();
 
-    assert_eq!(ys_with_multiple_ranges.len(), 1);
-    let (y, ranges) = &ys_with_multiple_ranges[0];
-    assert_eq!(ranges.len(), 2);
+    let starting_shape = polygon(vec![
+        point(min, min),
+        point(min, max),
+        point(max, max),
+        point(max, min),
+    ]);
 
-    let x1 = ranges[0].end();
-    let x2 = ranges[1].start();
-    assert_eq!(x2 - x1, 2);
-    let x = x1 + 1;
+    let mut polygons = vec![starting_shape];
 
-    (x as u64) * 4000000 + (*y as u64)
+    for reading in &readings {
+        let edges = reading.edges();
+        let mut new_polygons = vec![];
+
+        for polygon in polygons {
+            let mut remaining = polygon;
+            for edge in &edges {
+                let (outside, inside) = remaining.bisect(edge);
+
+                if outside.is_some() {
+                    new_polygons.push(outside.unwrap());
+                }
+
+                if inside.is_some() {
+                    remaining = inside.unwrap();
+                } else {
+                    break; // nothing remaining in this polygon
+                }
+            }
+        }
+
+        polygons = new_polygons;
+    }
+
+    assert_eq!(polygons.len(), 1);
+    let polygon = &polygons[0];
+    assert_eq!(polygon.points.len(), 1);
+    let point = &polygon.points[0];
+
+    (point.x as u64) * 4000000 + (point.y as u64)
 }
 
 #[cfg(test)]
