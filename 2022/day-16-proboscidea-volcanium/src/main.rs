@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::fs;
 
+use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -61,29 +62,46 @@ impl Reading {
 
 #[derive(Debug)]
 struct ScanMetadata {
-    flow_rates: HashMap<String, u8>,
-    connections: HashMap<String, Vec<String>>,
-    non_zero_valves: BTreeSet<String>,
-    shortest_paths: HashMap<String, HashMap<String, u8>>,
+    valve_numbers: HashMap<String, u8>,
+    flow_rates: HashMap<u8, u8>,
+    connections: HashMap<u8, Vec<u8>>,
+    non_zero_valves: BTreeSet<u8>,
+    shortest_paths: HashMap<u8, HashMap<u8, u8>>,
 }
 
 impl ScanMetadata {
     fn new(readings: &[Reading]) -> Self {
-        let flow_rates: HashMap<String, u8> = readings
+        let valve_numbers: HashMap<String, u8> = readings
             .iter()
-            .map(|r| (r.valve.clone(), r.flow_rate))
+            .map(|r| r.valve.clone())
+            .sorted()
+            .enumerate()
+            .map(|(i, s)| (s, i as u8))
+            .collect();
+
+        let flow_rates: HashMap<u8, u8> = readings
+            .iter()
+            .map(|r| (*valve_numbers.get(&r.valve).unwrap(), r.flow_rate))
             .collect();
         let connections = readings
             .iter()
-            .map(|r| (r.valve.clone(), r.connections.clone()))
-            .collect();
-        let non_zero_valves: BTreeSet<String> = flow_rates
+            .map(|r| {
+                (
+                    *valve_numbers.get(&r.valve).unwrap(),
+                    r.connections
+                        .iter()
+                        .map(|c| *valve_numbers.get(c).unwrap())
+                        .collect(),
+                )
+            })
+            .collect::<HashMap<u8, Vec<u8>>>();
+        let non_zero_valves: BTreeSet<u8> = flow_rates
             .iter()
             .filter(|(_k, v)| **v > 0)
             .map(|(k, _v)| k.clone())
             .collect();
 
-        let mut shortest_paths: HashMap<String, HashMap<String, u8>> = HashMap::new();
+        let mut shortest_paths: HashMap<u8, HashMap<u8, u8>> = HashMap::new();
         for from in flow_rates.keys() {
             for to in non_zero_valves.iter() {
                 let distance = shortest_path(from, to, &connections);
@@ -95,6 +113,7 @@ impl ScanMetadata {
         }
 
         Self {
+            valve_numbers,
             flow_rates,
             connections,
             non_zero_valves,
@@ -102,40 +121,40 @@ impl ScanMetadata {
         }
     }
 
-    fn get_flow_rate(&self, valve: &String) -> &u8 {
+    fn get_flow_rate(&self, valve: &u8) -> &u8 {
         self.flow_rates.get(valve).unwrap()
     }
 
-    fn get_connections(&self, valve: &String) -> &Vec<String> {
+    fn get_connections(&self, valve: &u8) -> &Vec<u8> {
         self.connections.get(valve).unwrap()
     }
 
-    fn get_shortest_path(&self, from: &String, to: &String) -> &u8 {
+    fn get_shortest_path(&self, from: &u8, to: &u8) -> &u8 {
         self.shortest_paths.get(from).unwrap().get(to).unwrap()
     }
 }
 
 struct Pathfinder<'a> {
-    to: &'a String,
-    connections: &'a HashMap<String, Vec<String>>,
+    to: &'a u8,
+    connections: &'a HashMap<u8, Vec<u8>>,
 }
 
-fn shortest_path(from: &String, to: &String, connections: &HashMap<String, Vec<String>>) -> u8 {
+fn shortest_path(from: &u8, to: &u8, connections: &HashMap<u8, Vec<u8>>) -> u8 {
     let state = Pathfinder { to, connections };
     let (_path, length) = state.shortest_path(from, false).unwrap();
     length as u8
 }
 
-impl AStarInterface<String> for Pathfinder<'_> {
-    fn at_goal(&self, node: &String) -> bool {
+impl AStarInterface<u8> for Pathfinder<'_> {
+    fn at_goal(&self, node: &u8) -> bool {
         node == self.to
     }
 
-    fn heuristic(&self, _from: &String) -> isize {
+    fn heuristic(&self, _from: &u8) -> isize {
         1
     }
 
-    fn neighbours(&self, from: &String) -> Vec<(String, isize)> {
+    fn neighbours(&self, from: &u8) -> Vec<(u8, isize)> {
         self.connections
             .get(from)
             .unwrap()
@@ -155,11 +174,15 @@ struct Solver {
 impl Solver {
     fn new(
         readings: &[Reading],
-        starting_location: String,
+        starting_location_name: String,
         mins: u8,
         elephant_enabled: bool,
     ) -> Self {
         let scan_metadata = ScanMetadata::new(readings);
+        let starting_location = *scan_metadata
+            .valve_numbers
+            .get(&starting_location_name)
+            .unwrap();
         let initial = SolutionState::new(starting_location, mins, elephant_enabled);
 
         let mut best_states = BestSolutionStates::new();
@@ -178,11 +201,11 @@ impl Solver {
 
     fn run(
         readings: &[Reading],
-        starting_location: String,
+        starting_location_name: String,
         mins: u8,
         elephant_enabled: bool,
     ) -> u32 {
-        let mut solver = Self::new(readings, starting_location, mins, elephant_enabled);
+        let mut solver = Self::new(readings, starting_location_name, mins, elephant_enabled);
 
         loop {
             let res = solver.tick();
@@ -202,15 +225,15 @@ impl Solver {
 
         if !self.best_states.best_states_either(&from_state) {
             println!(
-                 "  skipping {}, it's no longer the best option for the location & opened valves",
-                 &from_state
-             );
+                "  skipping {}, it's no longer the best option for the location & opened valves",
+                &from_state
+            );
             return true;
         } else if !self.possibly_beats_best_result(&from_state) {
             println!(
-                 "  skipping {}, it can't beat the current best result",
-                 &from_state
-             );
+                "  skipping {}, it can't beat the current best result",
+                &from_state
+            );
             return true;
         }
 
@@ -273,7 +296,7 @@ impl Solver {
 }
 
 struct BestSolutionStates {
-    map: HashMap<(String, String, BTreeSet<String>), (HashMap<u8, u32>, HashMap<u32, u8>)>,
+    map: HashMap<(u8, u8, BTreeSet<u8>), (HashMap<u8, u32>, HashMap<u32, u8>)>,
 }
 
 impl BestSolutionStates {
@@ -282,7 +305,7 @@ impl BestSolutionStates {
         Self { map }
     }
 
-    fn key(state: &SolutionState) -> (String, String, BTreeSet<String>) {
+    fn key(state: &SolutionState) -> (u8, u8, BTreeSet<u8>) {
         // treat self/elephant as interchangeable for determining the best solution
         if &state.my_location <= &state.elephant_location {
             (
@@ -361,15 +384,15 @@ enum RecordScoreResult {
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 struct SolutionState {
     elephant_enabled: bool,
-    my_location: String,
-    elephant_location: String,
+    my_location: u8,
+    elephant_location: u8,
     mins_remaining: u8,
-    open_valves: BTreeSet<String>,
+    open_valves: BTreeSet<u8>,
     final_pressure_released: u32,
 }
 
 impl SolutionState {
-    fn new(starting_location: String, mins_remaining: u8, elephant_enabled: bool) -> Self {
+    fn new(starting_location: u8, mins_remaining: u8, elephant_enabled: bool) -> Self {
         let my_location = starting_location.clone();
         let elephant_location = starting_location.clone();
         let open_valves = BTreeSet::new();
@@ -421,11 +444,11 @@ impl SolutionState {
         states
     }
 
-    fn is_valve_open(&self, valve: &String) -> bool {
+    fn is_valve_open(&self, valve: &u8) -> bool {
         self.open_valves.contains(valve)
     }
 
-    fn move_to(&self, valve: &String, for_elephant: bool) -> Self {
+    fn move_to(&self, valve: &u8, for_elephant: bool) -> Self {
         let mut new_state = self.clone();
 
         if !for_elephant {
@@ -441,7 +464,7 @@ impl SolutionState {
         new_state
     }
 
-    fn open_valve(&self, valve: &String, flow_rate: &u8, for_elephant: bool) -> Self {
+    fn open_valve(&self, valve: &u8, flow_rate: &u8, for_elephant: bool) -> Self {
         let mut new_state = self.clone();
 
         if !for_elephant {
@@ -456,7 +479,7 @@ impl SolutionState {
         new_state
     }
 
-    fn shortest_distance_to(&self, valve: &String, scan_metadata: &ScanMetadata) -> u8 {
+    fn shortest_distance_to(&self, valve: &u8, scan_metadata: &ScanMetadata) -> u8 {
         let my_distance = scan_metadata.get_shortest_path(&self.my_location, valve);
         let el_distance = scan_metadata.get_shortest_path(&self.elephant_location, valve);
         cmp::min(*my_distance, *el_distance)
@@ -494,16 +517,12 @@ impl fmt::Display for SolutionState {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "[@{}/{} #{} ~{} ({})]",
+            "[@{}/{} #{} ~{} ({:?})]",
             self.my_location,
             self.elephant_location,
             self.mins_remaining,
             self.final_pressure_released,
-            self.open_valves
-                .iter()
-                .cloned()
-                .collect::<Vec<String>>()
-                .join(","),
+            self.open_valves,
         )
     }
 }
