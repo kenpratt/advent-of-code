@@ -2,6 +2,7 @@ pub mod astar;
 
 use astar::AStarInterface;
 
+use std::cmp;
 use std::collections::BTreeSet;
 use std::collections::HashMap;
 use std::fmt;
@@ -12,7 +13,7 @@ use regex::Regex;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -63,7 +64,7 @@ struct ScanMetadata {
     flow_rates: HashMap<String, u8>,
     connections: HashMap<String, Vec<String>>,
     non_zero_valves: BTreeSet<String>,
-    shortest_paths: HashMap<(String, String), u8>,
+    shortest_paths: HashMap<String, HashMap<String, u8>>,
 }
 
 impl ScanMetadata {
@@ -82,11 +83,14 @@ impl ScanMetadata {
             .map(|(k, _v)| k.clone())
             .collect();
 
-        let mut shortest_paths = HashMap::new();
+        let mut shortest_paths: HashMap<String, HashMap<String, u8>> = HashMap::new();
         for from in flow_rates.keys() {
             for to in non_zero_valves.iter() {
                 let distance = shortest_path(from, to, &connections);
-                shortest_paths.insert((from.clone(), to.clone()), distance);
+                shortest_paths
+                    .entry(from.clone())
+                    .or_default()
+                    .insert(to.clone(), distance);
             }
         }
 
@@ -107,9 +111,7 @@ impl ScanMetadata {
     }
 
     fn get_shortest_path(&self, from: &String, to: &String) -> &u8 {
-        self.shortest_paths
-            .get(&(from.clone(), to.clone()))
-            .unwrap()
+        self.shortest_paths.get(from).unwrap().get(to).unwrap()
     }
 }
 
@@ -151,9 +153,14 @@ struct Solver {
 }
 
 impl Solver {
-    fn new(readings: &[Reading]) -> Self {
+    fn new(
+        readings: &[Reading],
+        starting_location: String,
+        mins: u8,
+        elephant_enabled: bool,
+    ) -> Self {
         let scan_metadata = ScanMetadata::new(readings);
-        let initial = SolutionState::new("AA".to_string(), 30);
+        let initial = SolutionState::new(starting_location, mins, elephant_enabled);
 
         let mut best_states = BestSolutionStates::new();
         best_states.record(&initial);
@@ -169,11 +176,15 @@ impl Solver {
         }
     }
 
-    fn run(readings: &[Reading]) -> u32 {
-        let mut solver = Self::new(readings);
+    fn run(
+        readings: &[Reading],
+        starting_location: String,
+        mins: u8,
+        elephant_enabled: bool,
+    ) -> u32 {
+        let mut solver = Self::new(readings, starting_location, mins, elephant_enabled);
 
-        for i in 0..1000000 {
-            println!("{}:", i);
+        loop {
             let res = solver.tick();
             if !res {
                 break;
@@ -191,15 +202,15 @@ impl Solver {
 
         if !self.best_states.best_states_either(&from_state) {
             println!(
-                "  skipping {}, it's no longer the best option for the location & opened valves",
-                &from_state
-            );
+                 "  skipping {}, it's no longer the best option for the location & opened valves",
+                 &from_state
+             );
             return true;
         } else if !self.possibly_beats_best_result(&from_state) {
             println!(
-                "  skipping {}, it can't beat the current best result",
-                &from_state
-            );
+                 "  skipping {}, it can't beat the current best result",
+                 &from_state
+             );
             return true;
         }
 
@@ -262,7 +273,7 @@ impl Solver {
 }
 
 struct BestSolutionStates {
-    map: HashMap<(String, BTreeSet<String>), (HashMap<u8, u32>, HashMap<u32, u8>)>,
+    map: HashMap<(String, String, BTreeSet<String>), (HashMap<u8, u32>, HashMap<u32, u8>)>,
 }
 
 impl BestSolutionStates {
@@ -271,8 +282,21 @@ impl BestSolutionStates {
         Self { map }
     }
 
-    fn key(state: &SolutionState) -> (String, BTreeSet<String>) {
-        (state.current_location.clone(), state.open_valves.clone())
+    fn key(state: &SolutionState) -> (String, String, BTreeSet<String>) {
+        // treat self/elephant as interchangeable for determining the best solution
+        if &state.my_location <= &state.elephant_location {
+            (
+                state.my_location.clone(),
+                state.elephant_location.clone(),
+                state.open_valves.clone(),
+            )
+        } else {
+            (
+                state.elephant_location.clone(),
+                state.my_location.clone(),
+                state.open_valves.clone(),
+            )
+        }
     }
 
     fn best_states_either(&self, state: &SolutionState) -> bool {
@@ -282,7 +306,6 @@ impl BestSolutionStates {
             state.final_pressure_released >= *pressure_scores.get(&state.mins_remaining).unwrap();
         let best_time =
             state.mins_remaining >= *time_scores.get(&state.final_pressure_released).unwrap();
-        println!("    best_states_either? {} {}", best_pressure, best_time);
         best_pressure || best_time
     }
 
@@ -337,18 +360,24 @@ enum RecordScoreResult {
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 struct SolutionState {
-    current_location: String,
+    elephant_enabled: bool,
+    my_location: String,
+    elephant_location: String,
     mins_remaining: u8,
     open_valves: BTreeSet<String>,
     final_pressure_released: u32,
 }
 
 impl SolutionState {
-    fn new(current_location: String, mins_remaining: u8) -> Self {
+    fn new(starting_location: String, mins_remaining: u8, elephant_enabled: bool) -> Self {
+        let my_location = starting_location.clone();
+        let elephant_location = starting_location.clone();
         let open_valves = BTreeSet::new();
         let final_pressure_released = 0;
         Self {
-            current_location,
+            elephant_enabled,
+            my_location,
+            elephant_location,
             mins_remaining,
             open_valves,
             final_pressure_released,
@@ -360,14 +389,33 @@ impl SolutionState {
     }
 
     fn next_states(&self, scan_metadata: &ScanMetadata) -> Vec<Self> {
-        let flow_rate = scan_metadata.get_flow_rate(&self.current_location);
-        let destinations = scan_metadata.get_connections(&self.current_location);
+        if self.elephant_enabled {
+            self.calculate_next_states(false, scan_metadata)
+                .into_iter()
+                .flat_map(|my_next_state| my_next_state.calculate_next_states(true, scan_metadata))
+                .collect()
+        } else {
+            self.calculate_next_states(false, scan_metadata)
+        }
+    }
 
-        let mut states: Vec<Self> = destinations.iter().map(|d| self.move_to(d)).collect();
+    fn calculate_next_states(&self, for_elephant: bool, scan_metadata: &ScanMetadata) -> Vec<Self> {
+        let current_location = if for_elephant {
+            &self.elephant_location
+        } else {
+            &self.my_location
+        };
+        let flow_rate = scan_metadata.get_flow_rate(current_location);
+        let destinations = scan_metadata.get_connections(current_location);
+
+        let mut states: Vec<Self> = destinations
+            .iter()
+            .map(|d| self.move_to(d, for_elephant))
+            .collect();
 
         // add an option to open the valve in the current room, if >0 and not open
-        if flow_rate > &0 && !self.is_valve_open(&self.current_location) {
-            states.push(self.open_valve(&self.current_location, flow_rate));
+        if flow_rate > &0 && !self.is_valve_open(current_location) {
+            states.push(self.open_valve(current_location, flow_rate, for_elephant));
         }
 
         states
@@ -377,33 +425,41 @@ impl SolutionState {
         self.open_valves.contains(valve)
     }
 
-    fn move_to(&self, valve: &String) -> Self {
-        let current_location = valve.clone();
-        let mins_remaining = self.mins_remaining - 1;
-        let open_valves = self.open_valves.clone();
-        let final_pressure_released = self.final_pressure_released;
-        Self {
-            current_location,
-            mins_remaining,
-            open_valves,
-            final_pressure_released,
+    fn move_to(&self, valve: &String, for_elephant: bool) -> Self {
+        let mut new_state = self.clone();
+
+        if !for_elephant {
+            new_state.mins_remaining -= 1;
         }
+
+        if for_elephant {
+            new_state.elephant_location = valve.clone();
+        } else {
+            new_state.my_location = valve.clone();
+        }
+
+        new_state
     }
 
-    fn open_valve(&self, valve: &String, flow_rate: &u8) -> Self {
-        let current_location = self.current_location.clone();
-        let mins_remaining = self.mins_remaining - 1;
-        let mut open_valves = self.open_valves.clone();
-        open_valves.insert(valve.clone());
-        let mut final_pressure_released = self.final_pressure_released;
-        final_pressure_released += (*flow_rate as u32) * (mins_remaining as u32);
+    fn open_valve(&self, valve: &String, flow_rate: &u8, for_elephant: bool) -> Self {
+        let mut new_state = self.clone();
 
-        Self {
-            current_location,
-            mins_remaining,
-            open_valves,
-            final_pressure_released,
+        if !for_elephant {
+            new_state.mins_remaining -= 1;
         }
+
+        new_state.open_valves.insert(valve.clone());
+
+        let pressure_increase = (*flow_rate as u32) * (new_state.mins_remaining as u32);
+        new_state.final_pressure_released += pressure_increase;
+
+        new_state
+    }
+
+    fn shortest_distance_to(&self, valve: &String, scan_metadata: &ScanMetadata) -> u8 {
+        let my_distance = scan_metadata.get_shortest_path(&self.my_location, valve);
+        let el_distance = scan_metadata.get_shortest_path(&self.elephant_location, valve);
+        cmp::min(*my_distance, *el_distance)
     }
 
     fn final_pressure_heuristic(&self, scan_metadata: &ScanMetadata) -> u32 {
@@ -417,7 +473,7 @@ impl SolutionState {
         let remaining_heuristic: u32 = remaining_valves
             .map(|valve| {
                 let rate = scan_metadata.get_flow_rate(valve);
-                let distance = scan_metadata.get_shortest_path(&self.current_location, valve);
+                let distance = self.shortest_distance_to(valve, scan_metadata);
 
                 // it will take at least this many seconds to travel to the valve and then open it
                 let time_to_open = distance + 1;
@@ -438,8 +494,9 @@ impl fmt::Display for SolutionState {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "[@{} #{} ~{} ({})]",
-            self.current_location,
+            "[@{}/{} #{} ~{} ({})]",
+            self.my_location,
+            self.elephant_location,
             self.mins_remaining,
             self.final_pressure_released,
             self.open_valves
@@ -453,14 +510,13 @@ impl fmt::Display for SolutionState {
 
 fn part1(input: &str) -> u32 {
     let readings = Reading::parse_list(input);
-    Solver::run(&readings)
+    Solver::run(&readings, "AA".to_string(), 30, false)
 }
 
-// fn part2(input: &str) -> usize {
-//     let data = Data::parse(input);
-//     dbg!(&data);
-//     data.execute()
-// }
+fn part2(input: &str) -> u32 {
+    let readings = Reading::parse_list(input);
+    Solver::run(&readings, "AA".to_string(), 26, true)
+}
 
 #[cfg(test)]
 mod tests {
@@ -493,15 +549,15 @@ mod tests {
         assert_eq!(result, 1862);
     }
 
-    // #[test]
-    // fn test_part2_example1() {
-    //     let result = part2(EXAMPLE1);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example1() {
+        let result = part2(EXAMPLE1);
+        assert_eq!(result, 1707);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 2422);
+    }
 }
