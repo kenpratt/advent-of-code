@@ -35,7 +35,10 @@ fn main() {
         "part 1 result: {:?}",
         part1(&read_input_file(), 2022).height
     );
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!(
+        "part 2 result: {:?}",
+        part2(&read_input_file(), 1000000000000)
+    );
 }
 
 fn read_input_file() -> String {
@@ -181,10 +184,6 @@ impl Floor {
         if check_y < self.height {
             let offsets = &SHAPE_FOR_X_OFFSET[shape_id];
             let shape = offsets[check_x].as_ref().unwrap();
-            println!(
-                "        collision check at {},{} (shape: {:?})",
-                check_x, check_y, shape
-            );
 
             for i in 0..shape.height {
                 let y = check_y + i;
@@ -193,10 +192,6 @@ impl Floor {
                     let floor_row = &self.layers[y];
                     let res = shape_row & floor_row;
                     if res > 0 {
-                        println!(
-                            "        collision at {},{}! at y={} (val: {})",
-                            check_x, check_y, y, res
-                        );
                         // any position collides
                         return true;
                     }
@@ -204,17 +199,9 @@ impl Floor {
             }
 
             // no collision, no lines below floor collided
-            println!(
-                "        no collision at {},{} - below floor but no hits",
-                check_x, check_y
-            );
             false
         } else {
             // can't be a collision, it's above the floor
-            println!(
-                "        no collision at {},{} - above floor",
-                check_x, check_y
-            );
             false
         }
     }
@@ -222,14 +209,9 @@ impl Floor {
     fn meld(&mut self, rock: &FallingRock) {
         let offsets = &SHAPE_FOR_X_OFFSET[rock.shape_id];
         let shape = offsets[rock.x].as_ref().unwrap();
-        println!("      melding {:?} {:?} into {:?}", rock, shape, self);
 
         let rock_height = rock.y + shape.height;
         if rock_height > self.height {
-            println!(
-                "      expanding floor from {} to {}",
-                self.height, rock_height
-            );
             self.layers.resize(rock_height, 0);
             self.height = self.layers.len();
         }
@@ -239,7 +221,6 @@ impl Floor {
             let shape_row = &shape.lines[i];
             self.layers[y] |= shape_row;
         }
-        println!("      post meld: {:?}", self);
     }
 }
 
@@ -266,8 +247,7 @@ impl Simulation {
     }
 
     fn run(&mut self, num_rocks: usize) {
-        for i in 1..=num_rocks {
-            println!("dropping rock {}", i);
+        for _ in 1..=num_rocks {
             self.drop_rock();
         }
     }
@@ -278,31 +258,20 @@ impl Simulation {
         let x = 2;
         let y = self.floor.height + 3;
         self.falling_rock.reset(shape_index, x, y);
-        println!("  rock: {:?}", &SHAPES[shape_index]);
 
         // fall & push until stopped during a fall
-        let mut i = 1;
         loop {
-            println!("  drop iter {}:", i);
             self.push();
 
             if self.fall() {
-                println!("      came to rest");
                 break; // true = rock stopped
             }
-
-            i += 1;
         }
     }
 
     fn fall(&mut self) -> bool {
-        println!(
-            "    fall (@{},{})",
-            self.falling_rock.x, self.falling_rock.y
-        );
         if self.falling_rock.y == 0 {
             // special case, reaches floor with no collision
-            println!("      hit absolute floor (special case)");
             self.floor.meld(&self.falling_rock);
             return true;
         }
@@ -311,18 +280,12 @@ impl Simulation {
         // if so, meld into floor at current y position and return true.
         // if not, increment y and return false.
         let y = self.falling_rock.y - 1;
-        println!("      attempting fall to {}", y);
         let collision =
             self.floor
                 .check_collision(self.falling_rock.shape_id, self.falling_rock.x, y);
         if collision {
-            println!(
-                "      detected collision at {}, melding at {}",
-                y, self.falling_rock.y
-            );
             self.floor.meld(&self.falling_rock);
         } else {
-            println!("      fell to {}", y);
             self.falling_rock.y = y;
         }
         collision
@@ -332,11 +295,6 @@ impl Simulation {
         use Direction::*;
 
         let direction = self.jet_iter.next().unwrap();
-        println!(
-            "    push {:?} (@{},{})",
-            direction, self.falling_rock.x, self.falling_rock.y
-        );
-
         let maybe_x = match direction {
             Left => {
                 if self.falling_rock.x > 0 {
@@ -347,10 +305,6 @@ impl Simulation {
             }
             Right => {
                 let x = self.falling_rock.x + 1;
-                println!(
-                    "      push right? {} + 1 + {}",
-                    self.falling_rock.x, self.falling_rock.width
-                );
                 if (x + self.falling_rock.width) <= CHAMBER_WIDTH {
                     Some(x)
                 } else {
@@ -366,15 +320,10 @@ impl Simulation {
                     self.floor
                         .check_collision(self.falling_rock.shape_id, x, self.falling_rock.y);
                 if !collision {
-                    println!("      pushed to {}", x);
                     self.falling_rock.x = x;
-                } else {
-                    println!("      no push - collision detected at {}", x);
                 }
             }
-            None => {
-                println!("      no push - against edge");
-            }
+            None => {}
         };
     }
 }
@@ -387,11 +336,45 @@ fn part1(input: &str, num_rocks: usize) -> Floor {
     simulation.floor
 }
 
-// fn part2(input: &str) -> usize {
-//     let data = Data::parse(input);
-//     dbg!(&data);
-//     data.execute()
-// }
+fn part2(input: &str, total_rocks: usize) -> usize {
+    let jets = Direction::parse_list(input);
+    let jet_pattern_len = jets.len();
+    let num_shapes = SHAPES.len();
+
+    let mut simulation = Simulation::new(jets);
+
+    // should be enough warmup to find a pattern
+    let warmup_rocks = num_shapes * jet_pattern_len;
+    simulation.run(warmup_rocks);
+    let warmup_height = simulation.floor.height;
+
+    // now start looking for a pattern
+    let mut pattern_rocks = 0;
+    let pattern_height = loop {
+        pattern_rocks += num_shapes;
+        simulation.run(num_shapes);
+
+        // check for pattern
+        let pattern_height = simulation.floor.height - warmup_height;
+        let curr = &simulation.floor.layers[warmup_height..(warmup_height + pattern_height)];
+        let last = &simulation.floor.layers[(warmup_height - pattern_height)..warmup_height];
+        if curr == last {
+            break pattern_height;
+        }
+    };
+
+    // calculate how much we can skip due to repeating patterns
+    let remaining_rocks = total_rocks - warmup_rocks - pattern_rocks;
+    let skip_patterns = remaining_rocks / pattern_rocks;
+    let skip_rocks = skip_patterns * pattern_rocks;
+    let skip_height = skip_patterns * pattern_height;
+
+    // continue dropping the leftover number of rocks
+    let leftover_rocks = remaining_rocks - skip_rocks;
+    simulation.run(leftover_rocks);
+
+    simulation.floor.height + skip_height
+}
 
 #[cfg(test)]
 mod tests {
@@ -622,15 +605,15 @@ mod tests {
         assert_eq!(result.height, 3173);
     }
 
-    // #[test]
-    // fn test_part2_example() {
-    //     let result = part2(EXAMPLE);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example() {
+        let result = part2(EXAMPLE, 1000000000000);
+        assert_eq!(result, 1514285714288);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file(), 1000000000000);
+        assert_eq!(result, 1570930232582);
+    }
 }
