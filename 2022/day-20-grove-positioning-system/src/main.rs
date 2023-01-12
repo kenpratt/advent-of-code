@@ -3,7 +3,7 @@ use std::fs;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -12,27 +12,33 @@ fn read_input_file() -> String {
 
 // there are duplicate values, so to do the mixing, use a vec including
 // the indices of the original array, so that the values are unique.
-type Element = (usize, i16);
+type Element = (usize, i64);
 
 #[derive(Clone, Debug)]
 struct Sequence(Vec<Element>);
 
 impl Sequence {
     fn parse(input: &str) -> Self {
-        let values = input
-            .lines()
-            .map(|line| line.parse::<i16>().unwrap())
-            .enumerate()
-            .collect();
-        Self(values)
+        Self::new(
+            input
+                .lines()
+                .map(|line| line.parse::<i64>().unwrap())
+                .collect(),
+        )
     }
 
-    fn mix(&self) -> Self {
+    fn new(values: Vec<i64>) -> Self {
+        Self(values.into_iter().enumerate().collect())
+    }
+
+    fn mix(&self, times: usize) -> Self {
         let mut mixing = self.clone();
 
         // iterate in original order
-        for element in &self.0 {
-            mixing.move_element(element);
+        for _ in 0..times {
+            for element in &self.0 {
+                mixing.move_element(element);
+            }
         }
         mixing
     }
@@ -41,11 +47,11 @@ impl Sequence {
         self.0.iter().position(|e| e == element).unwrap()
     }
 
-    fn find_value(&self, value: i16) -> usize {
+    fn find_value(&self, value: i64) -> usize {
         self.0.iter().position(|e| e.1 == value).unwrap()
     }
 
-    fn values(&self) -> Vec<i16> {
+    fn values(&self) -> Vec<i64> {
         self.0.iter().map(|(_i, v)| *v).collect()
     }
 
@@ -68,13 +74,19 @@ impl Sequence {
         self.0.insert(new_index, e);
     }
 
-    fn shifted_index(&self, curr_index: usize, shift: i16) -> usize {
-        let len = self.0.len() as i16;
-        let mut new_index = (curr_index as i16) + shift;
-        while new_index < 0 {
-            new_index += len;
+    fn shifted_index(&self, curr_index: usize, shift: i64) -> usize {
+        let len = self.0.len() as i64;
+        let shifted = (curr_index as i64) + shift;
+        let remainder = shifted % len;
+        let new_index = if remainder < 0 {
+            remainder + len
+        } else {
+            remainder
+        };
+        if new_index < 0 || new_index >= len {
+            panic!("Index out of bounds: {}", new_index);
         }
-        (new_index % len) as usize
+        new_index as usize
     }
 }
 
@@ -87,23 +99,39 @@ impl fmt::Display for Sequence {
     }
 }
 
-fn part1(input: &str) -> i16 {
+fn part1(input: &str) -> i64 {
     let sequence = Sequence::parse(input);
-    let decrypted = sequence.mix();
+    let decrypted = sequence.mix(1);
     let zero_index = decrypted.find_value(0);
 
     [1000, 2000, 3000]
         .iter()
-        .map(|offset| decrypted.shifted_index(zero_index, *offset as i16))
+        .map(|offset| decrypted.shifted_index(zero_index, *offset as i64))
         .map(|i| decrypted.0[i].1)
         .sum()
 }
 
-// fn part2(input: &str) -> usize {
-//     let items = Data::parse(input);
-//     dbg!(&items);
-//     0
-// }
+const DECRYPTION_KEY: i64 = 811589153;
+
+fn part2(input: &str) -> i64 {
+    let original_sequence = Sequence::parse(input);
+    let modified_sequence = Sequence::new(
+        original_sequence
+            .values()
+            .into_iter()
+            .map(|v| v * DECRYPTION_KEY)
+            .collect(),
+    );
+
+    let decrypted = modified_sequence.mix(10);
+    let zero_index = decrypted.find_value(0);
+
+    [1000, 2000, 3000]
+        .iter()
+        .map(|offset| decrypted.shifted_index(zero_index, *offset as i64))
+        .map(|i| decrypted.0[i].1)
+        .sum()
+}
 
 #[cfg(test)]
 mod tests {
@@ -156,46 +184,46 @@ mod tests {
     "};
 
     static CASE5: &str = indoc! {"
-    3
-    4
-    5
-    6
-    7
-"};
+        3
+        4
+        5
+        6
+        7
+    "};
 
     #[test]
     fn test_example_decrypt() {
-        let result = Sequence::parse(EXAMPLE).mix();
+        let result = Sequence::parse(EXAMPLE).mix(1);
         assert_eq!(result.values(), vec![-2, 1, 2, -3, 4, 0, 3]);
     }
 
     #[test]
     fn test_case1_decrypt() {
-        let result = Sequence::parse(CASE1).mix();
+        let result = Sequence::parse(CASE1).mix(1);
         assert_eq!(result.values(), vec![1, -2, 2, -10, 0, 11, 3]);
     }
 
     #[test]
     fn test_case2_decrypt() {
-        let result = Sequence::parse(CASE2).mix();
+        let result = Sequence::parse(CASE2).mix(1);
         assert_eq!(result.values(), vec![8, 0, 7, 4, 5]);
     }
 
     #[test]
     fn test_case3_decrypt() {
-        let result = Sequence::parse(CASE3).mix();
+        let result = Sequence::parse(CASE3).mix(1);
         assert_eq!(result.values(), vec![-8, -7, -5, -4, 0]);
     }
 
     #[test]
     fn test_case4_decrypt() {
-        let result = Sequence::parse(CASE4).mix();
+        let result = Sequence::parse(CASE4).mix(1);
         assert_eq!(result.values(), vec![-52, -11, 101, 4, 88]);
     }
 
     #[test]
     fn test_case5_decrypt() {
-        let result = Sequence::parse(CASE5).mix();
+        let result = Sequence::parse(CASE5).mix(1);
         assert_eq!(result.values(), vec![4, 5, 3, 7, 6]);
     }
 
@@ -211,15 +239,15 @@ mod tests {
         assert_eq!(result, 15297);
     }
 
-    // #[test]
-    // fn test_part2_example() {
-    //     let result = part2(EXAMPLE);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example() {
+        let result = part2(EXAMPLE);
+        assert_eq!(result, 1623178306);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 2897373276210);
+    }
 }
