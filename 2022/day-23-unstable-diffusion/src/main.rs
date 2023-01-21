@@ -1,14 +1,14 @@
-use std::collections::HashMap;
-use std::collections::HashSet;
 use std::fmt;
 use std::fs;
 use std::ops::RangeInclusive;
 
+use cached::proc_macro::cached;
 use lazy_static::lazy_static;
+use rustc_hash::FxHashSet;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -61,7 +61,8 @@ impl Coordinate {
     }
 }
 
-fn neighbours(pos: &Coordinate) -> [(Direction, Coordinate); 8] {
+#[cached]
+fn neighbours(pos: Coordinate) -> [(Direction, Coordinate); 8] {
     ALL_DIRECTIONS
         .iter()
         .map(|d| (*d, pos.neighbour(d)))
@@ -93,23 +94,31 @@ const ALL_DIRECTIONS: [Direction; 8] = [
     Direction::NorthWest,
 ];
 
+fn direction_set(directions: &[Direction]) -> FxHashSet<Direction> {
+    let mut set = FxHashSet::default();
+    for d in directions {
+        set.insert(*d);
+    }
+    set
+}
+
 lazy_static! {
-    static ref POSSIBLE_MOVES: [(Direction, HashSet<Direction>); 4] = [
+    static ref POSSIBLE_MOVES: [(Direction, FxHashSet<Direction>); 4] = [
         (
             Direction::North,
-            HashSet::from([Direction::NorthWest, Direction::North, Direction::NorthEast])
+            direction_set(&[Direction::NorthWest, Direction::North, Direction::NorthEast])
         ),
         (
             Direction::South,
-            HashSet::from([Direction::SouthEast, Direction::South, Direction::SouthWest])
+            direction_set(&[Direction::SouthEast, Direction::South, Direction::SouthWest])
         ),
         (
             Direction::West,
-            HashSet::from([Direction::SouthWest, Direction::West, Direction::NorthWest])
+            direction_set(&[Direction::SouthWest, Direction::West, Direction::NorthWest])
         ),
         (
             Direction::East,
-            HashSet::from([Direction::NorthEast, Direction::East, Direction::SouthEast])
+            direction_set(&[Direction::NorthEast, Direction::East, Direction::SouthEast])
         ),
     ];
 }
@@ -117,8 +126,8 @@ lazy_static! {
 const POSSIBLE_MOVE_INDICES: [[usize; 4]; 4] =
     [[0, 1, 2, 3], [1, 2, 3, 0], [2, 3, 0, 1], [3, 0, 1, 2]];
 
-#[derive(Clone, Debug)]
-struct ElfPositions(HashSet<Coordinate>);
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ElfPositions(FxHashSet<Coordinate>);
 
 impl ElfPositions {
     fn parse(input: &str) -> Self {
@@ -139,28 +148,42 @@ impl ElfPositions {
         Self(positions)
     }
 
-    fn simulate(&self, rounds: usize) -> Self {
+    fn simulate_n_rounds(&self, rounds: usize) -> Self {
         let mut curr = self.clone();
         for round in 0..rounds {
             curr = curr.tick(round);
-            // println!("after round {}:\n{}", round, curr);
         }
         curr
+    }
+
+    fn simulate_until_done(&self) -> usize {
+        let mut curr = self.clone();
+        let mut round = 0;
+        loop {
+            let next = curr.tick(round);
+            if curr == next {
+                break;
+            } else {
+                curr = next;
+                round += 1;
+            }
+        }
+        round + 1 // return number of rounds elapsed
     }
 
     fn tick(&self, round: usize) -> Self {
         let possible_move_indices = &POSSIBLE_MOVE_INDICES[round % 4];
 
-        let proposed_moves: HashMap<Coordinate, Option<Coordinate>> = self
+        let proposed_moves: Vec<(Coordinate, Option<Coordinate>)> = self
             .0
             .iter()
             .map(|p| (*p, self.propose_move(p, possible_move_indices)))
             .collect();
 
         // detect conflicting moves
-        let mut seen: HashSet<Option<Coordinate>> = HashSet::new();
-        let mut duplicates: HashSet<Option<Coordinate>> = HashSet::new();
-        for proposed in proposed_moves.values() {
+        let mut seen: FxHashSet<Option<Coordinate>> = FxHashSet::default();
+        let mut duplicates: FxHashSet<Option<Coordinate>> = FxHashSet::default();
+        for (_curr_pos, proposed) in proposed_moves.iter() {
             if seen.contains(proposed) {
                 duplicates.insert(*proposed);
             } else {
@@ -168,7 +191,7 @@ impl ElfPositions {
             }
         }
 
-        let new_positions: HashSet<Coordinate> = proposed_moves
+        let new_positions: FxHashSet<Coordinate> = proposed_moves
             .into_iter()
             .map(|(curr_pos, proposed)| {
                 if proposed.is_none() || duplicates.contains(&proposed) {
@@ -186,12 +209,12 @@ impl ElfPositions {
         curr_pos: &Coordinate,
         possible_move_indices: &[usize],
     ) -> Option<Coordinate> {
-        let neighbours = neighbours(curr_pos);
+        let neighbours = neighbours(*curr_pos);
         let occupied = neighbours
             .iter()
             .filter(|(_d, c)| self.0.contains(c))
             .map(|(d, _c)| *d)
-            .collect::<HashSet<Direction>>();
+            .collect::<FxHashSet<Direction>>();
 
         // if there are no occupied neighbours, do nothing
         if occupied.is_empty() {
@@ -250,15 +273,14 @@ impl fmt::Display for ElfPositions {
 
 fn part1(input: &str) -> usize {
     let positions = ElfPositions::parse(input);
-    let result = positions.simulate(10);
+    let result = positions.simulate_n_rounds(10);
     result.num_empty()
 }
 
-// fn part2(input: &str) -> usize {
-//     let items = Data::parse(input);
-//     dbg!(&items);
-//     0
-// }
+fn part2(input: &str) -> usize {
+    let positions = ElfPositions::parse(input);
+    positions.simulate_until_done()
+}
 
 #[cfg(test)]
 mod tests {
@@ -288,15 +310,15 @@ mod tests {
         assert_eq!(result, 3815);
     }
 
-    // #[test]
-    // fn test_part2_example() {
-    //     let result = part2(EXAMPLE);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example() {
+        let result = part2(EXAMPLE);
+        assert_eq!(result, 20);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 893);
+    }
 }
