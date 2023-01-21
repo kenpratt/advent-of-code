@@ -7,7 +7,7 @@ use std::fs;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -16,8 +16,8 @@ fn read_input_file() -> String {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 struct Coordinate {
-    x: isize,
-    y: isize,
+    x: i16,
+    y: i16,
 }
 
 impl Coordinate {
@@ -81,21 +81,23 @@ impl Coordinate {
         }
     }
 
-    fn manhattan_distance(&self, other: &Coordinate) -> isize {
-        (self.x - other.x).abs() + (self.y - other.y).abs()
+    fn manhattan_distance(&self, other: &Coordinate) -> u16 {
+        ((self.x - other.x).abs() + (self.y - other.y).abs())
+            .try_into()
+            .unwrap()
     }
 }
 
 #[derive(Debug)]
 struct Bounds {
-    min_x: isize,
-    max_x: isize,
-    min_y: isize,
-    max_y: isize,
+    min_x: i16,
+    max_x: i16,
+    min_y: i16,
+    max_y: i16,
 }
 
 impl Bounds {
-    fn calculate(positions: &[Coordinate], pad: isize) -> Self {
+    fn calculate(positions: &[Coordinate], pad: i16) -> Self {
         let min_x = positions.iter().map(|p| p.x).min().unwrap();
         let max_x = positions.iter().map(|p| p.x).max().unwrap();
         let min_y = positions.iter().map(|p| p.y).min().unwrap();
@@ -279,21 +281,35 @@ impl Map {
 #[derive(Debug)]
 struct Solver {
     map: Map,
+    goals: Vec<Coordinate>,
+    future_goal_heuristic: u16,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 struct SolutionState {
     minute: usize,
     position: Coordinate,
+    goal_index: usize,
 }
 
 impl Solver {
-    fn run(map: Map) -> u16 {
+    fn run(map: Map, back_and_forth: bool) -> u16 {
         let start = SolutionState {
             minute: 0,
             position: map.entrance.clone(),
+            goal_index: 0,
         };
-        let mut solver = Solver { map };
+        let goals = if back_and_forth {
+            vec![map.exit.clone(), map.entrance.clone(), map.exit.clone()]
+        } else {
+            vec![map.exit.clone()]
+        };
+        let future_goal_heuristic = map.entrance.manhattan_distance(&map.exit);
+        let mut solver = Solver {
+            map,
+            goals,
+            future_goal_heuristic,
+        };
         match solver.shortest_path(start, true) {
             Some((_path, length)) => length,
             None => panic!("No solution found"),
@@ -303,14 +319,19 @@ impl Solver {
 
 impl AStarInterface<SolutionState> for Solver {
     fn at_goal(&self, node: &SolutionState) -> bool {
-        &node.position == &self.map.exit
+        node.goal_index == self.goals.len()
     }
 
     fn heuristic(&self, from: &SolutionState) -> u16 {
-        from.position
-            .manhattan_distance(&self.map.exit)
-            .try_into()
-            .unwrap()
+        if self.at_goal(from) {
+            0
+        } else {
+            let next_goal = &self.goals[from.goal_index];
+            let heuristic_distance = from.position.manhattan_distance(next_goal);
+
+            let remaining_goals = (self.goals.len() - from.goal_index - 1) as u16;
+            heuristic_distance + (remaining_goals * self.future_goal_heuristic)
+        }
     }
 
     fn neighbours(&mut self, from: &SolutionState) -> Vec<(SolutionState, u16)> {
@@ -323,6 +344,11 @@ impl AStarInterface<SolutionState> for Solver {
             .map(|p| SolutionState {
                 position: p,
                 minute: next_minute,
+                goal_index: if &p == &self.goals[from.goal_index] {
+                    from.goal_index + 1
+                } else {
+                    from.goal_index
+                },
             })
             .map(|s| (s, 1))
             .collect()
@@ -331,14 +357,13 @@ impl AStarInterface<SolutionState> for Solver {
 
 fn part1(input: &str) -> u16 {
     let map = Map::parse(input);
-    Solver::run(map)
+    Solver::run(map, false)
 }
 
-// fn part2(input: &str) -> usize {
-//     let items = Data::parse(input);
-//     dbg!(&items);
-//     0
-// }
+fn part2(input: &str) -> u16 {
+    let map = Map::parse(input);
+    Solver::run(map, true)
+}
 
 #[cfg(test)]
 mod tests {
@@ -383,15 +408,21 @@ mod tests {
         assert_eq!(result, 271);
     }
 
-    // #[test]
-    // fn test_part2_example() {
-    //     let result = part2(EXAMPLE);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example1() {
+        let result = part2(EXAMPLE1);
+        assert_eq!(result, 30);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example2() {
+        let result = part2(EXAMPLE2);
+        assert_eq!(result, 54);
+    }
+
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 813);
+    }
 }
