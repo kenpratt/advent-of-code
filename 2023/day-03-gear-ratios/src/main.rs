@@ -6,7 +6,7 @@ use regex::Regex;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -73,6 +73,18 @@ impl Schematic {
             .filter(|n| n.is_part_number(&sym))
             .collect()
     }
+
+    fn gear_ratios(&self) -> Vec<usize> {
+        let parts = self.part_numbers();
+        let parts_with_neighbours: Vec<(Number, HashSet<Coord>)> =
+            parts.into_iter().map(|p| (p, p.neighbours())).collect();
+
+        self.symbols
+            .iter()
+            .filter(|s| s.value == '*')
+            .flat_map(|s| s.gear_ratio(&parts_with_neighbours))
+            .collect()
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -125,6 +137,23 @@ struct Symbol {
     position: Coord,
 }
 
+impl Symbol {
+    fn gear_ratio(&self, parts_with_neighbours: &[(Number, HashSet<Coord>)]) -> Option<usize> {
+        let pos = &self.position;
+        let adjacent_parts: Vec<usize> = parts_with_neighbours
+            .iter()
+            .filter(|(_n, neighbours)| neighbours.contains(pos))
+            .map(|(n, _)| n.value)
+            .collect();
+        if adjacent_parts.len() == 2 {
+            let ratio = adjacent_parts[0] * adjacent_parts[1];
+            Some(ratio)
+        } else {
+            None
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
 struct Coord {
     x: isize,
@@ -136,11 +165,10 @@ fn part1(input: &str) -> usize {
     schematic.part_numbers().iter().map(|p| p.value).sum()
 }
 
-// fn part2(input: &str) -> usize {
-//     let numbers = Data::parse(input);
-//     dbg!(&numbers);
-//     0
-// }
+fn part2(input: &str) -> usize {
+    let schematic = Schematic::parse(input);
+    schematic.gear_ratios().iter().sum()
+}
 
 #[cfg(test)]
 mod tests {
@@ -173,15 +201,15 @@ mod tests {
         assert_eq!(result, 527144);
     }
 
-    // #[test]
-    // fn test_part2_example() {
-    //     let result = part2(EXAMPLE);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example() {
+        let result = part2(EXAMPLE);
+        assert_eq!(result, 467835);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 81463996);
+    }
 }
