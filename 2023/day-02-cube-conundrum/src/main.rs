@@ -7,7 +7,7 @@ use regex::Regex;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -37,7 +37,32 @@ impl Game {
     }
 
     fn is_possible(&self, requirements: &[(Colour, usize)]) -> bool {
-        self.pulls.iter().all(|pull| pull.is_possible(requirements))
+        let max = self.max_found();
+        requirements.iter().all(|(r_colour, r_count)| {
+            let count = max.get(r_colour).unwrap();
+            count <= r_count
+        })
+    }
+
+    fn max_found(&self) -> HashMap<Colour, usize> {
+        self.pulls
+            .iter()
+            .map(|p| p.max_found())
+            .reduce(|l, r| {
+                COLOURS
+                    .iter()
+                    .map(|c| (*c, cmp::max(*l.get(c).unwrap(), *r.get(c).unwrap())))
+                    .collect()
+            })
+            .unwrap()
+    }
+
+    fn power(&self) -> usize {
+        let max = self.max_found();
+        max.iter()
+            .map(|(_c, n)| *n)
+            .reduce(|acc, n| acc * n)
+            .unwrap()
     }
 }
 
@@ -62,14 +87,6 @@ impl Pull {
         let count = caps.get(1).unwrap().as_str().parse::<usize>().unwrap();
         let colour = Colour::parse(caps.get(2).unwrap().as_str());
         (colour, count)
-    }
-
-    fn is_possible(&self, requirements: &[(Colour, usize)]) -> bool {
-        let max = self.max_found();
-        requirements.iter().all(|(r_colour, r_count)| {
-            let count = max.get(r_colour).unwrap();
-            count <= r_count
-        })
     }
 
     fn max_found(&self) -> HashMap<Colour, usize> {
@@ -114,11 +131,10 @@ fn part1(input: &str) -> usize {
         .sum()
 }
 
-// fn part2(input: &str) -> usize {
-//     let games = Data::parse(input);
-//     dbg!(&games);
-//     0
-// }
+fn part2(input: &str) -> usize {
+    let games = Game::parse_list(input);
+    games.iter().map(|game| game.power()).sum()
+}
 
 #[cfg(test)]
 mod tests {
@@ -146,15 +162,15 @@ mod tests {
         assert_eq!(result, 2776);
     }
 
-    // #[test]
-    // fn test_part2_example() {
-    //     let result = part2(EXAMPLE);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example() {
+        let result = part2(EXAMPLE);
+        assert_eq!(result, 2286);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 68638);
+    }
 }
