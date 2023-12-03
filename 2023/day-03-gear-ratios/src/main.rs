@@ -1,4 +1,4 @@
-use std::fs;
+use std::{collections::HashSet, fs};
 
 // use itertools::Itertools;
 use lazy_static::lazy_static;
@@ -14,37 +14,131 @@ fn read_input_file() -> String {
 }
 
 #[derive(Debug)]
-struct Item {
-    foo: String,
-    bar: usize,
+struct Schematic {
+    numbers: Vec<Number>,
+    symbols: Vec<Symbol>,
 }
 
-impl Item {
-    fn parse_list(input: &str) -> Vec<Self> {
-        input.lines().map(|line| Self::parse(line)).collect()
-    }
-
+impl Schematic {
     fn parse(input: &str) -> Self {
         lazy_static! {
-            static ref ITEM_RE: Regex = Regex::new(r"\A(.+)=(\d+)\z").unwrap();
+            static ref NUMBER_RE: Regex = Regex::new(r"\d+").unwrap();
+            static ref SYMBOL_RE: Regex = Regex::new(r"[\*\/\=\+\%\@\#\&\-\$]").unwrap();
         }
 
-        let caps = ITEM_RE.captures(input).unwrap();
-        let foo = caps.get(1).unwrap().as_str().to_string();
-        let bar = caps.get(2).unwrap().as_str().parse::<usize>().unwrap();
-        Self { foo, bar }
+        let mut numbers = vec![];
+        let mut symbols = vec![];
+        for (y, line) in input.lines().enumerate() {
+            for m in NUMBER_RE.find_iter(line) {
+                let x = m.start();
+                let length = m.len();
+                let value = m.as_str().parse::<usize>().unwrap();
+
+                let position = Coord {
+                    x: x as isize,
+                    y: y as isize,
+                };
+                let number = Number {
+                    value,
+                    length,
+                    position,
+                };
+                numbers.push(number);
+            }
+
+            for m in SYMBOL_RE.find_iter(line) {
+                let x = m.start();
+                let value = m.as_str().chars().next().unwrap();
+
+                let position = Coord {
+                    x: x as isize,
+                    y: y as isize,
+                };
+                let symbol = Symbol { value, position };
+                symbols.push(symbol);
+            }
+        }
+        Self { numbers, symbols }
     }
+
+    fn symbol_positions(&self) -> HashSet<Coord> {
+        self.symbols.iter().map(|s| s.position).collect()
+    }
+
+    fn part_numbers(&self) -> Vec<Number> {
+        let sym = self.symbol_positions();
+        self.numbers
+            .iter()
+            .cloned()
+            .filter(|n| n.is_part_number(&sym))
+            .collect()
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+struct Number {
+    value: usize,
+    length: usize,
+    position: Coord,
+}
+
+impl Number {
+    fn neighbours(&self) -> HashSet<Coord> {
+        let mut out = HashSet::new();
+
+        let l = self.position.x - 1;
+        let r = self.position.x + self.length as isize;
+
+        out.insert(Coord {
+            x: l,
+            y: self.position.y,
+        });
+        out.insert(Coord {
+            x: r,
+            y: self.position.y,
+        });
+
+        for x in l..=r {
+            out.insert(Coord {
+                x: x,
+                y: self.position.y - 1,
+            });
+            out.insert(Coord {
+                x: x,
+                y: self.position.y + 1,
+            });
+        }
+
+        out
+    }
+
+    fn is_part_number(&self, symbol_positions: &HashSet<Coord>) -> bool {
+        self.neighbours()
+            .iter()
+            .any(|p| symbol_positions.contains(p))
+    }
+}
+
+#[derive(Debug)]
+struct Symbol {
+    value: char,
+    position: Coord,
+}
+
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
+struct Coord {
+    x: isize,
+    y: isize,
 }
 
 fn part1(input: &str) -> usize {
-    let items = Item::parse_list(input);
-    dbg!(&items);
-    0
+    let schematic = Schematic::parse(input);
+    schematic.part_numbers().iter().map(|p| p.value).sum()
 }
 
 // fn part2(input: &str) -> usize {
-//     let items = Data::parse(input);
-//     dbg!(&items);
+//     let numbers = Data::parse(input);
+//     dbg!(&numbers);
 //     0
 // }
 
@@ -55,20 +149,29 @@ mod tests {
     use indoc::indoc;
 
     static EXAMPLE: &str = indoc! {"
-        foo=22
+        467..114..
+        ...*......
+        ..35..633.
+        ......#...
+        617*......
+        .....+.58.
+        ..592.....
+        ......755.
+        ...$.*....
+        .664.598..
     "};
 
     #[test]
     fn test_part1_example() {
         let result = part1(EXAMPLE);
-        assert_eq!(result, 0);
+        assert_eq!(result, 4361);
     }
 
-    // #[test]
-    // fn test_part1_solution() {
-    //     let result = part1(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part1_solution() {
+        let result = part1(&read_input_file());
+        assert_eq!(result, 527144);
+    }
 
     // #[test]
     // fn test_part2_example() {
