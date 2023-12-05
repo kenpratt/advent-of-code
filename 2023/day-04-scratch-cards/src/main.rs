@@ -1,6 +1,5 @@
-use std::fs;
+use std::{collections::HashSet, fs};
 
-// use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -14,37 +13,60 @@ fn read_input_file() -> String {
 }
 
 #[derive(Debug)]
-struct Item {
-    foo: String,
-    bar: usize,
+struct Card {
+    id: usize,
+    winning: HashSet<usize>,
+    have: HashSet<usize>,
 }
 
-impl Item {
+impl Card {
     fn parse_list(input: &str) -> Vec<Self> {
         input.lines().map(|line| Self::parse(line)).collect()
     }
 
     fn parse(input: &str) -> Self {
         lazy_static! {
-            static ref ITEM_RE: Regex = Regex::new(r"\A(.+)=(\d+)\z").unwrap();
+            static ref CARD_RE: Regex =
+                Regex::new(r"\ACard\s+(\d+): ([\d\s]+) \| ([\d\s]+)\z").unwrap();
         }
 
-        let caps = ITEM_RE.captures(input).unwrap();
-        let foo = caps.get(1).unwrap().as_str().to_string();
-        let bar = caps.get(2).unwrap().as_str().parse::<usize>().unwrap();
-        Self { foo, bar }
+        let caps = CARD_RE.captures(input).unwrap();
+        let id = caps.get(1).unwrap().as_str().parse::<usize>().unwrap();
+        let winning = Self::parse_cards(caps.get(2).unwrap().as_str());
+        let have: HashSet<usize> = Self::parse_cards(caps.get(3).unwrap().as_str());
+        Self { id, winning, have }
+    }
+
+    fn parse_cards(input: &str) -> HashSet<usize> {
+        input
+            .split_whitespace()
+            .map(|s| s.parse::<usize>().unwrap())
+            .collect()
+    }
+
+    fn score(&self) -> usize {
+        let nums = self.winning_numbers();
+        if nums.len() > 0 {
+            let base: usize = 2;
+            base.pow(nums.len() as u32 - 1)
+        } else {
+            0
+        }
+    }
+
+    fn winning_numbers(&self) -> HashSet<usize> {
+        self.winning.intersection(&self.have).cloned().collect()
     }
 }
 
 fn part1(input: &str) -> usize {
-    let items = Item::parse_list(input);
-    dbg!(&items);
-    0
+    let cards = Card::parse_list(input);
+    cards.iter().map(|card| card.score()).sum()
 }
 
 // fn part2(input: &str) -> usize {
-//     let items = Data::parse(input);
-//     dbg!(&items);
+//     let cards = Data::parse(input);
+//     dbg!(&cards);
 //     0
 // }
 
@@ -66,14 +88,14 @@ mod tests {
     #[test]
     fn test_part1_example() {
         let result = part1(EXAMPLE);
-        assert_eq!(result, 0);
+        assert_eq!(result, 13);
     }
 
-    // #[test]
-    // fn test_part1_solution() {
-    //     let result = part1(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part1_solution() {
+        let result = part1(&read_input_file());
+        assert_eq!(result, 26346);
+    }
 
     // #[test]
     // fn test_part2_example() {
