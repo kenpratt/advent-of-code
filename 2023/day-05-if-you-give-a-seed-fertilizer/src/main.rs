@@ -1,11 +1,11 @@
-use std::{collections::HashMap, fs};
+use std::{cmp, collections::HashMap, fs, str::Lines};
 
 use lazy_static::lazy_static;
 use regex::Regex;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -14,16 +14,17 @@ fn read_input_file() -> String {
 
 #[derive(Debug)]
 struct Almanac {
-    seeds: Vec<usize>,
+    seeds: Vec<(usize, usize)>,
     maps: HashMap<Resource, ConversionMap>,
 }
 
 impl Almanac {
-    fn parse(input: &str) -> Self {
+    fn parse(input: &str, parse_with_seed_ranges: bool) -> Self {
         let mut parts = input.split("\n\n");
 
         let seeds_str: &str = parts.next().unwrap();
-        let seeds = Self::parse_seeds(seeds_str);
+        let mut seeds = Self::parse_seeds(seeds_str, parse_with_seed_ranges);
+        seeds.sort_by_cached_key(|(index, _len)| *index);
 
         let maps_list: Vec<ConversionMap> = parts.map(|p| ConversionMap::parse(p)).collect();
         let maps = maps_list
@@ -34,39 +35,60 @@ impl Almanac {
         Self { seeds, maps }
     }
 
-    fn parse_seeds(input: &str) -> Vec<usize> {
+    fn parse_seeds(input: &str, parse_with_seed_ranges: bool) -> Vec<(usize, usize)> {
         lazy_static! {
             static ref SEEDS_RE: Regex = Regex::new(r"\Aseeds: ([\d\s]+)\z").unwrap();
         }
 
         let caps = SEEDS_RE.captures(input).unwrap();
-        parse_numbers(caps.get(1).unwrap().as_str())
+        let nums = parse_numbers(caps.get(1).unwrap().as_str());
+
+        if parse_with_seed_ranges {
+            nums.chunks(2).map(|pair| (pair[0], pair[1])).collect()
+        } else {
+            nums.into_iter().map(|n| (n, 1)).collect()
+        }
     }
 
-    fn convert_seeds(&self, final_category: &Resource) -> Vec<usize> {
-        self.seeds
-            .iter()
-            .map(|s| self.convert_seed(s, final_category))
-            .collect()
+    fn minimum_location(&self) -> usize {
+        let resulting_ranges = self.convert_seeds(&Resource::Location);
+        resulting_ranges
+            .into_iter()
+            .map(|(index, _length)| index)
+            .min()
+            .unwrap()
     }
 
-    fn convert_seed(&self, seed_id: &usize, final_category: &Resource) -> usize {
-        let mut source_id = *seed_id;
+    fn convert_seeds(&self, final_category: &Resource) -> Vec<(usize, usize)> {
+        let mut source_ranges = self.seeds.clone();
         let mut source_category = Resource::Seed;
 
         while &source_category != final_category {
-            let (next_id, next_category) = self.convert_resource(&source_id, &source_category);
-            source_id = next_id;
-            source_category = next_category;
+            let mut destination_ranges = vec![];
+            let mut destination_category = source_category;
+
+            for source_range in source_ranges {
+                let (mut this_destination_ranges, this_destination_category) =
+                    self.convert_resource(source_range, &source_category);
+                destination_ranges.append(&mut this_destination_ranges);
+                destination_category = this_destination_category;
+            }
+
+            source_ranges = destination_ranges;
+            source_category = destination_category;
         }
 
-        source_id
+        source_ranges
     }
 
-    fn convert_resource(&self, source_id: &usize, source_category: &Resource) -> (usize, Resource) {
+    fn convert_resource(
+        &self,
+        source_range: (usize, usize),
+        source_category: &Resource,
+    ) -> (Vec<(usize, usize)>, Resource) {
         let map = self.maps.get(source_category).unwrap();
-        let dest_id = map.convert(source_id);
-        (dest_id, map.destination_category)
+        let dest_ranges = map.convert(source_range);
+        (dest_ranges, map.destination_category)
     }
 }
 
@@ -82,8 +104,7 @@ impl ConversionMap {
         let mut lines = input.lines();
 
         let (source_category, destination_category) = Self::parse_header(lines.next().unwrap());
-
-        let conversions = lines.map(|l| Conversion::parse(l)).collect();
+        let conversions = Conversion::parse_list(lines);
 
         Self {
             source_category,
@@ -103,25 +124,113 @@ impl ConversionMap {
         (source, dest)
     }
 
-    fn convert(&self, source_id: &usize) -> usize {
-        for conversion in &self.conversions {
-            match conversion.convert(source_id) {
-                Some(destination_id) => return destination_id,
-                None => (), // continue
+    fn convert(&self, source_range: (usize, usize)) -> Vec<(usize, usize)> {
+        let (want_index, want_length) = source_range;
+
+        // find index of first range
+        let starting_index = self
+            .conversions
+            .iter()
+            .position(|c| c.contains_source_index(want_index))
+            .unwrap();
+
+        let mut out = vec![];
+
+        let mut remaining_index = want_index;
+        let mut remaining_length = want_length;
+
+        for conversion in &self.conversions[starting_index..] {
+            let offset = remaining_index - conversion.source_index;
+
+            let dest_index = conversion.destination_index + offset;
+            let available_length = conversion.length - offset;
+            let dest_length = cmp::min(remaining_length, available_length);
+
+            out.push((dest_index, dest_length));
+
+            remaining_index = conversion.source_index_after_end();
+            remaining_length -= dest_length;
+
+            if remaining_length == 0 {
+                break;
             }
         }
-        *source_id // fallback is the same ID
+
+        out
     }
 }
 
 #[derive(Debug)]
 struct Conversion {
-    destination_index: usize,
     source_index: usize,
+    destination_index: usize,
     length: usize,
 }
 
 impl Conversion {
+    fn parse_list(lines: Lines<'_>) -> Vec<Self> {
+        let mut tmp: Vec<Conversion> = lines.map(|l| Self::parse(l)).collect();
+        tmp.sort_by_cached_key(|c| c.source_index);
+
+        let mut res: Vec<Conversion> = vec![];
+
+        // fill initial gap
+        let first = tmp.first().unwrap();
+        if first.source_index > 0 {
+            let gap = Conversion {
+                destination_index: 0,
+                source_index: 0,
+                length: first.source_index,
+            };
+            res.push(gap);
+        }
+
+        // fill other gaps
+        for curr in tmp {
+            match res.last() {
+                Some(last) => {
+                    let gap_index = last.source_index_after_end();
+                    if curr.source_index > gap_index {
+                        let gap_length = curr.source_index - gap_index;
+                        let gap = Conversion {
+                            destination_index: gap_index,
+                            source_index: gap_index,
+                            length: gap_length,
+                        };
+                        res.push(gap);
+                    } else if curr.source_index < gap_index {
+                        panic!(
+                            "Unexpected overlap: {:?}, {:?}, {:?}",
+                            curr, last, gap_index
+                        );
+                    }
+                }
+                None => (),
+            }
+            res.push(curr);
+        }
+
+        // add buffer at end
+        let last: &Conversion = res.last().unwrap();
+        let end_index = last.source_index_after_end();
+        let end_length = usize::MAX - end_index - 1;
+        let gap = Conversion {
+            source_index: end_index,
+            destination_index: end_index,
+            length: end_length,
+        };
+        res.push(gap);
+
+        // verify no gaps
+        let mut expected_index = 0;
+        for elem in &res {
+            assert_eq!(elem.source_index, expected_index);
+            expected_index = elem.source_index + elem.length;
+        }
+
+        res
+    }
+
     fn parse(input: &str) -> Self {
         let nums = parse_numbers(input);
         assert_eq!(nums.len(), 3);
@@ -133,18 +242,12 @@ impl Conversion {
         }
     }
 
-    fn convert(&self, source_id: &usize) -> Option<usize> {
-        if *source_id >= self.source_index {
-            let offset = source_id - self.source_index;
-            if offset < self.length {
-                let destination_id = self.destination_index + offset;
-                Some(destination_id)
-            } else {
-                None
-            }
-        } else {
-            None
-        }
+    fn source_index_after_end(&self) -> usize {
+        self.source_index + self.length
+    }
+
+    fn contains_source_index(&self, index: usize) -> bool {
+        index >= self.source_index && index < self.source_index_after_end()
     }
 }
 
@@ -186,17 +289,14 @@ fn parse_numbers(input: &str) -> Vec<usize> {
 }
 
 fn part1(input: &str) -> usize {
-    let almanac = Almanac::parse(input);
-
-    let results = almanac.convert_seeds(&Resource::Location);
-    results.into_iter().min().unwrap()
+    let almanac = Almanac::parse(input, false);
+    almanac.minimum_location()
 }
 
-// fn part2(input: &str) -> usize {
-//     let almanacs = Data::parse(input);
-//     dbg!(&almanacs);
-//     0
-// }
+fn part2(input: &str) -> usize {
+    let almanac = Almanac::parse(input, true);
+    almanac.minimum_location()
+}
 
 #[cfg(test)]
 mod tests {
@@ -252,15 +352,15 @@ mod tests {
         assert_eq!(result, 278755257);
     }
 
-    // #[test]
-    // fn test_part2_example() {
-    //     let result = part2(EXAMPLE);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example() {
+        let result = part2(EXAMPLE);
+        assert_eq!(result, 46);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 26829166);
+    }
 }
