@@ -1,11 +1,14 @@
-use std::{collections::HashSet, fs};
+use std::{
+    collections::{HashMap, HashSet},
+    fs,
+};
 
 use lazy_static::lazy_static;
 use regex::Regex;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -64,11 +67,26 @@ fn part1(input: &str) -> usize {
     cards.iter().map(|card| card.score()).sum()
 }
 
-// fn part2(input: &str) -> usize {
-//     let cards = Data::parse(input);
-//     dbg!(&cards);
-//     0
-// }
+fn part2(input: &str) -> usize {
+    let cards = Card::parse_list(input);
+
+    let mut counts: HashMap<usize, usize> = cards.iter().map(|card| (card.id, 1)).collect();
+
+    for card in &cards {
+        let copies = *counts.get(&card.id).unwrap();
+        let winning_len = card.winning_numbers().len();
+        if winning_len > 0 {
+            for offset in 0..winning_len {
+                let id_to_copy = card.id + 1 + offset;
+                if let Some(c) = counts.get_mut(&id_to_copy) {
+                    *c += copies;
+                }
+            }
+        }
+    }
+
+    counts.values().sum()
+}
 
 #[cfg(test)]
 mod tests {
@@ -97,15 +115,15 @@ mod tests {
         assert_eq!(result, 26346);
     }
 
-    // #[test]
-    // fn test_part2_example() {
-    //     let result = part2(EXAMPLE);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example() {
+        let result = part2(EXAMPLE);
+        assert_eq!(result, 30);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 8467762);
+    }
 }
