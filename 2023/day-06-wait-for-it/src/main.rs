@@ -6,7 +6,7 @@ use regex::Regex;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -20,15 +20,15 @@ struct Race {
 }
 
 impl Race {
-    fn parse_list(input: &str) -> Vec<Self> {
+    fn parse_list(input: &str, collapse_numbers: bool) -> Vec<Self> {
         lazy_static! {
             static ref INPUT_RE: Regex =
                 Regex::new(r"\ATime:\s+([\s\d]+)\nDistance:\s+([\s\d]+)\n?\z").unwrap();
         }
 
         let caps = INPUT_RE.captures(input).unwrap();
-        let durations = parse_number_list(caps.get(1).unwrap().as_str());
-        let records = parse_number_list(caps.get(2).unwrap().as_str());
+        let durations = parse_number_list(caps.get(1).unwrap().as_str(), collapse_numbers);
+        let records = parse_number_list(caps.get(2).unwrap().as_str(), collapse_numbers);
 
         zip(durations, records)
             .map(|(duration, record)| Race { duration, record })
@@ -53,27 +53,38 @@ impl Race {
     }
 }
 
-fn parse_number_list(input: &str) -> Vec<usize> {
-    input
-        .trim()
-        .split_whitespace()
-        .map(|s| s.parse::<usize>().unwrap())
-        .collect()
+fn parse_number_list(input: &str, collapse_numbers: bool) -> Vec<usize> {
+    if collapse_numbers {
+        let num = input
+            .split_whitespace()
+            .collect::<String>()
+            .parse::<usize>()
+            .unwrap();
+        vec![num]
+    } else {
+        input
+            .trim()
+            .split_whitespace()
+            .map(|s| s.parse::<usize>().unwrap())
+            .collect()
+    }
 }
 
 fn part1(input: &str) -> usize {
-    let races = Race::parse_list(input);
+    let races = Race::parse_list(input, false);
     races
         .iter()
         .map(|race| race.num_strategies_beating_record())
         .product()
 }
 
-// fn part2(input: &str) -> usize {
-//     let races = Data::parse(input);
-//     dbg!(&races);
-//     0
-// }
+fn part2(input: &str) -> usize {
+    let races = Race::parse_list(input, true);
+    races
+        .iter()
+        .map(|race| race.num_strategies_beating_record())
+        .product()
+}
 
 #[cfg(test)]
 mod tests {
@@ -98,15 +109,15 @@ mod tests {
         assert_eq!(result, 3316275);
     }
 
-    // #[test]
-    // fn test_part2_example() {
-    //     let result = part2(EXAMPLE);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example() {
+        let result = part2(EXAMPLE);
+        assert_eq!(result, 71503);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 27102791);
+    }
 }
