@@ -35,21 +35,17 @@ impl Race {
             .collect()
     }
 
-    fn strategies(&self) -> Vec<(usize, usize)> {
-        (0..=self.duration)
-            .map(|hold| {
-                let travel = self.duration - hold;
-                let distance = hold * travel;
-                (hold, distance)
-            })
-            .collect()
+    fn num_strategies_beating_record(&self) -> usize {
+        let hold_times: Vec<usize> = (0..=self.duration).collect();
+
+        let discard = hold_times.partition_point(|hold| self.distance(hold) <= self.record);
+        let winning =
+            hold_times[discard..].partition_point(|hold| self.distance(hold) > self.record);
+        winning
     }
 
-    fn num_strategies_beating_record(&self) -> usize {
-        self.strategies()
-            .iter()
-            .filter(|(_hold, distance)| distance > &self.record)
-            .count()
+    fn distance(&self, hold: &usize) -> usize {
+        hold * (self.duration - hold)
     }
 }
 
