@@ -5,7 +5,7 @@ use regex::Regex;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -37,8 +37,7 @@ impl Navigation {
 
     fn parse_node(input: &str) -> (String, (String, String)) {
         lazy_static! {
-            static ref NODE_RE: Regex =
-                Regex::new(r"\A([A-Z]+) = \(([A-Z]+), ([A-Z]+)\)\z").unwrap();
+            static ref NODE_RE: Regex = Regex::new(r"\A(\w+) = \((\w+), (\w+)\)\z").unwrap();
         }
 
         let caps = NODE_RE.captures(input).unwrap();
@@ -56,13 +55,32 @@ impl Navigation {
         }
     }
 
-    fn steps_needed(&self, start: &str, end: &str) -> usize {
+    fn run(&self, start_suffix: &str, end_suffix: &str) -> usize {
+        let starting = self.starting_nodes(start_suffix);
+
+        let steps: Vec<usize> = starting
+            .into_iter()
+            .map(|node| self.run_single(node, end_suffix))
+            .collect();
+
+        lcm(&steps)
+    }
+
+    fn starting_nodes(&self, suffix: &str) -> Vec<&str> {
+        self.nodes
+            .keys()
+            .filter(|s| s.ends_with(suffix))
+            .map(|s| s.as_str())
+            .collect()
+    }
+
+    fn run_single(&self, start: &str, end_suffix: &str) -> usize {
         let mut instructions_iter = self.instructions.iter().cycle();
 
         let mut curr = start;
         let mut steps = 0;
 
-        while curr != end {
+        while !curr.ends_with(end_suffix) {
             let instruction = instructions_iter.next().unwrap();
             curr = self.navigate(curr, instruction);
             steps += 1;
@@ -70,6 +88,14 @@ impl Navigation {
 
         steps
     }
+}
+
+fn lcm(values: &[usize]) -> usize {
+    values
+        .iter()
+        .cloned()
+        .reduce(|acc, x| num::integer::lcm(acc, x))
+        .unwrap()
 }
 
 #[derive(Debug)]
@@ -95,13 +121,13 @@ impl Direction {
 
 fn part1(input: &str) -> usize {
     let navigation = Navigation::parse(input);
-    navigation.steps_needed(&"AAA", &"ZZZ")
+    navigation.run(&"AAA", &"ZZZ")
 }
 
-// fn part2(input: &str) -> usize {
-//     let navigations = Data::parse(input);
-//     0
-// }
+fn part2(input: &str) -> usize {
+    let navigation = Navigation::parse(input);
+    navigation.run(&"A", &"Z")
+}
 
 #[cfg(test)]
 mod tests {
@@ -129,6 +155,19 @@ mod tests {
         ZZZ = (ZZZ, ZZZ)
     "};
 
+    static EXAMPLE3: &str = indoc! {"
+        LR
+
+        11A = (11B, XXX)
+        11B = (XXX, 11Z)
+        11Z = (11B, XXX)
+        22A = (22B, XXX)
+        22B = (22C, 22C)
+        22C = (22Z, 22Z)
+        22Z = (22B, 22B)
+        XXX = (XXX, XXX)
+    "};
+
     #[test]
     fn test_part1_example1() {
         let result = part1(EXAMPLE1);
@@ -147,15 +186,15 @@ mod tests {
         assert_eq!(result, 21389);
     }
 
-    // #[test]
-    // fn test_part2_example() {
-    //     let result = part2(EXAMPLE);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example3() {
+        let result = part2(EXAMPLE3);
+        assert_eq!(result, 6);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 21083806112641);
+    }
 }
