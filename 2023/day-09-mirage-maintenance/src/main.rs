@@ -2,7 +2,7 @@ use std::fs;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -38,7 +38,7 @@ impl History {
         layers
     }
 
-    fn extrapolate(&mut self) -> isize {
+    fn extrapolate_forward(&mut self) -> isize {
         // add 0 to bottom layer to bootstrap
         self.layers.last_mut().unwrap().push(0);
 
@@ -48,6 +48,18 @@ impl History {
         }
 
         *self.layers[0].last().unwrap()
+    }
+
+    fn extrapolate_backward(&mut self) -> isize {
+        // add 0 to bottom layer to bootstrap
+        self.layers.last_mut().unwrap().insert(0, 0);
+
+        for i in (0..(self.layers.len() - 1)).rev() {
+            let v = self.layers[i].first().unwrap() - self.layers[i + 1].first().unwrap();
+            self.layers[i].insert(0, v);
+        }
+
+        *self.layers[0].first().unwrap()
     }
 }
 
@@ -64,14 +76,13 @@ fn all_zero(list: &[isize]) -> bool {
 
 fn part1(input: &str) -> isize {
     let mut histories = History::parse_list(input);
-    histories.iter_mut().map(|h| h.extrapolate()).sum()
+    histories.iter_mut().map(|h| h.extrapolate_forward()).sum()
 }
 
-// fn part2(input: &str) -> isize {
-//     let histories = Data::parse(input);
-//     dbg!(&histories);
-//     0
-// }
+fn part2(input: &str) -> isize {
+    let mut histories = History::parse_list(input);
+    histories.iter_mut().map(|h| h.extrapolate_backward()).sum()
+}
 
 #[cfg(test)]
 mod tests {
@@ -97,15 +108,15 @@ mod tests {
         assert_eq!(result, 2008960228);
     }
 
-    // #[test]
-    // fn test_part2_example() {
-    //     let result = part2(EXAMPLE);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example() {
+        let result = part2(EXAMPLE);
+        assert_eq!(result, 2);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 1097);
+    }
 }
