@@ -1,9 +1,5 @@
 use std::fs;
 
-// use itertools::Itertools;
-use lazy_static::lazy_static;
-use regex::Regex;
-
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
     // println!("part 2 result: {:?}", part2(&read_input_file()));
@@ -14,37 +10,66 @@ fn read_input_file() -> String {
 }
 
 #[derive(Debug)]
-struct Item {
-    foo: String,
-    bar: usize,
+struct History {
+    layers: Vec<Vec<isize>>,
 }
 
-impl Item {
+impl History {
     fn parse_list(input: &str) -> Vec<Self> {
         input.lines().map(|line| Self::parse(line)).collect()
     }
 
     fn parse(input: &str) -> Self {
-        lazy_static! {
-            static ref ITEM_RE: Regex = Regex::new(r"\A(.+)=(\d+)\z").unwrap();
+        let readings = parse_numbers(input);
+        let layers = Self::build_initial_layers(&readings);
+
+        Self { layers }
+    }
+
+    fn build_initial_layers(readings: &Vec<isize>) -> Vec<Vec<isize>> {
+        let mut layers = vec![readings.clone()];
+
+        while !all_zero(layers.last().unwrap()) {
+            let last: &Vec<isize> = layers.last().unwrap();
+            let this: Vec<isize> = last.windows(2).map(|s| s[1] - s[0]).collect();
+            layers.push(this);
         }
 
-        let caps = ITEM_RE.captures(input).unwrap();
-        let foo = caps.get(1).unwrap().as_str().to_string();
-        let bar = caps.get(2).unwrap().as_str().parse::<usize>().unwrap();
-        Self { foo, bar }
+        layers
+    }
+
+    fn extrapolate(&mut self) -> isize {
+        // add 0 to bottom layer to bootstrap
+        self.layers.last_mut().unwrap().push(0);
+
+        for i in (0..(self.layers.len() - 1)).rev() {
+            let v = self.layers[i].last().unwrap() + self.layers[i + 1].last().unwrap();
+            self.layers[i].push(v);
+        }
+
+        *self.layers[0].last().unwrap()
     }
 }
 
-fn part1(input: &str) -> usize {
-    let items = Item::parse_list(input);
-    dbg!(&items);
-    0
+fn parse_numbers(input: &str) -> Vec<isize> {
+    input
+        .split_whitespace()
+        .map(|s| s.parse::<isize>().unwrap())
+        .collect()
 }
 
-// fn part2(input: &str) -> usize {
-//     let items = Data::parse(input);
-//     dbg!(&items);
+fn all_zero(list: &[isize]) -> bool {
+    list.iter().all(|v| *v == 0)
+}
+
+fn part1(input: &str) -> isize {
+    let mut histories = History::parse_list(input);
+    histories.iter_mut().map(|h| h.extrapolate()).sum()
+}
+
+// fn part2(input: &str) -> isize {
+//     let histories = Data::parse(input);
+//     dbg!(&histories);
 //     0
 // }
 
@@ -63,14 +88,14 @@ mod tests {
     #[test]
     fn test_part1_example() {
         let result = part1(EXAMPLE);
-        assert_eq!(result, 0);
+        assert_eq!(result, 114);
     }
 
-    // #[test]
-    // fn test_part1_solution() {
-    //     let result = part1(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part1_solution() {
+        let result = part1(&read_input_file());
+        assert_eq!(result, 2008960228);
+    }
 
     // #[test]
     // fn test_part2_example() {
