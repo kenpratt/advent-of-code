@@ -4,7 +4,7 @@ use itertools::Itertools;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file(), 1000000));
 }
 
 fn read_input_file() -> String {
@@ -47,43 +47,39 @@ impl Universe {
         }
     }
 
-    fn distance(&self, from: &Coord, to: &Coord) -> usize {
+    fn distance(&self, from: &Coord, to: &Coord, expansion_factor: &usize) -> usize {
         let dx = if from.x <= to.x {
-            self.x_distance(from.x, to.x)
+            Self::linear_distance(from.x, to.x, &self.empty_cols, expansion_factor)
         } else {
-            self.x_distance(to.x, from.x)
+            Self::linear_distance(to.x, from.x, &self.empty_cols, expansion_factor)
         };
 
         let dy = if from.y <= to.y {
-            self.y_distance(from.y, to.y)
+            Self::linear_distance(from.y, to.y, &self.empty_rows, expansion_factor)
         } else {
-            self.y_distance(to.y, from.y)
+            Self::linear_distance(to.y, from.y, &self.empty_rows, expansion_factor)
         };
 
         dx + dy
     }
 
-    fn x_distance(&self, from_x: usize, to_x: usize) -> usize {
-        let base = to_x - from_x;
-        let extra = (from_x..=to_x)
-            .filter(|x| self.empty_cols.contains(x))
-            .count();
-        base + extra
+    fn linear_distance(
+        from: usize,
+        to: usize,
+        empty: &HashSet<usize>,
+        expansion_factor: &usize,
+    ) -> usize {
+        assert!(from <= to);
+        let base = to - from;
+        let extra = ((from + 1)..=to).filter(|x| empty.contains(x)).count();
+        base + extra * (expansion_factor - 1)
     }
 
-    fn y_distance(&self, from_y: usize, to_y: usize) -> usize {
-        let base = to_y - from_y;
-        let extra = (from_y..=to_y)
-            .filter(|y| self.empty_rows.contains(y))
-            .count();
-        base + extra
-    }
-
-    fn sum_distance_between_pairs(&self) -> usize {
+    fn sum_distance_between_pairs(&self, expansion_factor: usize) -> usize {
         self.galaxies
             .iter()
             .combinations(2)
-            .map(|v| self.distance(v[0], v[1]))
+            .map(|v| self.distance(v[0], v[1], &expansion_factor))
             .sum()
     }
 }
@@ -102,14 +98,13 @@ impl Coord {
 
 fn part1(input: &str) -> usize {
     let universe = Universe::parse(input);
-    universe.sum_distance_between_pairs()
+    universe.sum_distance_between_pairs(2)
 }
 
-// fn part2(input: &str) -> usize {
-//     let Universes = Data::parse(input);
-//     dbg!(&Universes);
-//     0
-// }
+fn part2(input: &str, expansion_factor: usize) -> usize {
+    let universe = Universe::parse(input);
+    universe.sum_distance_between_pairs(expansion_factor)
+}
 
 #[cfg(test)]
 mod tests {
@@ -142,15 +137,21 @@ mod tests {
         assert_eq!(result, 9799681);
     }
 
-    // #[test]
-    // fn test_part2_example() {
-    //     let result = part2(EXAMPLE);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example_with_10() {
+        let result = part2(EXAMPLE, 10);
+        assert_eq!(result, 1030);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example_with_100() {
+        let result = part2(EXAMPLE, 100);
+        assert_eq!(result, 8410);
+    }
+
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file(), 1000000);
+        assert_eq!(result, 513171773355);
+    }
 }
