@@ -2,7 +2,7 @@ use std::{cmp, fs};
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -33,6 +33,16 @@ impl Pattern {
         match self.regular.find_split() {
             Some(v) => v,
             None => match self.rotated.find_split() {
+                Some(v) => v * 100,
+                None => panic!("No split found"),
+            },
+        }
+    }
+
+    fn split_value_smudged(&self) -> usize {
+        match self.regular.find_split_smudged() {
+            Some(v) => v,
+            None => match self.rotated.find_split_smudged() {
                 Some(v) => v * 100,
                 None => panic!("No split found"),
             },
@@ -105,6 +115,36 @@ impl Grid {
             })
         })
     }
+
+    fn find_split_smudged(&self) -> Option<usize> {
+        // can't mirror at first index, but can mirror at last index as I'm defining mirror point as split before index
+        (1..self.width).find(|split_at| {
+            let rev_split_at = self.width - split_at;
+            let compare_n = cmp::min(*split_at, rev_split_at);
+
+            // ensure every row is mirrored
+            let bad_rows: Vec<(&[bool], &[bool])> = (0..self.height)
+                .map(|y| {
+                    let reg_split = &self.values[y][*split_at..(split_at + compare_n)];
+                    let rev_split = &self.reversed[y][rev_split_at..(rev_split_at + compare_n)];
+                    (reg_split, rev_split)
+                })
+                .filter(|(reg_split, rev_split)| reg_split != rev_split)
+                .collect();
+
+            // smudged image should only have one bad line
+            if bad_rows.len() == 1 {
+                let (reg_split, rev_split) = &bad_rows[0];
+                assert_eq!(reg_split.len(), rev_split.len());
+                let num_conflicts = (0..reg_split.len())
+                    .filter(|i| reg_split[*i] != rev_split[*i])
+                    .count();
+                num_conflicts == 1 // smudge should have exactly one conflict
+            } else {
+                false
+            }
+        })
+    }
 }
 
 fn part1(input: &str) -> usize {
@@ -112,11 +152,10 @@ fn part1(input: &str) -> usize {
     patterns.iter().map(|p| p.split_value()).sum()
 }
 
-// fn part2(input: &str) -> usize {
-//     let patterns = Data::parse(input);
-//     dbg!(&patterns);
-//     0
-// }
+fn part2(input: &str) -> usize {
+    let patterns = Pattern::parse_list(input);
+    patterns.iter().map(|p| p.split_value_smudged()).sum()
+}
 
 #[cfg(test)]
 mod tests {
@@ -154,15 +193,15 @@ mod tests {
         assert_eq!(result, 43614);
     }
 
-    // #[test]
-    // fn test_part2_example() {
-    //     let result = part2(EXAMPLE);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example() {
+        let result = part2(EXAMPLE);
+        assert_eq!(result, 400);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 36771);
+    }
 }
