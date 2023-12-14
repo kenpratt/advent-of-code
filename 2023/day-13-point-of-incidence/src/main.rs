@@ -1,8 +1,4 @@
-use std::fs;
-
-// use itertools::Itertools;
-use lazy_static::lazy_static;
-use regex::Regex;
+use std::{cmp, fs};
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
@@ -14,37 +10,111 @@ fn read_input_file() -> String {
 }
 
 #[derive(Debug)]
-struct Item {
-    foo: String,
-    bar: usize,
+struct Pattern {
+    regular: Grid,
+    rotated: Grid,
 }
 
-impl Item {
+impl Pattern {
     fn parse_list(input: &str) -> Vec<Self> {
-        input.lines().map(|line| Self::parse(line)).collect()
+        input
+            .split("\n\n")
+            .map(|chunk| Self::parse(chunk))
+            .collect()
     }
 
     fn parse(input: &str) -> Self {
-        lazy_static! {
-            static ref ITEM_RE: Regex = Regex::new(r"\A(.+)=(\d+)\z").unwrap();
-        }
+        let regular = Grid::parse(input);
+        let rotated = regular.rotated();
+        Self { regular, rotated }
+    }
 
-        let caps = ITEM_RE.captures(input).unwrap();
-        let foo = caps.get(1).unwrap().as_str().to_string();
-        let bar = caps.get(2).unwrap().as_str().parse::<usize>().unwrap();
-        Self { foo, bar }
+    fn split_value(&self) -> usize {
+        match self.regular.find_split() {
+            Some(v) => v,
+            None => match self.rotated.find_split() {
+                Some(v) => v * 100,
+                None => panic!("No split found"),
+            },
+        }
+    }
+}
+
+#[derive(Debug)]
+struct Grid {
+    values: Vec<Vec<bool>>,
+    reversed: Vec<Vec<bool>>,
+    width: usize,
+    height: usize,
+}
+
+impl Grid {
+    fn new(values: Vec<Vec<bool>>) -> Self {
+        let width = values[0].len();
+        let height = values.len();
+
+        let reversed = values
+            .iter()
+            .map(|row| row.iter().rev().cloned().collect())
+            .collect();
+
+        Self {
+            values,
+            reversed,
+            width,
+            height,
+        }
+    }
+
+    fn parse(input: &str) -> Self {
+        Self::new(
+            input
+                .lines()
+                .map(|row| {
+                    row.chars()
+                        .map(|c| match c {
+                            '#' => true,
+                            '.' => false,
+                            _ => panic!("Unexpected input: {}", c),
+                        })
+                        .collect::<Vec<bool>>()
+                })
+                .collect(),
+        )
+    }
+
+    fn rotated(&self) -> Self {
+        Self::new(
+            (0..self.width)
+                .map(|x| (0..self.height).map(|y| self.values[y][x]).collect())
+                .collect(),
+        )
+    }
+
+    fn find_split(&self) -> Option<usize> {
+        // can't mirror at first index, but can mirror at last index as I'm defining mirror point as split before index
+        (1..self.width).find(|split_at| {
+            let rev_split_at = self.width - split_at;
+            let compare_n = cmp::min(*split_at, rev_split_at);
+
+            // ensure every row is mirrored
+            (0..self.height).all(|y| {
+                let reg_split = &self.values[y][*split_at..(split_at + compare_n)];
+                let rev_split = &self.reversed[y][rev_split_at..(rev_split_at + compare_n)];
+                reg_split == rev_split
+            })
+        })
     }
 }
 
 fn part1(input: &str) -> usize {
-    let items = Item::parse_list(input);
-    dbg!(&items);
-    0
+    let patterns = Pattern::parse_list(input);
+    patterns.iter().map(|p| p.split_value()).sum()
 }
 
 // fn part2(input: &str) -> usize {
-//     let items = Data::parse(input);
-//     dbg!(&items);
+//     let patterns = Data::parse(input);
+//     dbg!(&patterns);
 //     0
 // }
 
@@ -75,14 +145,14 @@ mod tests {
     #[test]
     fn test_part1_example() {
         let result = part1(EXAMPLE);
-        assert_eq!(result, 0);
+        assert_eq!(result, 405);
     }
 
-    // #[test]
-    // fn test_part1_solution() {
-    //     let result = part1(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part1_solution() {
+        let result = part1(&read_input_file());
+        assert_eq!(result, 43614);
+    }
 
     // #[test]
     // fn test_part2_example() {
