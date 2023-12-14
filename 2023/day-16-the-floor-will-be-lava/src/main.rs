@@ -97,38 +97,6 @@ impl<'a> Simulation<'a> {
         }
     }
 
-    // fn tick(&mut self) {
-    //     let mut new_active_beams = vec![];
-
-    //     for beam in &self.active_beams {
-    //         match Self::evaluate(&self.grid, beam) {
-    //             (None, None) => {
-    //                 // beam is finished
-    //             }
-    //             (Some(new_beam), None) | (None, Some(new_beam)) => {
-    //                 // beam moves onwards
-    //                 if !self.visited.contains(&new_beam) {
-    //                     self.visited.insert(new_beam.clone());
-    //                     new_active_beams.push(new_beam);
-    //                 }
-    //             }
-    //             (Some(new_beam1), Some(new_beam2)) => {
-    //                 // beam split!
-    //                 if !self.visited.contains(&new_beam1) {
-    //                     self.visited.insert(new_beam1.clone());
-    //                     new_active_beams.push(new_beam1);
-    //                 }
-    //                 if !self.visited.contains(&new_beam2) {
-    //                     self.visited.insert(new_beam2.clone());
-    //                     new_active_beams.push(new_beam2);
-    //                 }
-    //             }
-    //         }
-    //     }
-
-    //     self.active_beams = new_active_beams;
-    // }
-
     fn evaluate(
         grid: &Grid,
         curr: &(Coord, Direction),
