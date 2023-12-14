@@ -1,4 +1,4 @@
-use std::{cmp, fs};
+use std::fs;
 
 use itertools::Itertools;
 use memoize::memoize;
@@ -124,152 +124,107 @@ fn solve(groups: Vec<Vec<(Condition, usize)>>, counts: Vec<usize>) -> usize {
 
 #[memoize]
 fn solve_group(group: Vec<(Condition, usize)>, count: usize) -> Vec<GroupResult> {
-    if count == 0 {
-        panic!("Unreachable");
+    // possible solutions that solve the count
+    let mut res = solve_group_impl(false, count, group.clone());
+
+    // special case - if we have a single unknown group, can skip the whole thing
+    // without satisfying the count
+    if group.len() == 1 && group[0].0 == Condition::Unknown {
+        res.push(GroupResult::Consumed(false));
     }
 
-    match group.len() {
-        0 => {
-            // no group to satisfy the count
-            vec![]
+    res
+}
+
+#[memoize]
+fn solve_group_impl(
+    in_damaged_sequence: bool,
+    remaining_count: usize,
+    chunks: Vec<(Condition, usize)>,
+) -> Vec<GroupResult> {
+    if chunks.is_empty() {
+        if remaining_count == 0 {
+            vec![GroupResult::Consumed(true)]
+        } else {
+            vec![] // ran out of stuff; no solution
         }
-        1 => {
-            match &group[0] {
-                (Condition::Damaged, num_damaged) => {
-                    if *num_damaged == count {
-                        // what a nice coincidence, there's exactly one damaged group of exactly the right size
-                        // consume the full group
+    } else if remaining_count == 0 {
+        match &chunks[0] {
+            (Condition::Damaged, _num_damaged) => {
+                vec![] // no room to leave a gap for the remainder; no solution
+            }
+            (Condition::Unknown, num_unknown) => {
+                if *num_unknown == 1 {
+                    if chunks[1..].is_empty() {
                         vec![GroupResult::Consumed(true)]
                     } else {
-                        // wrong number of damaged in this position, no solution
-                        vec![]
+                        vec![GroupResult::Remainder(chunks[1..].to_owned())]
                     }
+                } else if *num_unknown > 1 {
+                    let rem = prepend_chunk((Condition::Unknown, *num_unknown - 1), &chunks[1..]);
+                    vec![GroupResult::Remainder(rem)]
+                } else {
+                    vec![] // no room to leave a gap for the remainder; no solution
                 }
-                (Condition::Unknown, num_unknown) => {
-                    let mut results = vec![
-                        // special case, treat all unknowns as operational and consume the group
-                        // but do not satisfy the count
-                        GroupResult::Consumed(false),
-                    ];
-
-                    if *num_unknown >= count {
-                        // we have enough unknowns to satisfy this count.
-                        // but there may be multiple ways to consume the unknown portion
-                        for index in 0..=(num_unknown - count) {
-                            let num_extra = num_unknown - count - index;
-                            if num_extra > 1 {
-                                // we can leave a remainder
-                                results.push(GroupResult::Remainder(vec![(
-                                    Condition::Unknown,
-                                    num_extra - 1, // leave one as a divider
-                                )]));
-                            } else {
-                                // consume the whole roup
-                                results.push(GroupResult::Consumed(true));
-                            }
-                        }
-                    } else {
-                        // not enough unknowns to meet this criteria, no solution
-                    };
-
-                    results
-                }
-                _ => panic!("Unreachable"),
             }
+            _ => panic!("Unreachable"),
         }
-        _ => {
-            match (&group[0], &group[1]) {
-                ((Condition::Damaged, num_damaged), (Condition::Unknown, num_unknown)) => {
-                    if *num_damaged == count {
-                        // what a nice coincidence, there's exactly one damaged group of exactly the right size
-                        // return the rest of the group as the remainder, reducing unknowns by one to leave a divider.
-                        if *num_unknown > 1 {
-                            let mut rem_group = vec![(Condition::Unknown, num_unknown - 1)];
-                            rem_group.append(&mut group[2..].to_owned());
-                            vec![GroupResult::Remainder(rem_group)]
-                        } else {
-                            // consume the unknown chunk too
-                            if group.len() > 2 {
-                                vec![GroupResult::Remainder(group[2..].to_owned())]
-                            } else {
-                                vec![GroupResult::Consumed(true)]
-                            }
-                        }
-                    } else if *num_damaged < count {
-                        let need_more = count - num_damaged;
-                        if *num_unknown > need_more {
-                            // have enough unknowns to solve this and leave a gap
-                            let num_extra = num_unknown - need_more;
-                            if num_extra > 1 {
-                                // leave a remainder
-                                let mut rem_group = vec![(Condition::Unknown, num_extra - 1)];
-                                rem_group.append(&mut group[2..].to_owned());
-                                vec![GroupResult::Remainder(rem_group)]
-                            } else {
-                                // consume the unknown chunk too
-                                if group.len() > 2 {
-                                    vec![GroupResult::Remainder(group[2..].to_owned())]
-                                } else {
-                                    vec![GroupResult::Consumed(true)]
-                                }
-                            }
-                        } else if *num_unknown == need_more {
-                            // this scenario is weird, we need exactly damaged + unknows, which only works
-                            // if it's at the end of the group. if more damaged follow, we're hooped.
-                            if group.get(2).is_none() {
-                                vec![GroupResult::Consumed(true)]
-                            } else {
-                                vec![] // no solution
-                            }
-                        } else {
-                            // consume both the damaged and unknown sections, and recur on the rest
-                            solve_group(group[2..].to_owned(), count - num_damaged - num_unknown)
-                        }
-                    } else {
-                        // we have more damaged than we want => no solution
-                        vec![]
-                    }
+    } else {
+        match &chunks[0] {
+            (Condition::Damaged, num_damaged) => {
+                if remaining_count >= *num_damaged {
+                    // use the whole chunk
+                    solve_group_impl(true, remaining_count - num_damaged, chunks[1..].to_owned())
+                } else {
+                    vec![] // too many damaged to satisfy count; no solution
                 }
-                ((Condition::Unknown, num_unknown), (Condition::Damaged, num_damaged)) => {
-                    // there are two possible approaches:
-                    let mut results = vec![];
-
-                    // 1) try to use the unknowns for a match, leaving space for the damaged to be remainder
-                    if *num_unknown > count {
-                        for index in 0..=(num_unknown - count - 1) {
-                            let num_extra = num_unknown - count - index;
-                            assert!(num_extra > 0);
-
-                            let mut rem_group = vec![];
-                            if num_extra > 1 {
-                                rem_group.push((Condition::Unknown, num_extra - 1));
-                            }
-                            rem_group.append(&mut group[1..].to_owned());
-
-                            results.push(GroupResult::Remainder(rem_group));
-                        }
-                    }
-
-                    // 2) use the right side of the unknowns to "glom on" to the damaged, with a special
-                    // case of glomming zero on, ignoring the unknown group
-                    if *num_damaged <= count {
-                        let want_more_damaged = count - num_damaged;
-                        for num_to_glom in 0..=cmp::min(*num_unknown, want_more_damaged) {
-                            // recur so we can handle the logic of leaving a separator after the damaged group
-                            let mut recur_group =
-                                vec![(Condition::Damaged, num_damaged + num_to_glom)];
-                            recur_group.append(&mut group[2..].to_owned());
-                            let mut recur_results = solve_group(recur_group, count);
-                            results.append(&mut recur_results);
-                        }
-                    }
-
-                    results
-                }
-                _ => panic!("Unreachable"),
             }
+            (Condition::Unknown, num_unknown) => {
+                // no matter what, we can try a damaged sequnce at the beginning
+                let mut res = if remaining_count >= *num_unknown {
+                    // use the whole chunk
+                    solve_group_impl(true, remaining_count - *num_unknown, chunks[1..].to_owned())
+                } else {
+                    // potentially leave a remainder
+                    let rem = prepend_chunk(
+                        (Condition::Unknown, *num_unknown - remaining_count),
+                        &chunks[1..],
+                    );
+                    solve_group_impl(false, 0, rem)
+                };
+
+                // if we aren't already in a damaged sequence, we variations starting later in the chunk
+                if !in_damaged_sequence {
+                    // try skipping part of the chunk
+                    for num_to_skip in 1..*num_unknown {
+                        let rem = prepend_chunk(
+                            (Condition::Unknown, *num_unknown - num_to_skip),
+                            &chunks[1..],
+                        );
+                        let mut other_res = solve_group_impl(true, remaining_count, rem);
+                        res.append(&mut other_res);
+                    }
+
+                    // and also try skipping the whole chunk
+                    let mut other_res =
+                        solve_group_impl(true, remaining_count, chunks[1..].to_owned());
+                    res.append(&mut other_res);
+                }
+
+                res
+            }
+            _ => panic!("Unreachable"),
         }
     }
+}
+
+fn prepend_chunk(
+    chunk: (Condition, usize),
+    other: &[(Condition, usize)],
+) -> Vec<(Condition, usize)> {
+    let mut res = vec![chunk];
+    res.append(&mut other.to_owned());
+    res
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -337,6 +292,13 @@ mod tests {
 
     #[test]
     fn test_part1_example() {
+        assert_eq!(part1("???.### 1,1,3"), 1);
+        assert_eq!(part1(".??..??...?##. 1,1,3"), 4);
+        assert_eq!(part1("?#?#?#?#?#?#?#? 1,3,1,6"), 1);
+        assert_eq!(part1("????.#...#... 4,1,1"), 1);
+        assert_eq!(part1("????.######..#####. 1,6,5"), 4);
+        assert_eq!(part1("?###???????? 3,2,1"), 10);
+
         let result = part1(EXAMPLE);
         assert_eq!(result, 21);
     }
