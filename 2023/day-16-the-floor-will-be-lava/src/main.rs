@@ -5,7 +5,7 @@ use std::{
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -20,8 +20,8 @@ struct Simulation<'a> {
 }
 
 impl<'a> Simulation<'a> {
-    fn count_energized(grid: &'a Grid) -> usize {
-        let mut s = Self::new(grid);
+    fn count_energized(initial: &(Coord, Direction), grid: &'a Grid) -> usize {
+        let mut s = Self::new(initial, grid);
         s.run();
 
         // return number of unique positions visited by beams
@@ -32,10 +32,9 @@ impl<'a> Simulation<'a> {
             .len()
     }
 
-    fn new(grid: &'a Grid) -> Simulation<'a> {
-        let initial = (Coord::new(0, 0), Direction::East);
-        let beams = vec![Beam::new(&initial)];
-        let visited = HashSet::from([initial]);
+    fn new(initial: &(Coord, Direction), grid: &'a Grid) -> Simulation<'a> {
+        let beams = vec![Beam::new(initial)];
+        let visited = HashSet::from([*initial]);
 
         Self {
             grid,
@@ -259,13 +258,28 @@ enum Direction {
 
 fn part1(input: &str) -> usize {
     let grid = Grid::parse(input);
-    Simulation::count_energized(&grid)
+    Simulation::count_energized(&(Coord::new(0, 0), Direction::East), &grid)
 }
 
-// fn part2(input: &str) -> usize {
-//     let grids = Data::parse(input);
-//     0
-// }
+fn part2(input: &str) -> usize {
+    let grid = Grid::parse(input);
+
+    let mut to_try = vec![];
+    for x in 0..grid.width {
+        to_try.push((Coord::new(x, 0), Direction::South));
+        to_try.push((Coord::new(x, grid.height - 1), Direction::North));
+    }
+    for y in 0..grid.height {
+        to_try.push((Coord::new(0, y), Direction::East));
+        to_try.push((Coord::new(grid.width - 1, y), Direction::West));
+    }
+
+    to_try
+        .iter()
+        .map(|initial| Simulation::count_energized(initial, &grid))
+        .max()
+        .unwrap()
+}
 
 #[cfg(test)]
 mod tests {
@@ -287,15 +301,15 @@ mod tests {
         assert_eq!(result, 6795);
     }
 
-    // #[test]
-    // fn test_part2_example() {
-    //     let result = part2(EXAMPLE);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example() {
+        let result = part2(&read_example_file());
+        assert_eq!(result, 51);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 7154);
+    }
 }
