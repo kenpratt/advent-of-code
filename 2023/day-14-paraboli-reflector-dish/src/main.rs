@@ -3,8 +3,6 @@ use std::{
     fs,
 };
 
-use itertools::Itertools;
-
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
     println!("part 2 result: {:?}", part2(&read_input_file()));
@@ -16,10 +14,9 @@ fn read_input_file() -> String {
 
 #[derive(Debug)]
 struct Platform {
-    width: usize,
     height: usize,
-    rounded_rocks: BTreeSet<Coord>,
-    stops: HashMap<Direction, Vec<Vec<usize>>>,
+    fixed: BTreeSet<Coord>,
+    marbles: BTreeSet<Coord>,
 }
 
 impl Platform {
@@ -27,142 +24,48 @@ impl Platform {
         let width = input.lines().next().unwrap().len();
         let height = input.lines().count();
 
-        let mut rounded_rocks = BTreeSet::new();
-        let mut cube_rocks = BTreeSet::new();
+        let mut fixed = BTreeSet::new();
+        let mut marbles = BTreeSet::new();
 
         for (y, line) in input.lines().enumerate() {
             for (x, c) in line.chars().enumerate() {
-                let pos = Coord::new(x, y);
+                let pos = Coord::new(x + 1, y + 1); // index rocks at 1,1 to leave room for edge
                 match c {
-                    'O' => rounded_rocks.insert(pos),
-                    '#' => cube_rocks.insert(pos),
+                    'O' => marbles.insert(pos),
+                    '#' => fixed.insert(pos),
                     '.' => false,
                     _ => panic!("Unexpected char: {:?}", c),
                 };
             }
         }
 
-        let stops = ALL_DIRECTIONS
-            .iter()
-            .map(|d| (*d, Self::calculate_stops(&width, &height, &cube_rocks, d)))
-            .collect();
+        // add edges
+        for x in 1..=width {
+            fixed.insert(Coord::new(x, 0));
+            fixed.insert(Coord::new(x, height + 1));
+        }
+        for y in 1..=height {
+            fixed.insert(Coord::new(0, y));
+            fixed.insert(Coord::new(width + 1, y));
+        }
 
         Self {
-            width,
             height,
-            rounded_rocks,
-            stops,
+            fixed,
+            marbles,
         }
     }
 
-    fn calculate_stops(
-        width: &usize,
-        height: &usize,
-        cube_rocks: &BTreeSet<Coord>,
-        direction: &Direction,
-    ) -> Vec<Vec<usize>> {
-        let is_vertical = direction.is_vertical();
-        let is_ascending = direction.is_ascending();
-
-        // edge
-        let edge: usize = match direction {
-            Direction::North | Direction::West => 0,
-            Direction::South => height - 1,
-            Direction::East => width - 1,
-        };
-        let far_edge: usize = match direction {
-            Direction::North => height - 1,
-            Direction::West => width - 1,
-            Direction::South | Direction::East => 0,
-        };
-
-        // for each column/row
-        let range = if is_vertical { 0..*width } else { 0..*height };
-        range
-            .map(|p| {
-                // find stops for cube rocks
-                let mut blockages: Vec<usize> = cube_rocks
-                    .iter()
-                    .filter(|pos| {
-                        if is_vertical {
-                            pos.x == p && pos.y != far_edge
-                        } else {
-                            pos.y == p && pos.x != far_edge
-                        }
-                    })
-                    .map(|pos| if is_vertical { pos.y } else { pos.x })
-                    .map(|p| if is_ascending { p - 1 } else { p + 1 })
-                    .collect();
-
-                // get all the stops, and reverse to largest first if ascending direction
-                let mut stops: Vec<usize> = vec![edge];
-                stops.append(&mut blockages);
-                stops.sort();
-                if !is_ascending {
-                    stops.reverse();
-                }
-                stops
-            })
-            .collect()
-    }
-
-    fn count_blocked_row_or_column(
-        &self,
-        rounded_rocks: &BTreeSet<Coord>,
-        direction: &Direction,
-        row_col: &usize,
-    ) -> HashMap<&usize, usize> {
-        let is_vertical = direction.is_vertical();
-        let is_ascending = direction.is_ascending();
-
-        // find blockages
-        let stops_for_direction = self.stops.get(direction).unwrap();
-        let stops = &stops_for_direction[*row_col];
-
-        // get rock counts at each stop
-        rounded_rocks
-            .iter()
-            .map(|rock| {
-                if is_vertical {
-                    (rock.x, rock.y)
-                } else {
-                    (rock.y, rock.x)
-                }
-            })
-            .filter(|(r1, _r2)| r1 == row_col)
-            .counts_by(|(_r1, r2)| {
-                stops
-                    .iter()
-                    .find(|p| if is_ascending { **p >= r2 } else { **p <= r2 })
-                    .unwrap()
-            })
-    }
-
-    fn count_blocked(
-        &self,
-        rounded_rocks: &BTreeSet<Coord>,
-        direction: &Direction,
-    ) -> Vec<HashMap<&usize, usize>> {
-        let range = if direction.is_vertical() {
-            0..self.width
-        } else {
-            0..self.height
-        };
-        range
-            .map(|p| self.count_blocked_row_or_column(rounded_rocks, direction, &p))
-            .collect()
-    }
-
     fn north_load_score_after_single_tilt_north(&self) -> usize {
-        let tilted = self.tilt_rocks_in_direction(&self.rounded_rocks, &Direction::North);
+        let tilted = self.tilt_in_direction(&self.marbles, &Direction::North);
         self.north_load_score(&tilted)
     }
 
     fn north_load_score_after_cycles(&self, cycles: usize) -> usize {
         let mut seen: HashMap<BTreeSet<Coord>, usize> = HashMap::new();
-        seen.insert(self.rounded_rocks.clone(), 0);
+        seen.insert(self.marbles.clone(), 0);
 
-        let mut last = self.rounded_rocks.clone();
+        let mut last = self.marbles.clone();
 
         for i in 1..=cycles {
             let result = self.run_cycle(&last);
@@ -187,47 +90,53 @@ impl Platform {
         panic!("No repeat found");
     }
 
-    fn run_cycle(&self, rounded_rocks: &BTreeSet<Coord>) -> BTreeSet<Coord> {
-        ALL_DIRECTIONS
-            .iter()
-            .fold(rounded_rocks.clone(), |last, dir| {
-                let foo = self.tilt_rocks_in_direction(&last, dir);
-                assert_eq!(last.len(), foo.len());
-                foo
-            })
+    fn run_cycle(&self, marbles: &BTreeSet<Coord>) -> BTreeSet<Coord> {
+        ALL_DIRECTIONS.iter().fold(marbles.clone(), |last, dir| {
+            self.tilt_in_direction(&last, dir)
+        })
     }
 
-    fn tilt_rocks_in_direction(
+    fn tilt_in_direction(
         &self,
-        rounded_rocks: &BTreeSet<Coord>,
+        marbles: &BTreeSet<Coord>,
         direction: &Direction,
     ) -> BTreeSet<Coord> {
-        let counts = self.count_blocked(rounded_rocks, direction);
-        let is_vertical = direction.is_vertical();
-        let is_ascending = direction.is_ascending();
+        let mut new_positions = BTreeSet::new();
 
-        counts
-            .into_iter()
-            .enumerate()
-            .flat_map(|(r1, h)| {
-                h.into_iter().flat_map(move |(p, num)| {
-                    (0..num)
-                        .map(|offset| {
-                            let r2 = if is_ascending { p - offset } else { p + offset };
-                            if is_vertical {
-                                Coord::new(r1, r2)
-                            } else {
-                                Coord::new(r2, r1)
-                            }
-                        })
-                        .collect::<BTreeSet<Coord>>()
-                })
-            })
-            .collect()
+        if direction.is_ascending() {
+            for pos in marbles.iter().rev() {
+                new_positions.insert(self.find_new_marble_position(pos, &new_positions, direction));
+            }
+        } else {
+            for pos in marbles.iter() {
+                new_positions.insert(self.find_new_marble_position(pos, &new_positions, direction));
+            }
+        }
+
+        new_positions
     }
 
-    fn north_load_score(&self, rounded_rocks: &BTreeSet<Coord>) -> usize {
-        rounded_rocks.iter().map(|pos| self.height - pos.y).sum()
+    fn find_new_marble_position(
+        &self,
+        initial: &Coord,
+        other_marbles: &BTreeSet<Coord>,
+        direction: &Direction,
+    ) -> Coord {
+        let mut new_pos = *initial;
+        loop {
+            let try_pos = new_pos.shift(direction);
+            if self.fixed.contains(&try_pos) || other_marbles.contains(&try_pos) {
+                // we are blocked by a wall/cube rock or another marble
+                break;
+            } else {
+                new_pos = try_pos;
+            }
+        }
+        new_pos
+    }
+
+    fn north_load_score(&self, marbles: &BTreeSet<Coord>) -> usize {
+        marbles.iter().map(|pos| self.height - (pos.y - 1)).sum()
     }
 }
 
@@ -240,6 +149,16 @@ struct Coord {
 impl Coord {
     fn new(x: usize, y: usize) -> Self {
         Self { x, y }
+    }
+
+    fn shift(&self, direction: &Direction) -> Self {
+        use Direction::*;
+        match direction {
+            North => Self::new(self.x, self.y - 1),
+            West => Self::new(self.x - 1, self.y),
+            South => Self::new(self.x, self.y + 1),
+            East => Self::new(self.x + 1, self.y),
+        }
     }
 }
 
@@ -259,12 +178,8 @@ const ALL_DIRECTIONS: [Direction; 4] = [
 ];
 
 impl Direction {
-    fn is_vertical(&self) -> bool {
-        *self == Direction::North || *self == Direction::South
-    }
-
     fn is_ascending(&self) -> bool {
-        *self == Direction::East || *self == Direction::South
+        *self == Direction::South || *self == Direction::East
     }
 }
 
@@ -361,14 +276,14 @@ mod tests {
         let expect_after2 = Platform::parse(PART2_EXAMPLE_AFTER_2_CYCLES);
         let expect_after3 = Platform::parse(PART2_EXAMPLE_AFTER_3_CYCLES);
 
-        let after1 = platform.run_cycle(&platform.rounded_rocks.clone());
-        assert_eq!(after1, expect_after1.rounded_rocks);
+        let after1 = platform.run_cycle(&platform.marbles.clone());
+        assert_eq!(after1, expect_after1.marbles);
 
         let after2 = platform.run_cycle(&after1);
-        assert_eq!(after2, expect_after2.rounded_rocks);
+        assert_eq!(after2, expect_after2.marbles);
 
         let after3 = platform.run_cycle(&after2);
-        assert_eq!(after3, expect_after3.rounded_rocks);
+        assert_eq!(after3, expect_after3.marbles);
     }
 
     #[test]
