@@ -15,7 +15,7 @@ fn read_input_file() -> String {
 #[derive(Debug)]
 struct Simulation<'a> {
     grid: &'a Grid,
-    beams: Vec<Beam>,
+    pending_beams: Vec<(Coord, Direction)>,
     visited: HashSet<(Coord, Direction)>,
 }
 
@@ -33,53 +33,101 @@ impl<'a> Simulation<'a> {
     }
 
     fn new(initial: &(Coord, Direction), grid: &'a Grid) -> Simulation<'a> {
-        let beams = vec![Beam::new(initial)];
+        let pending_beams = vec![*initial];
         let visited = HashSet::from([*initial]);
 
         Self {
             grid,
-            beams,
+            pending_beams,
             visited,
         }
     }
 
     fn run(&mut self) {
-        while self.beams.iter().any(|b| b.active) {
-            self.tick();
+        while !self.pending_beams.is_empty() {
+            let beam = self.pending_beams.pop().unwrap();
+            self.run_beam(beam);
         }
     }
 
-    fn tick(&mut self) {
-        let mut new_beams = vec![];
-
-        for beam in &mut self.beams {
-            if beam.active {
-                match Self::evaluate(&self.grid, &beam.curr) {
-                    (None, None) => {
-                        // beam is finished
-                        beam.active = false;
+    fn run_beam(&mut self, mut beam: (Coord, Direction)) {
+        let mut active = true;
+        while active {
+            match Self::evaluate(&self.grid, &beam) {
+                (None, None) => {
+                    // beam is finished
+                    active = false;
+                }
+                (Some(new_beam), None) | (None, Some(new_beam)) => {
+                    // beam moves onwards
+                    if !self.visited.contains(&new_beam) {
+                        self.visited.insert(new_beam.clone());
+                        beam = new_beam;
+                    } else {
+                        active = false;
                     }
-                    (Some(new_state), None) | (None, Some(new_state)) => {
-                        // beam moves onwards
-                        beam.move_to(new_state.clone(), self.visited.contains(&new_state));
-                        self.visited.insert(new_state);
-                    }
-                    (Some(new_state1), Some(new_state2)) => {
-                        // beam split!
-                        let mut new_beam = beam.clone();
-                        new_beam.move_to(new_state1.clone(), self.visited.contains(&new_state1));
-                        self.visited.insert(new_state1);
-                        new_beams.push(new_beam);
+                }
+                (Some(new_beam1), Some(new_beam2)) => {
+                    match (
+                        self.visited.contains(&new_beam1),
+                        self.visited.contains(&new_beam2),
+                    ) {
+                        (true, true) => active = false,
+                        (true, false) => {
+                            // not a real split
+                            self.visited.insert(new_beam2.clone());
+                            beam = new_beam2;
+                        }
+                        (false, true) => {
+                            // not a real split
+                            self.visited.insert(new_beam1.clone());
+                            beam = new_beam1;
+                        }
+                        (false, false) => {
+                            // real split!
+                            self.visited.insert(new_beam1.clone());
+                            beam = new_beam1;
 
-                        beam.move_to(new_state2.clone(), self.visited.contains(&new_state2));
-                        self.visited.insert(new_state2);
+                            self.visited.insert(new_beam2.clone());
+                            self.pending_beams.push(new_beam2);
+                        }
                     }
                 }
             }
         }
-
-        self.beams.append(&mut new_beams);
     }
+
+    // fn tick(&mut self) {
+    //     let mut new_active_beams = vec![];
+
+    //     for beam in &self.active_beams {
+    //         match Self::evaluate(&self.grid, beam) {
+    //             (None, None) => {
+    //                 // beam is finished
+    //             }
+    //             (Some(new_beam), None) | (None, Some(new_beam)) => {
+    //                 // beam moves onwards
+    //                 if !self.visited.contains(&new_beam) {
+    //                     self.visited.insert(new_beam.clone());
+    //                     new_active_beams.push(new_beam);
+    //                 }
+    //             }
+    //             (Some(new_beam1), Some(new_beam2)) => {
+    //                 // beam split!
+    //                 if !self.visited.contains(&new_beam1) {
+    //                     self.visited.insert(new_beam1.clone());
+    //                     new_active_beams.push(new_beam1);
+    //                 }
+    //                 if !self.visited.contains(&new_beam2) {
+    //                     self.visited.insert(new_beam2.clone());
+    //                     new_active_beams.push(new_beam2);
+    //                 }
+    //             }
+    //         }
+    //     }
+
+    //     self.active_beams = new_active_beams;
+    // }
 
     fn evaluate(
         grid: &Grid,
@@ -104,33 +152,6 @@ impl<'a> Simulation<'a> {
         match grid.shift(curr_pos, &new_direction) {
             Some(new_pos) => Some((new_pos, new_direction)),
             None => None,
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-struct Beam {
-    active: bool,
-    curr: (Coord, Direction),
-    path: Vec<(Coord, Direction)>,
-}
-
-impl Beam {
-    fn new(initial: &(Coord, Direction)) -> Self {
-        Self {
-            active: true,
-            curr: *initial,
-            path: vec![*initial],
-        }
-    }
-
-    fn move_to(&mut self, new_state: (Coord, Direction), someone_visited_already: bool) {
-        self.curr = new_state.clone();
-        self.path.push(new_state);
-
-        if someone_visited_already {
-            // we looped back on a previous position & direction
-            self.active = false;
         }
     }
 }
