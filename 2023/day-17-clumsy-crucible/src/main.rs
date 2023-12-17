@@ -1,14 +1,14 @@
 pub mod astar;
 pub mod grid;
 
-use std::{fmt, fs};
+use std::{cmp, fmt, fs};
 
 use astar::AStarInterface;
 use grid::*;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -31,11 +31,18 @@ impl Cursor {
         }
     }
 
-    fn next(&self, grid: &Grid<u16>) -> Vec<(Self, u16)> {
+    fn next(&self, grid: &Grid<u16>, turning_restrictions: &(u16, u16)) -> Vec<(Self, u16)> {
+        let can_turn = self.moved_straight >= turning_restrictions.0;
+        let can_go_straight = self.moved_straight < turning_restrictions.1;
+
         vec![
-            self.go_left(grid),
-            self.go_right(grid),
-            self.go_straight(grid),
+            if can_turn { self.go_left(grid) } else { None },
+            if can_turn { self.go_right(grid) } else { None },
+            if can_go_straight {
+                self.go_straight(grid)
+            } else {
+                None
+            },
         ]
         .into_iter()
         .filter_map(|r| r)
@@ -51,11 +58,7 @@ impl Cursor {
     }
 
     fn go_straight(&self, grid: &Grid<u16>) -> Option<(Self, u16)> {
-        if self.moved_straight < 3 {
-            self.go_in_direction(self.direction, self.moved_straight, grid)
-        } else {
-            None
-        }
+        self.go_in_direction(self.direction, self.moved_straight, grid)
     }
 
     fn go_in_direction(
@@ -89,15 +92,24 @@ impl fmt::Debug for Cursor {
 
 struct Solver<'a> {
     grid: &'a Grid<u16>,
+    turning_restrictions: (u16, u16),
     end_pos: Coord,
 }
 
 impl<'a> Solver<'a> {
-    fn run(grid: &'a Grid<u16>) -> u16 {
-        let initial = Cursor::new(Coord::new(0, 0), Direction::East);
+    fn run(
+        grid: &'a Grid<u16>,
+        turning_restrictions: (u16, u16),
+        initial_direction: Direction,
+    ) -> u16 {
+        let initial = Cursor::new(Coord::new(0, 0), initial_direction);
         let end_pos = Coord::new(grid.width - 1, grid.height - 1);
 
-        let mut solver = Solver { grid, end_pos };
+        let mut solver = Solver {
+            grid,
+            turning_restrictions,
+            end_pos,
+        };
         match solver.shortest_path(initial, true) {
             Some((_path, cost)) => cost,
             None => panic!("No solution found"),
@@ -107,7 +119,7 @@ impl<'a> Solver<'a> {
 
 impl AStarInterface<Cursor> for Solver<'_> {
     fn at_goal(&self, node: &Cursor) -> bool {
-        node.pos == self.end_pos
+        node.pos == self.end_pos && node.moved_straight >= self.turning_restrictions.0
     }
 
     fn heuristic(&self, from: &Cursor) -> u16 {
@@ -115,20 +127,24 @@ impl AStarInterface<Cursor> for Solver<'_> {
     }
 
     fn neighbours(&mut self, from: &Cursor) -> Vec<(Cursor, u16)> {
-        from.next(self.grid).into_iter().map(|to| to).collect()
+        from.next(self.grid, &self.turning_restrictions)
+            .into_iter()
+            .map(|to| to)
+            .collect()
     }
 }
 
 fn part1(input: &str) -> u16 {
     let grid = Grid::parse(input, |c| c.to_digit(10).unwrap() as u16);
-    Solver::run(&grid)
+    Solver::run(&grid, (0, 3), Direction::East)
 }
 
-// fn part2(input: &str) -> usize {
-//     let items = Data::parse(input);
-//     dbg!(&items);
-//     0
-// }
+fn part2(input: &str) -> u16 {
+    let grid = Grid::parse(input, |c| c.to_digit(10).unwrap() as u16);
+    let s1 = Solver::run(&grid, (4, 10), Direction::East);
+    let s2 = Solver::run(&grid, (4, 10), Direction::South);
+    cmp::min(s1, s2)
+}
 
 #[cfg(test)]
 mod tests {
@@ -152,6 +168,14 @@ mod tests {
         4322674655533
     "};
 
+    static EXAMPLE2: &str = indoc! {"
+        111111111111
+        999999999991
+        999999999991
+        999999999991
+        999999999991
+    "};
+
     #[test]
     fn test_part1_example() {
         let result = part1(EXAMPLE);
@@ -164,15 +188,21 @@ mod tests {
         assert_eq!(result, 1155);
     }
 
-    // #[test]
-    // fn test_part2_example() {
-    //     let result = part2(EXAMPLE);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example() {
+        let result = part2(EXAMPLE);
+        assert_eq!(result, 94);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example2() {
+        let result = part2(EXAMPLE2);
+        assert_eq!(result, 71);
+    }
+
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 1283);
+    }
 }
