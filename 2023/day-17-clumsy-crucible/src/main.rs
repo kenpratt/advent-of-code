@@ -1,7 +1,7 @@
 pub mod astar;
 pub mod grid;
 
-use std::{cmp, fmt, fs};
+use std::{fmt, fs};
 
 use astar::AStarInterface;
 use grid::*;
@@ -97,12 +97,11 @@ struct Solver<'a> {
 }
 
 impl<'a> Solver<'a> {
-    fn run(
-        grid: &'a Grid<u16>,
-        turning_restrictions: (u16, u16),
-        initial_direction: Direction,
-    ) -> u16 {
-        let initial = Cursor::new(Coord::new(0, 0), initial_direction);
+    fn run(grid: &'a Grid<u16>, turning_restrictions: (u16, u16)) -> u16 {
+        let initial = vec![
+            Cursor::new(Coord::new(0, 0), Direction::East),
+            Cursor::new(Coord::new(0, 0), Direction::South),
+        ];
         let end_pos = Coord::new(grid.width - 1, grid.height - 1);
 
         let mut solver = Solver {
@@ -136,14 +135,12 @@ impl AStarInterface<Cursor> for Solver<'_> {
 
 fn part1(input: &str) -> u16 {
     let grid = Grid::parse(input, |c| c.to_digit(10).unwrap() as u16);
-    Solver::run(&grid, (0, 3), Direction::East)
+    Solver::run(&grid, (0, 3))
 }
 
 fn part2(input: &str) -> u16 {
     let grid = Grid::parse(input, |c| c.to_digit(10).unwrap() as u16);
-    let s1 = Solver::run(&grid, (4, 10), Direction::East);
-    let s2 = Solver::run(&grid, (4, 10), Direction::South);
-    cmp::min(s1, s2)
+    Solver::run(&grid, (4, 10))
 }
 
 #[cfg(test)]

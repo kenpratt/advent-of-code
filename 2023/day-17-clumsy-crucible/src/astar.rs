@@ -9,16 +9,22 @@ pub trait AStarInterface<N: Copy + Debug + Eq + Hash> {
     fn heuristic(&self, from: &N) -> u16;
     fn neighbours(&mut self, from: &N) -> Vec<(N, u16)>;
 
-    fn shortest_path(&mut self, start: N, print_stats: bool) -> Option<(Vec<(N, u16)>, u16)> {
+    fn shortest_path(
+        &mut self,
+        initial: Vec<N>,
+        print_stats: bool,
+    ) -> Option<(Vec<(N, u16)>, u16)> {
         let mut open_set: OpenSet<N> = OpenSet::new();
         let mut came_from: HashMap<N, (N, u16)> = HashMap::new();
         let mut g_score: HashMap<N, u16> = HashMap::new();
         let mut iterations = 0;
 
-        // add start to open set
-        let start_heuristic = self.heuristic(&start);
-        open_set.add(start, start_heuristic);
-        g_score.insert(start, 0);
+        // add initial to open set
+        for n in initial {
+            let h = self.heuristic(&n);
+            open_set.add(n, h);
+            g_score.insert(n, 0);
+        }
 
         while !open_set.is_empty() {
             iterations += 1;
