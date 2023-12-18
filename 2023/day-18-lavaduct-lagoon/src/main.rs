@@ -100,7 +100,9 @@ impl Edge {
         res
     }
 
-    fn determine_facing(edges: &[Edge], min_y: i32) -> Vec<Direction> {
+    fn determine_facing(edges: &[Edge]) -> Vec<Direction> {
+        let min_y = edges.iter().map(|e| *e.y_range().start()).min().unwrap();
+
         let starting_index = edges
             .iter()
             .position(|edge| edge.horizontal() && edge.points.0.y == min_y)
@@ -170,48 +172,75 @@ impl Plan {
 
     fn area(&self) -> usize {
         let edges = Edge::build(&self.instructions, Coord::new(0, 0));
+        let facing = Edge::determine_facing(&edges);
 
-        let min_y = edges.iter().map(|e| *e.y_range().start()).min().unwrap();
-        let max_y = edges.iter().map(|e| *e.y_range().end()).max().unwrap();
+        // organize horizontal lines by y
+        let mut horizontal_segments_map: HashMap<i32, BTreeSet<(i32, i32)>> = HashMap::new();
+        for edge in edges.iter().filter(|edge| edge.horizontal()) {
+            let y = edge.points.0.y;
+            let xr = edge.x_range();
+            horizontal_segments_map
+                .entry(y)
+                .or_insert(BTreeSet::new())
+                .insert((*xr.start(), *xr.end()));
+        }
 
-        let facing = Edge::determine_facing(&edges, min_y);
+        // calculate target y's
+        // we only need to consider rows with horizontal segments,
+        // and the rows directly below those. the line afterward will be the same
+        // as the row below.
+        let target_ys: BTreeSet<i32> = horizontal_segments_map
+            .keys()
+            .flat_map(|y| [*y, y + 1])
+            .collect();
 
-        // compute metadata for rasterization
+        // compute vertical intersections at target y's
         let mut vertical_intersections_map: HashMap<i32, BTreeSet<(i32, Direction)>> =
             HashMap::new();
-        let mut horizontal_segments_map: HashMap<i32, BTreeSet<(i32, i32)>> = HashMap::new();
-        for y in min_y..=max_y {
-            vertical_intersections_map.insert(y, BTreeSet::new());
-            horizontal_segments_map.insert(y, BTreeSet::new());
-        }
-        for (i, edge) in edges.iter().enumerate() {
-            if edge.vertical() {
-                let x = edge.points.0.x;
-                let facing = facing[i];
-                for y in edge.y_range() {
-                    vertical_intersections_map
-                        .get_mut(&y)
-                        .unwrap()
-                        .insert((x, facing));
-                }
-            } else {
-                let y = edge.points.0.y;
-                let xr = edge.x_range();
-                horizontal_segments_map
-                    .get_mut(&y)
-                    .unwrap()
-                    .insert((*xr.start(), *xr.end()));
+        for (i, edge) in edges
+            .iter()
+            .enumerate()
+            .filter(|(_i, edge)| edge.vertical())
+        {
+            let x = edge.points.0.x;
+            let facing = facing[i];
+            let y_range = edge.y_range();
+            for y in target_ys.iter().filter(|y| y_range.contains(y)) {
+                vertical_intersections_map
+                    .entry(*y)
+                    .or_insert(BTreeSet::new())
+                    .insert((x, facing));
             }
         }
 
-        // rasterize
-        (min_y..=max_y)
-            .map(|y| {
-                let vertical_intersections = vertical_intersections_map.get(&y).unwrap();
-                let horizontal_segments = horizontal_segments_map.get(&y).unwrap();
-                Self::line_area(vertical_intersections, horizontal_segments)
-            })
-            .sum()
+        // go through the target y's, calculating area for that line
+        // and fill in the gaps between target y's
+        let mut total_area: usize = 0;
+        let mut last_y = *target_ys.first().unwrap();
+        let mut last_area: usize = 0;
+        let empty_intersections = BTreeSet::new();
+        let empty_segments = BTreeSet::new();
+
+        for y in &target_ys {
+            let diff = y - last_y;
+            if diff > 1 {
+                // need to fill in a gap
+                total_area += last_area * (diff - 1) as usize;
+            }
+
+            // calculate area at this y
+            let vertical_intersections = vertical_intersections_map
+                .get(&y)
+                .unwrap_or(&empty_intersections);
+            let horizontal_segments = horizontal_segments_map.get(&y).unwrap_or(&empty_segments);
+            let area = Self::line_area(vertical_intersections, horizontal_segments);
+            total_area += area;
+
+            last_y = *y;
+            last_area = area;
+        }
+
+        total_area
     }
 
     fn line_area(
