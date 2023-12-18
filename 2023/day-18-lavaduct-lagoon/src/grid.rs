@@ -1,15 +1,15 @@
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Coord {
-    pub x: i16,
-    pub y: i16,
+    pub x: i32,
+    pub y: i32,
 }
 
 impl Coord {
-    pub fn new(x: i16, y: i16) -> Self {
+    pub fn new(x: i32, y: i32) -> Self {
         Self { x, y }
     }
 
-    pub fn shift(&self, direction: &Direction, distance: &i16) -> Self {
+    pub fn shift(&self, direction: &Direction, distance: &i32) -> Self {
         use Direction::*;
         match direction {
             North => Self::new(self.x, self.y - distance),

@@ -13,7 +13,7 @@ use regex::Regex;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -23,37 +23,50 @@ fn read_input_file() -> String {
 #[derive(Debug)]
 struct Instruction {
     direction: Direction,
-    distance: i16,
+    distance: i32,
 }
 
 impl Instruction {
-    fn parse_list(input: &str) -> Vec<Self> {
-        input.lines().map(|line| Self::parse(line)).collect()
+    fn parse_list(input: &str, flipped: bool) -> Vec<Self> {
+        input
+            .lines()
+            .map(|line| Self::parse(line, flipped))
+            .collect()
     }
 
-    fn parse(input: &str) -> Self {
+    fn parse(input: &str, flipped: bool) -> Self {
         lazy_static! {
             static ref INSTRUCTION_RE: Regex =
-                Regex::new(r"\A([UDLR]) (\d+) \(#([0-9a-f]{6})\)\z").unwrap();
+                Regex::new(r"\A([UDLR]) (\d+) \(#([0-9a-f]{5})([0-3])\)\z").unwrap();
         }
 
         let caps = INSTRUCTION_RE.captures(input).unwrap();
-        let direction = Self::parse_direction(caps.get(1).unwrap().as_str());
-        let distance = caps.get(2).unwrap().as_str().parse::<i16>().unwrap();
-        let _colour = caps.get(3).unwrap().as_str().to_string();
 
-        Self {
-            direction,
-            distance,
+        if !flipped {
+            let direction = Self::parse_direction(caps.get(1).unwrap().as_str());
+            let distance = caps.get(2).unwrap().as_str().parse::<i32>().unwrap();
+
+            Self {
+                direction,
+                distance,
+            }
+        } else {
+            let distance = i32::from_str_radix(caps.get(3).unwrap().as_str(), 16).unwrap();
+            let direction = Self::parse_direction(caps.get(4).unwrap().as_str());
+
+            Self {
+                direction,
+                distance,
+            }
         }
     }
 
     fn parse_direction(input: &str) -> Direction {
         match input {
-            "U" => Direction::North,
-            "D" => Direction::South,
-            "L" => Direction::West,
-            "R" => Direction::East,
+            "U" | "3" => Direction::North,
+            "D" | "1" => Direction::South,
+            "L" | "2" => Direction::West,
+            "R" | "0" => Direction::East,
             _ => panic!("Unreachable"),
         }
     }
@@ -87,7 +100,7 @@ impl Edge {
         res
     }
 
-    fn determine_facing(edges: &[Edge], min_y: i16) -> Vec<Direction> {
+    fn determine_facing(edges: &[Edge], min_y: i32) -> Vec<Direction> {
         let starting_index = edges
             .iter()
             .position(|edge| edge.horizontal() && edge.points.0.y == min_y)
@@ -120,7 +133,7 @@ impl Edge {
         tmp_facing.into_iter().flat_map(|f| f).collect()
     }
 
-    fn x_range(&self) -> RangeInclusive<i16> {
+    fn x_range(&self) -> RangeInclusive<i32> {
         if self.points.0.x <= self.points.1.x {
             self.points.0.x..=self.points.1.x
         } else {
@@ -128,7 +141,7 @@ impl Edge {
         }
     }
 
-    fn y_range(&self) -> RangeInclusive<i16> {
+    fn y_range(&self) -> RangeInclusive<i32> {
         if self.points.0.y <= self.points.1.y {
             self.points.0.y..=self.points.1.y
         } else {
@@ -164,9 +177,9 @@ impl Plan {
         let facing = Edge::determine_facing(&edges, min_y);
 
         // compute metadata for rasterization
-        let mut vertical_intersections_map: HashMap<i16, BTreeSet<(i16, Direction)>> =
+        let mut vertical_intersections_map: HashMap<i32, BTreeSet<(i32, Direction)>> =
             HashMap::new();
-        let mut horizontal_segments_map: HashMap<i16, BTreeSet<(i16, i16)>> = HashMap::new();
+        let mut horizontal_segments_map: HashMap<i32, BTreeSet<(i32, i32)>> = HashMap::new();
         for y in min_y..=max_y {
             vertical_intersections_map.insert(y, BTreeSet::new());
             horizontal_segments_map.insert(y, BTreeSet::new());
@@ -202,15 +215,15 @@ impl Plan {
     }
 
     fn line_area(
-        vertical_intersections: &BTreeSet<(i16, Direction)>,
-        horizontal_segments: &BTreeSet<(i16, i16)>,
+        vertical_intersections: &BTreeSet<(i32, Direction)>,
+        horizontal_segments: &BTreeSet<(i32, i32)>,
     ) -> usize {
         let mut segments = horizontal_segments.clone();
 
         // find gaps between vertical lines
         for w in vertical_intersections
             .iter()
-            .collect::<Vec<&(i16, Direction)>>()
+            .collect::<Vec<&(i32, Direction)>>()
             .windows(2)
         {
             match (w[0], w[1]) {
@@ -243,16 +256,18 @@ impl Plan {
 }
 
 fn part1(input: &str) -> usize {
-    let instructions = Instruction::parse_list(input);
+    let instructions = Instruction::parse_list(input, false);
 
     let plan = Plan::new(instructions);
     plan.area()
 }
 
-// fn part2(input: &str) -> usize {
-//     let instructions = Data::parse(input);
-//     0
-// }
+fn part2(input: &str) -> usize {
+    let instructions = Instruction::parse_list(input, true);
+
+    let plan = Plan::new(instructions);
+    plan.area()
+}
 
 #[cfg(test)]
 mod tests {
@@ -289,15 +304,15 @@ mod tests {
         assert_eq!(result, 49578);
     }
 
-    // #[test]
-    // fn test_part2_example() {
-    //     let result = part2(EXAMPLE);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example() {
+        let result = part2(EXAMPLE);
+        assert_eq!(result, 952408144115);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 52885384955882);
+    }
 }
