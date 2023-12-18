@@ -1,6 +1,9 @@
+pub mod grid;
+
 use std::fs;
 
-// use itertools::Itertools;
+use grid::*;
+
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -14,37 +17,55 @@ fn read_input_file() -> String {
 }
 
 #[derive(Debug)]
-struct Item {
-    foo: String,
-    bar: usize,
+struct Instruction {
+    direction: Direction,
+    distance: usize,
+    colour: String,
 }
 
-impl Item {
+impl Instruction {
     fn parse_list(input: &str) -> Vec<Self> {
         input.lines().map(|line| Self::parse(line)).collect()
     }
 
     fn parse(input: &str) -> Self {
         lazy_static! {
-            static ref ITEM_RE: Regex = Regex::new(r"\A(.+)=(\d+)\z").unwrap();
+            static ref INSTRUCTION_RE: Regex =
+                Regex::new(r"\A([UDLR]) (\d+) \(#([0-9a-f]{6})\)\z").unwrap();
         }
 
-        let caps = ITEM_RE.captures(input).unwrap();
-        let foo = caps.get(1).unwrap().as_str().to_string();
-        let bar = caps.get(2).unwrap().as_str().parse::<usize>().unwrap();
-        Self { foo, bar }
+        let caps = INSTRUCTION_RE.captures(input).unwrap();
+        let direction = Self::parse_direction(caps.get(1).unwrap().as_str());
+        let distance = caps.get(2).unwrap().as_str().parse::<usize>().unwrap();
+        let colour = caps.get(3).unwrap().as_str().to_string();
+
+        Self {
+            direction,
+            distance,
+            colour,
+        }
+    }
+
+    fn parse_direction(input: &str) -> Direction {
+        match input {
+            "U" => Direction::North,
+            "D" => Direction::South,
+            "L" => Direction::West,
+            "R" => Direction::East,
+            _ => panic!("Unreachable"),
+        }
     }
 }
 
 fn part1(input: &str) -> usize {
-    let items = Item::parse_list(input);
-    dbg!(&items);
+    let instructions = Instruction::parse_list(input);
+    dbg!(&instructions);
     0
 }
 
 // fn part2(input: &str) -> usize {
-//     let items = Data::parse(input);
-//     dbg!(&items);
+//     let instructions = Data::parse(input);
+//     dbg!(&instructions);
 //     0
 // }
 
