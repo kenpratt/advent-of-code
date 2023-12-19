@@ -4,8 +4,8 @@ use lazy_static::lazy_static;
 use regex::Regex;
 
 fn main() {
-    println!("part 1 verdict: {:?}", part1(&read_input_file()));
-    // println!("part 2 verdict: {:?}", part2(&read_input_file()));
+    println!("part 1 result: {:?}", part1(&read_input_file()));
+    // println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -28,7 +28,34 @@ impl<'a> System<'a> {
         let parts = Part::parse_list(iter.next().unwrap());
         Self { workflows, parts }
     }
+
+    fn run_part(&self, part: &Part) -> WorkflowResult {
+        let mut to_run = INITIAL_WORKFLOW;
+
+        loop {
+            let workflow = self.workflows.get(to_run).unwrap();
+            let result = workflow.run(part);
+            match result {
+                WorkflowResult::Accepted | WorkflowResult::Rejected => {
+                    return result;
+                }
+                WorkflowResult::Redirected(name) => {
+                    // redirect to another workflow
+                    to_run = name;
+                }
+            }
+        }
+    }
+
+    fn accepted_parts(&self) -> Vec<&Part> {
+        self.parts
+            .iter()
+            .filter(|part| self.run_part(part) == WorkflowResult::Accepted)
+            .collect()
+    }
 }
+
+const INITIAL_WORKFLOW: &'static str = "in";
 
 #[derive(Debug)]
 struct Workflow<'a> {
@@ -51,12 +78,18 @@ impl<'a> Workflow<'a> {
         let rules = Rule::parse_list(caps.get(2).unwrap().as_str());
         Self { name, rules }
     }
+
+    fn run(&self, part: &Part) -> WorkflowResult {
+        let result = self.rules.iter().find_map(|rule| rule.run(part));
+        // the final rule should always return a result, if none of the other ones do
+        result.unwrap()
+    }
 }
 
 #[derive(Debug)]
 struct Rule<'a> {
     condition: Option<Condition>,
-    verdict: Verdict<'a>,
+    result: WorkflowResult<'a>,
 }
 
 impl<'a> Rule<'a> {
@@ -69,15 +102,25 @@ impl<'a> Rule<'a> {
         match chunks.len() {
             1 => {
                 let condition = None;
-                let verdict = Verdict::parse(chunks[0]);
-                Self { condition, verdict }
+                let result = WorkflowResult::parse(chunks[0]);
+                Self { condition, result }
             }
             2 => {
                 let condition = Some(Condition::parse(chunks[0]));
-                let verdict = Verdict::parse(chunks[1]);
-                Self { condition, verdict }
+                let result = WorkflowResult::parse(chunks[1]);
+                Self { condition, result }
             }
             _ => panic!("Unexpected rule input: {:?}", input),
+        }
+    }
+
+    fn run(&self, part: &Part) -> Option<WorkflowResult> {
+        match &self.condition {
+            Some(cond) => match cond.run(part) {
+                true => Some(self.result),
+                false => None,
+            },
+            None => Some(self.result),
         }
     }
 }
@@ -105,6 +148,11 @@ impl Condition {
             value,
         }
     }
+
+    fn run(&self, part: &Part) -> bool {
+        let var = part.property(&self.argument);
+        self.operation.run(var, self.value)
+    }
 }
 
 #[derive(Debug)]
@@ -123,18 +171,27 @@ impl Operation {
             _ => panic!("Unexpected operation: {:?}", input),
         }
     }
+
+    fn run(&self, x: u16, y: u16) -> bool {
+        use Operation::*;
+
+        match self {
+            LessThan => x < y,
+            GreaterThan => x > y,
+        }
+    }
 }
 
-#[derive(Debug)]
-enum Verdict<'a> {
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum WorkflowResult<'a> {
     Accepted,
     Rejected,
     Redirected(&'a str),
 }
 
-impl<'a> Verdict<'a> {
+impl<'a> WorkflowResult<'a> {
     fn parse(input: &'a str) -> Self {
-        use Verdict::*;
+        use WorkflowResult::*;
 
         match input {
             "A" => Accepted,
@@ -170,6 +227,21 @@ impl Part {
         let s = caps.get(4).unwrap().as_str().parse::<u16>().unwrap();
         Self { x, m, a, s }
     }
+
+    fn property(&self, prop: &PartProperty) -> u16 {
+        use PartProperty::*;
+
+        match prop {
+            X => self.x,
+            M => self.m,
+            A => self.a,
+            S => self.s,
+        }
+    }
+
+    fn rating(&self) -> u16 {
+        self.x + self.m + self.a + self.s
+    }
 }
 
 #[derive(Debug)]
@@ -196,8 +268,11 @@ impl PartProperty {
 
 fn part1(input: &str) -> usize {
     let system = System::parse(input);
-    dbg!(&system);
-    0
+    system
+        .accepted_parts()
+        .into_iter()
+        .map(|part| part.rating() as usize)
+        .sum()
 }
 
 // fn part2(input: &str) -> usize {
@@ -232,25 +307,25 @@ mod tests {
 
     #[test]
     fn test_part1_example() {
-        let verdict = part1(EXAMPLE);
-        assert_eq!(verdict, 0);
+        let result = part1(EXAMPLE);
+        assert_eq!(result, 19114);
+    }
+
+    #[test]
+    fn test_part1_solution() {
+        let result = part1(&read_input_file());
+        assert_eq!(result, 420739);
     }
 
     // #[test]
-    // fn test_part1_solution() {
-    //     let verdict = part1(&read_input_file());
-    //     assert_eq!(verdict, 0);
-    // }
-
-    // #[test]
     // fn test_part2_example() {
-    //     let verdict = part2(EXAMPLE);
-    //     assert_eq!(verdict, 0);
+    //     let result = part2(EXAMPLE);
+    //     assert_eq!(result, 0);
     // }
 
     // #[test]
     // fn test_part2_solution() {
-    //     let verdict = part2(&read_input_file());
-    //     assert_eq!(verdict, 0);
+    //     let result = part2(&read_input_file());
+    //     assert_eq!(result, 0);
     // }
 }
