@@ -1,12 +1,11 @@
-use std::fs;
+use std::{collections::HashMap, fs};
 
-// use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::Regex;
 
 fn main() {
-    println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 1 verdict: {:?}", part1(&read_input_file()));
+    // println!("part 2 verdict: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -14,37 +13,194 @@ fn read_input_file() -> String {
 }
 
 #[derive(Debug)]
-struct Item {
-    foo: String,
-    bar: usize,
+struct System<'a> {
+    workflows: HashMap<&'a str, Workflow<'a>>,
+    parts: Vec<Part>,
 }
 
-impl Item {
+impl<'a> System<'a> {
+    fn parse(input: &'a str) -> Self {
+        let mut iter = input.split("\n\n");
+        let workflows = Workflow::parse_list(iter.next().unwrap())
+            .into_iter()
+            .map(|w| (w.name, w))
+            .collect();
+        let parts = Part::parse_list(iter.next().unwrap());
+        Self { workflows, parts }
+    }
+}
+
+#[derive(Debug)]
+struct Workflow<'a> {
+    name: &'a str,
+    rules: Vec<Rule<'a>>,
+}
+
+impl<'a> Workflow<'a> {
+    fn parse_list(input: &'a str) -> Vec<Self> {
+        input.lines().map(|line| Self::parse(line)).collect()
+    }
+
+    fn parse(input: &'a str) -> Self {
+        lazy_static! {
+            static ref WORKFLOW_RE: Regex = Regex::new(r"\A([a-z]+)\{(.+)\}\z").unwrap();
+        }
+
+        let caps = WORKFLOW_RE.captures(input).unwrap();
+        let name = caps.get(1).unwrap().as_str();
+        let rules = Rule::parse_list(caps.get(2).unwrap().as_str());
+        Self { name, rules }
+    }
+}
+
+#[derive(Debug)]
+struct Rule<'a> {
+    condition: Option<Condition>,
+    verdict: Verdict<'a>,
+}
+
+impl<'a> Rule<'a> {
+    fn parse_list(input: &'a str) -> Vec<Self> {
+        input.split(',').map(|chunk| Self::parse(chunk)).collect()
+    }
+
+    fn parse(input: &'a str) -> Self {
+        let chunks: Vec<&str> = input.split(':').collect();
+        match chunks.len() {
+            1 => {
+                let condition = None;
+                let verdict = Verdict::parse(chunks[0]);
+                Self { condition, verdict }
+            }
+            2 => {
+                let condition = Some(Condition::parse(chunks[0]));
+                let verdict = Verdict::parse(chunks[1]);
+                Self { condition, verdict }
+            }
+            _ => panic!("Unexpected rule input: {:?}", input),
+        }
+    }
+}
+
+#[derive(Debug)]
+struct Condition {
+    operation: Operation,
+    argument: PartProperty,
+    value: u16,
+}
+
+impl Condition {
+    fn parse(input: &str) -> Self {
+        lazy_static! {
+            static ref CONDITION_RE: Regex = Regex::new(r"\A([xmas])([<>])(\d+)\z").unwrap();
+        }
+
+        let caps = CONDITION_RE.captures(input).unwrap();
+        let argument = PartProperty::parse(caps.get(1).unwrap().as_str());
+        let operation = Operation::parse(caps.get(2).unwrap().as_str());
+        let value = caps.get(3).unwrap().as_str().parse::<u16>().unwrap();
+        Self {
+            operation,
+            argument,
+            value,
+        }
+    }
+}
+
+#[derive(Debug)]
+enum Operation {
+    LessThan,
+    GreaterThan,
+}
+
+impl Operation {
+    fn parse(input: &str) -> Self {
+        use Operation::*;
+
+        match input {
+            "<" => LessThan,
+            ">" => GreaterThan,
+            _ => panic!("Unexpected operation: {:?}", input),
+        }
+    }
+}
+
+#[derive(Debug)]
+enum Verdict<'a> {
+    Accepted,
+    Rejected,
+    Redirected(&'a str),
+}
+
+impl<'a> Verdict<'a> {
+    fn parse(input: &'a str) -> Self {
+        use Verdict::*;
+
+        match input {
+            "A" => Accepted,
+            "R" => Rejected,
+            _ => Redirected(input),
+        }
+    }
+}
+
+#[derive(Debug)]
+struct Part {
+    x: u16,
+    m: u16,
+    a: u16,
+    s: u16,
+}
+
+impl Part {
     fn parse_list(input: &str) -> Vec<Self> {
         input.lines().map(|line| Self::parse(line)).collect()
     }
 
     fn parse(input: &str) -> Self {
         lazy_static! {
-            static ref ITEM_RE: Regex = Regex::new(r"\A(.+)=(\d+)\z").unwrap();
+            static ref PART_RE: Regex =
+                Regex::new(r"\A\{x=(\d+),m=(\d+),a=(\d+),s=(\d+)\}\z").unwrap();
         }
 
-        let caps = ITEM_RE.captures(input).unwrap();
-        let foo = caps.get(1).unwrap().as_str().to_string();
-        let bar = caps.get(2).unwrap().as_str().parse::<usize>().unwrap();
-        Self { foo, bar }
+        let caps = PART_RE.captures(input).unwrap();
+        let x = caps.get(1).unwrap().as_str().parse::<u16>().unwrap();
+        let m = caps.get(2).unwrap().as_str().parse::<u16>().unwrap();
+        let a = caps.get(3).unwrap().as_str().parse::<u16>().unwrap();
+        let s = caps.get(4).unwrap().as_str().parse::<u16>().unwrap();
+        Self { x, m, a, s }
+    }
+}
+
+#[derive(Debug)]
+enum PartProperty {
+    X,
+    M,
+    A,
+    S,
+}
+
+impl PartProperty {
+    fn parse(input: &str) -> Self {
+        use PartProperty::*;
+
+        match input {
+            "x" => X,
+            "m" => M,
+            "a" => A,
+            "s" => S,
+            _ => panic!("Unexpected property: {:?}", input),
+        }
     }
 }
 
 fn part1(input: &str) -> usize {
-    let items = Item::parse_list(input);
-    dbg!(&items);
+    let system = System::parse(input);
+    dbg!(&system);
     0
 }
 
 // fn part2(input: &str) -> usize {
-//     let items = Data::parse(input);
-//     dbg!(&items);
 //     0
 // }
 
@@ -76,25 +232,25 @@ mod tests {
 
     #[test]
     fn test_part1_example() {
-        let result = part1(EXAMPLE);
-        assert_eq!(result, 0);
+        let verdict = part1(EXAMPLE);
+        assert_eq!(verdict, 0);
     }
 
     // #[test]
     // fn test_part1_solution() {
-    //     let result = part1(&read_input_file());
-    //     assert_eq!(result, 0);
+    //     let verdict = part1(&read_input_file());
+    //     assert_eq!(verdict, 0);
     // }
 
     // #[test]
     // fn test_part2_example() {
-    //     let result = part2(EXAMPLE);
-    //     assert_eq!(result, 0);
+    //     let verdict = part2(EXAMPLE);
+    //     assert_eq!(verdict, 0);
     // }
 
     // #[test]
     // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
+    //     let verdict = part2(&read_input_file());
+    //     assert_eq!(verdict, 0);
     // }
 }
