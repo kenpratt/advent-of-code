@@ -1,11 +1,11 @@
-use std::{collections::HashMap, fs};
+use std::{collections::HashMap, fs, ops::RangeInclusive};
 
 use lazy_static::lazy_static;
 use regex::Regex;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -53,6 +53,25 @@ impl<'a> System<'a> {
             .filter(|part| self.run_part(part) == WorkflowResult::Accepted)
             .collect()
     }
+
+    fn accepted_part_ranges(&self) -> Vec<PartInputRange> {
+        let mut pending = vec![(INITIAL_WORKFLOW, PartInputRange::initial(1..=4000))];
+        let mut accepted = vec![];
+
+        while let Some((to_run, range)) = pending.pop() {
+            let workflow = self.workflows.get(to_run).unwrap();
+            let results = workflow.run_range(range);
+            for (res_range, res) in results {
+                match res {
+                    WorkflowResult::Accepted => accepted.push(res_range),
+                    WorkflowResult::Rejected => (),
+                    WorkflowResult::Redirected(name) => pending.push((name, res_range)),
+                }
+            }
+        }
+
+        accepted
+    }
 }
 
 const INITIAL_WORKFLOW: &'static str = "in";
@@ -83,6 +102,27 @@ impl<'a> Workflow<'a> {
         let result = self.rules.iter().find_map(|rule| rule.run(part));
         // the final rule should always return a result, if none of the other ones do
         result.unwrap()
+    }
+
+    fn run_range(&self, range: PartInputRange) -> Vec<(PartInputRange, WorkflowResult<'_>)> {
+        let mut output = vec![];
+        let mut curr_range = range;
+        for rule in &self.rules {
+            let (true_part, false_part) = rule.run_range(curr_range);
+
+            match true_part {
+                Some(v) => output.push(v),
+                None => (),
+            }
+
+            match false_part {
+                // continue with this part
+                Some(r) => curr_range = r,
+                // stop
+                None => break,
+            }
+        }
+        output
     }
 }
 
@@ -123,6 +163,24 @@ impl<'a> Rule<'a> {
             None => Some(self.result),
         }
     }
+
+    fn run_range(
+        &self,
+        range: PartInputRange,
+    ) -> (
+        Option<(PartInputRange, WorkflowResult)>,
+        Option<PartInputRange>,
+    ) {
+        match &self.condition {
+            Some(cond) => match cond.run_range(range) {
+                (Some(l), Some(r)) => (Some((l, self.result)), Some(r)),
+                (Some(r), None) => (Some((r, self.result)), None),
+                (None, Some(r)) => (None, Some(r)),
+                (None, None) => panic!("Unreachable"),
+            },
+            None => (Some((range, self.result)), None),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -153,6 +211,19 @@ impl Condition {
         let var = part.property(&self.argument);
         self.operation.run(var, self.value)
     }
+
+    fn run_range(&self, range: PartInputRange) -> (Option<PartInputRange>, Option<PartInputRange>) {
+        let prop_range = range.property(&self.argument);
+        match self.operation.run_range(prop_range, &self.value) {
+            (Some(l), Some(r)) => (
+                Some(range.change(&self.argument, l)),
+                Some(range.change(&self.argument, r)),
+            ),
+            (Some(_), None) => (Some(range), None),
+            (None, Some(_)) => (None, Some(range)),
+            (None, None) => panic!("Unreachable"),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -178,6 +249,48 @@ impl Operation {
         match self {
             LessThan => x < y,
             GreaterThan => x > y,
+        }
+    }
+
+    fn run_range(
+        &self,
+        range: &RangeInclusive<u16>,
+        val: &u16,
+    ) -> (Option<RangeInclusive<u16>>, Option<RangeInclusive<u16>>) {
+        use Operation::*;
+
+        if range.contains(&val) {
+            // split range
+            match self {
+                LessThan => {
+                    let l = *range.start()..=(val - 1);
+                    let r = *val..=*range.end();
+                    (Some(l), Some(r))
+                }
+                GreaterThan => {
+                    let l = *range.start()..=*val;
+                    let r = (val + 1)..=*range.end();
+                    (Some(r), Some(l))
+                }
+            }
+        } else {
+            // entire range is on one side of the val
+            match self {
+                LessThan => {
+                    if range.start() < &val {
+                        (Some(range.clone()), None)
+                    } else {
+                        (None, Some(range.clone()))
+                    }
+                }
+                GreaterThan => {
+                    if range.start() > &val {
+                        (Some(range.clone()), None)
+                    } else {
+                        (None, Some(range.clone()))
+                    }
+                }
+            }
         }
     }
 }
@@ -244,6 +357,53 @@ impl Part {
     }
 }
 
+#[derive(Clone, Debug)]
+struct PartInputRange {
+    x: RangeInclusive<u16>,
+    m: RangeInclusive<u16>,
+    a: RangeInclusive<u16>,
+    s: RangeInclusive<u16>,
+}
+
+impl PartInputRange {
+    fn initial(r: RangeInclusive<u16>) -> Self {
+        Self {
+            x: r.clone(),
+            m: r.clone(),
+            a: r.clone(),
+            s: r,
+        }
+    }
+
+    fn property(&self, prop: &PartProperty) -> &RangeInclusive<u16> {
+        use PartProperty::*;
+
+        match prop {
+            X => &self.x,
+            M => &self.m,
+            A => &self.a,
+            S => &self.s,
+        }
+    }
+
+    fn change(&self, prop: &PartProperty, to: RangeInclusive<u16>) -> Self {
+        use PartProperty::*;
+
+        let mut res = self.clone();
+        match prop {
+            X => res.x = to,
+            M => res.m = to,
+            A => res.a = to,
+            S => res.s = to,
+        }
+        res
+    }
+
+    fn num_combinations(&self) -> usize {
+        self.x.len() * self.m.len() * self.a.len() * self.s.len()
+    }
+}
+
 #[derive(Debug)]
 enum PartProperty {
     X,
@@ -275,9 +435,14 @@ fn part1(input: &str) -> usize {
         .sum()
 }
 
-// fn part2(input: &str) -> usize {
-//     0
-// }
+fn part2(input: &str) -> usize {
+    let system = System::parse(input);
+    system
+        .accepted_part_ranges()
+        .into_iter()
+        .map(|r| r.num_combinations())
+        .sum()
+}
 
 #[cfg(test)]
 mod tests {
@@ -317,15 +482,15 @@ mod tests {
         assert_eq!(result, 420739);
     }
 
-    // #[test]
-    // fn test_part2_example() {
-    //     let result = part2(EXAMPLE);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example() {
+        let result = part2(EXAMPLE);
+        assert_eq!(result, 167409079868000);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 130251901420382);
+    }
 }
