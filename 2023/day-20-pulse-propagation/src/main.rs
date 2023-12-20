@@ -1,6 +1,5 @@
-use std::fs;
+use std::{collections::HashMap, fs};
 
-// use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -14,31 +13,78 @@ fn read_input_file() -> String {
 }
 
 #[derive(Debug)]
-struct Item {
-    foo: String,
-    bar: usize,
+struct Configuration<'a> {
+    modules: HashMap<&'a str, Module<'a>>,
 }
 
-impl Item {
-    fn parse_list(input: &str) -> Vec<Self> {
+impl<'a> Configuration<'a> {
+    fn parse(input: &'a str) -> Self {
+        let modules = Module::parse_list(input)
+            .into_iter()
+            .map(|m| (m.name, m))
+            .collect();
+        Self { modules }
+    }
+}
+
+#[derive(Debug)]
+struct Module<'a> {
+    name: &'a str,
+    kind: ModuleType,
+    destinations: Vec<&'a str>,
+}
+
+impl<'a> Module<'a> {
+    fn parse_list(input: &'a str) -> Vec<Self> {
         input.lines().map(|line| Self::parse(line)).collect()
     }
 
-    fn parse(input: &str) -> Self {
+    fn parse(input: &'a str) -> Self {
         lazy_static! {
-            static ref ITEM_RE: Regex = Regex::new(r"\A(.+)=(\d+)\z").unwrap();
+            static ref MODULE_RE: Regex =
+                Regex::new(r"\A([%&]?)([a-z]+) \-> ([a-z ,]+)\z").unwrap();
         }
 
-        let caps = ITEM_RE.captures(input).unwrap();
-        let foo = caps.get(1).unwrap().as_str().to_string();
-        let bar = caps.get(2).unwrap().as_str().parse::<usize>().unwrap();
-        Self { foo, bar }
+        let caps = MODULE_RE.captures(input).unwrap();
+        let kind = ModuleType::parse(caps.get(1).unwrap().as_str());
+        let name = caps.get(2).unwrap().as_str();
+        let destinations = caps.get(3).unwrap().as_str().split(", ").collect();
+
+        if kind == ModuleType::Broadcast {
+            assert_eq!(name, "broadcaster");
+        }
+
+        Self {
+            name,
+            kind,
+            destinations,
+        }
+    }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+enum ModuleType {
+    FlipFlop,
+    Conjunction,
+    Broadcast,
+}
+
+impl ModuleType {
+    fn parse(input: &str) -> Self {
+        use ModuleType::*;
+
+        match input {
+            "%" => FlipFlop,
+            "&" => Conjunction,
+            "" => Broadcast,
+            _ => panic!("Unexpected module type: {:?}", input),
+        }
     }
 }
 
 fn part1(input: &str) -> usize {
-    let items = Item::parse_list(input);
-    dbg!(&items);
+    let config = Configuration::parse(input);
+    dbg!(&config);
     0
 }
 
@@ -62,7 +108,7 @@ mod tests {
         &inv -> a
     "};
 
-    static EXAMPLE1: &str = indoc! {"
+    static EXAMPLE2: &str = indoc! {"
         broadcaster -> a
         %a -> inv, con
         &inv -> b
