@@ -1,7 +1,6 @@
 use std::{
-    collections::{hash_map::DefaultHasher, BTreeMap, HashMap, VecDeque},
+    collections::{HashMap, HashSet, VecDeque},
     fs,
-    hash::{Hash, Hasher},
 };
 
 use lazy_static::lazy_static;
@@ -9,16 +8,18 @@ use regex::Regex;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file(), RX));
 }
 
 fn read_input_file() -> String {
     fs::read_to_string("input.txt").expect("Something went wrong reading the file")
 }
 
-const BROADCAST_NAME: &'static str = "broadcaster";
-const BUTTON_NAME: &'static str = "button";
-const OUTPUT_NAMES: [&'static str; 2] = ["output", "rx"];
+const BROADCAST: &'static str = "broadcaster";
+const BUTTON: &'static str = "button";
+const OUTPUT: &'static str = "output";
+const RX: &'static str = "rx";
+const OUTPUTS: [&'static str; 2] = [OUTPUT, RX];
 
 #[derive(Debug)]
 struct Configuration {
@@ -40,81 +41,94 @@ impl Configuration {
     }
 
     fn count_pulses_for_presses(&mut self, times: usize) -> usize {
-        let mut module_state_history = HashMap::new();
-        module_state_history.insert(calculate_hash(&self.module_state), 0);
+        let pulses: Vec<(Pulse, String, String)> =
+            (0..times).flat_map(|_| self.push_button()).collect();
 
-        let mut pulse_count_history = vec![(0, 0)];
+        let high_count = pulses
+            .iter()
+            .filter(|(pulse, _source, _destination)| *pulse == Pulse::High)
+            .count();
 
-        // find a repeated state
+        let low_count = pulses
+            .iter()
+            .filter(|(pulse, _source, _destination)| *pulse == Pulse::Low)
+            .count();
+
+        high_count * low_count
+    }
+
+    fn num_presses_until_low_pulse(&mut self, output_name: &str) -> usize {
+        let inputs_for_output = Configuration::inputs_to(&self.modules, &output_name.to_string());
+
+        // ensure there is exactly one conjunction wired up to the output
+        assert_eq!(inputs_for_output.len(), 1);
+        let conj = &inputs_for_output[0];
+        assert_eq!(
+            self.modules.get(conj).unwrap().kind,
+            ModuleType::Conjunction
+        );
+
+        let mut awaiting_first_high_pulse: HashSet<String> =
+            Configuration::inputs_to(&self.modules, &conj)
+                .into_iter()
+                .collect();
         let mut num_presses = 0;
-        while num_presses < times {
-            let pulse_counts = self.push_button();
+        let mut first_high_pulses = vec![];
+
+        while !awaiting_first_high_pulse.is_empty() {
+            let pulses = self.push_button();
             num_presses += 1;
-            pulse_count_history.push(pulse_counts);
 
-            match module_state_history.get(&calculate_hash(&self.module_state)) {
-                Some(prev_presses) => {
-                    let pulse_counts_for_loop =
-                        &pulse_count_history[(prev_presses + 1)..=num_presses];
-                    return Self::count_pulses(times, pulse_counts_for_loop);
-                }
-                None => {
-                    module_state_history.insert(calculate_hash(&self.module_state), num_presses);
+            for (p, source, destination) in pulses {
+                if p == Pulse::High
+                    && destination == *conj
+                    && awaiting_first_high_pulse.contains(&source)
+                {
+                    first_high_pulses.push(num_presses);
+                    awaiting_first_high_pulse.remove(&source);
                 }
             }
         }
 
-        Self::count_pulses(times, &pulse_count_history[1..])
+        // least common multiple of the first high presses of each input
+        lcm(&first_high_pulses)
     }
 
-    fn count_pulses(times: usize, pulse_counts: &[(usize, usize)]) -> usize {
-        let loop_size = pulse_counts.len();
-        let num_loops = times / loop_size;
-        let rem = times % loop_size;
-        if rem != 0 {
-            panic!("Haven't implemented remainder yet: {} {}", times, loop_size);
-        }
+    fn push_button(&mut self) -> Vec<(Pulse, String, String)> {
+        let mut pulses_to_process: VecDeque<(Pulse, String, String)> = VecDeque::new();
+        pulses_to_process.push_back((Pulse::Low, BUTTON.to_string(), BROADCAST.to_string()));
 
-        let num_high: usize = pulse_counts.iter().map(|(high, _low)| high).sum();
-        let num_low: usize = pulse_counts.iter().map(|(_high, low)| low).sum();
+        let mut pulses_processed = vec![];
 
-        (num_high * num_loops) * (num_low * num_loops)
-    }
+        while let Some(curr) = pulses_to_process.pop_front() {
+            pulses_processed.push(curr.clone());
 
-    fn push_button(&mut self) -> (usize, usize) {
-        let mut pulses: VecDeque<(Pulse, String, String)> = VecDeque::new();
-        pulses.push_back((
-            Pulse::Low,
-            BUTTON_NAME.to_string(),
-            BROADCAST_NAME.to_string(),
-        ));
-
-        let mut num_high = 0;
-        let mut num_low = 0;
-
-        while let Some((pulse, source, destination)) = pulses.pop_front() {
-            // println!("{} -{:?}-> {}", source, pulse, destination);
-
-            match pulse {
-                Pulse::High => num_high += 1,
-                Pulse::Low => num_low += 1,
-            }
+            let (pulse, source, destination) = curr;
 
             match self.modules.get(&destination) {
                 Some(module) => {
                     let new_pulses = module.process(pulse, source, &mut self.module_state);
                     for p in new_pulses {
-                        pulses.push_back(p);
+                        pulses_to_process.push_back(p);
                     }
                 }
                 None => {
                     // output destination, do nothing
-                    assert_eq!(OUTPUT_NAMES.contains(&destination.as_str()), true);
+                    assert_eq!(OUTPUTS.contains(&destination.as_str()), true);
                 }
             }
         }
 
-        (num_high, num_low)
+        pulses_processed
+    }
+
+    fn inputs_to(modules: &HashMap<String, Module>, name: &String) -> Vec<String> {
+        modules
+            .iter()
+            .filter(|(_, module)| module.destinations.contains(name))
+            .map(|(name, _)| name)
+            .cloned()
+            .collect()
     }
 }
 
@@ -148,7 +162,7 @@ impl Module {
             .collect();
 
         if kind == ModuleType::Broadcast {
-            assert_eq!(name, BROADCAST_NAME);
+            assert_eq!(name, BROADCAST);
         }
 
         Self {
@@ -225,36 +239,36 @@ impl ModuleType {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Pulse {
     High,
     Low,
 }
 
-#[derive(Debug, Eq, Hash, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 struct ModuleState {
-    conjunctions: BTreeMap<String, BTreeMap<String, Pulse>>,
-    flip_flops: BTreeMap<String, bool>,
+    conjunctions: HashMap<String, HashMap<String, Pulse>>,
+    flip_flops: HashMap<String, bool>,
 }
 
 impl ModuleState {
     fn new(modules: &HashMap<String, Module>) -> Self {
         // initialize as maps of inbound connections to low pulse
-        let conjunctions: BTreeMap<String, BTreeMap<String, Pulse>> = modules
+        let conjunctions: HashMap<String, HashMap<String, Pulse>> = modules
             .iter()
             .filter(|(_, module)| module.kind == ModuleType::Conjunction)
             .map(|(_, module)| {
-                let memory: BTreeMap<String, Pulse> = modules
-                    .iter()
-                    .filter(|(_, other)| other.destinations.contains(&module.name))
-                    .map(|(n, _)| (n.clone(), Pulse::Low))
-                    .collect();
+                let memory: HashMap<String, Pulse> =
+                    Configuration::inputs_to(&modules, &module.name)
+                        .into_iter()
+                        .map(|name| (name, Pulse::Low))
+                        .collect();
                 (module.name.clone(), memory)
             })
             .collect();
 
         // initialize as false
-        let flip_flops: BTreeMap<String, bool> = modules
+        let flip_flops: HashMap<String, bool> = modules
             .iter()
             .filter(|(_, module)| module.kind == ModuleType::FlipFlop)
             .map(|(_, module)| (module.name.clone(), false))
@@ -266,7 +280,7 @@ impl ModuleState {
         }
     }
 
-    fn get_conjunction(&mut self, module: &String) -> &mut BTreeMap<String, Pulse> {
+    fn get_conjunction(&mut self, module: &String) -> &mut HashMap<String, Pulse> {
         self.conjunctions.get_mut(module).unwrap()
     }
 
@@ -275,10 +289,12 @@ impl ModuleState {
     }
 }
 
-fn calculate_hash<T: Hash>(t: &T) -> u64 {
-    let mut s = DefaultHasher::new();
-    t.hash(&mut s);
-    s.finish()
+fn lcm(values: &[usize]) -> usize {
+    values
+        .iter()
+        .cloned()
+        .reduce(|acc, x| num::integer::lcm(acc, x))
+        .unwrap()
 }
 
 fn part1(input: &str) -> usize {
@@ -286,11 +302,10 @@ fn part1(input: &str) -> usize {
     config.count_pulses_for_presses(1000)
 }
 
-// fn part2(input: &str) -> usize {
-//     let items = Data::parse(input);
-//     dbg!(&items);
-//     0
-// }
+fn part2(input: &str, output_name: &str) -> usize {
+    let mut config = Configuration::parse(input);
+    config.num_presses_until_low_pulse(output_name)
+}
 
 #[cfg(test)]
 mod tests {
@@ -332,15 +347,15 @@ mod tests {
         assert_eq!(result, 836127690);
     }
 
-    // #[test]
-    // fn test_part2_example() {
-    //     let result = part2(EXAMPLE);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example2() {
+        let result = part2(EXAMPLE2, OUTPUT);
+        assert_eq!(result, 1);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file(), RX);
+        assert_eq!(result, 240914003753369);
+    }
 }
