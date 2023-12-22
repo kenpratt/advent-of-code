@@ -68,8 +68,8 @@ fn neighbour(
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Coord {
-    x: i16,
-    y: i16,
+    pub x: i16,
+    pub y: i16,
 }
 
 impl Coord {
@@ -107,6 +107,16 @@ impl Direction {
             Direction::West => 1,
             Direction::South => 2,
             Direction::East => 3,
+        }
+    }
+
+    pub fn from_index(i: usize) -> Self {
+        match i {
+            0 => Direction::North,
+            1 => Direction::West,
+            2 => Direction::South,
+            3 => Direction::East,
+            _ => panic!("Unexpected direction index: {}", i),
         }
     }
 
