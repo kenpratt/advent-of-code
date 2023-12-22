@@ -33,6 +33,9 @@ struct Solver<'a> {
     next_state_cache: HashMap<(u64, [u64; 4]), u64>,
     coords_cache: HashMap<u64, BTreeSet<Coord>>,
     outputs_cache: HashMap<u64, (BTreeSet<Coord>, [BTreeSet<Coord>; 4])>,
+    active_tiles: HashMap<Coord, u64>,
+    looping_tiles: HashSet<Coord>,
+    tile_histories: HashMap<Coord, (usize, Vec<((u64, [u64; 4]), u64)>)>,
 }
 
 impl<'a> Solver<'a> {
@@ -58,6 +61,9 @@ impl<'a> Solver<'a> {
             next_state_cache: HashMap::new(),
             coords_cache: HashMap::new(),
             outputs_cache: HashMap::new(),
+            active_tiles: HashMap::new(),
+            looping_tiles: HashSet::new(),
+            tile_histories: HashMap::new(),
         };
 
         solver.run(steps)
@@ -72,52 +78,84 @@ impl<'a> Solver<'a> {
         initial_coords.insert(self.starting_location);
         let initial_state = calculate_hash(&initial_coords);
         self.coords_cache.insert(initial_state, initial_coords);
+        self.active_tiles.insert(Coord::new(0, 0), initial_state);
 
-        let mut active_tiles: HashMap<Coord, u64> = HashMap::new();
-        active_tiles.insert(Coord::new(0, 0), initial_state);
-
-        for step in 1..=steps {
-            active_tiles = self.step(step, active_tiles);
+        let mut step = 0;
+        while step < steps {
+            step += 1;
+            self.step(step);
         }
 
-        active_tiles
+        let active_sum: usize = self
+            .active_tiles
             .values()
             .map(|state| self.coords_cache.get(state).unwrap().len())
-            .sum()
+            .sum();
+
+        let looping_sum: usize = self
+            .looping_tiles
+            .iter()
+            .map(|tile_pos| {
+                let (started_step, history) = self.tile_histories.get(tile_pos).unwrap();
+                let missing = step - (started_step + history.len() - 1);
+
+                // if missing history is even, final elem == last elem, second-last elem for odd
+                let index_from_end = if missing % 2 == 0 { 1 } else { 2 };
+
+                // coords len for state
+                let (_input_states, state) = history[history.len() - index_from_end];
+                self.coords_cache.get(&state).unwrap().len()
+            })
+            .sum();
+
+        active_sum + looping_sum
     }
 
-    fn step(&mut self, _step: usize, active_tiles: HashMap<Coord, u64>) -> HashMap<Coord, u64> {
-        // println!("\nstep {}:", step);
-
+    fn step(&mut self, step: usize) {
         // explore active tiles, plus direct neigbours
         let mut to_explore: HashSet<Coord> = HashSet::new();
-        for tile in active_tiles.keys() {
+        for tile in self.active_tiles.keys() {
             to_explore.insert(*tile);
+
             for neighbour in tile.neighbours() {
-                to_explore.insert(neighbour);
+                // ignore tiles that are already looping
+                if !self.looping_tiles.contains(&neighbour) {
+                    to_explore.insert(neighbour);
+                }
             }
         }
 
         let mut next_active_tiles: HashMap<Coord, u64> = HashMap::new();
 
         for tile_pos in to_explore {
-            let tile_state = active_tiles.get(&tile_pos).unwrap_or(&EMPTY_STATE);
+            let tile_state = *self.active_tiles.get(&tile_pos).unwrap_or(&EMPTY_STATE);
 
             let mut neighbour_tile_states: [u64; 4] = [0; 4];
             for direction in ALL_DIRECTIONS {
                 let neighbour_tile_pos = tile_pos.shift(&direction);
-                neighbour_tile_states[direction.index()] = *active_tiles
+                neighbour_tile_states[direction.index()] = *self
+                    .active_tiles
                     .get(&neighbour_tile_pos)
                     .unwrap_or(&EMPTY_STATE);
             }
 
-            let next_tile_state = self.next_state(*tile_state, neighbour_tile_states);
+            let next_tile_state = self.next_state(tile_state, neighbour_tile_states);
             if next_tile_state != *EMPTY_STATE {
-                next_active_tiles.insert(tile_pos, next_tile_state);
+                self.tile_histories
+                    .entry(tile_pos)
+                    .or_insert((step, vec![]))
+                    .1
+                    .push(((tile_state, neighbour_tile_states), next_tile_state));
+
+                if self.tile_is_looping(&tile_pos) {
+                    self.looping_tiles.insert(tile_pos);
+                } else {
+                    next_active_tiles.insert(tile_pos, next_tile_state);
+                }
             }
         }
 
-        next_active_tiles
+        self.active_tiles = next_active_tiles;
     }
 
     fn next_state(&mut self, curr_state: u64, neighbour_states: [u64; 4]) -> u64 {
@@ -183,6 +221,14 @@ impl<'a> Solver<'a> {
         }
 
         (own_outputs, neighbour_outputs)
+    }
+
+    fn tile_is_looping(&self, tile_pos: &Coord) -> bool {
+        let (_, history) = self.tile_histories.get(tile_pos).unwrap();
+        let l = history.len();
+
+        // last 4 entries are a repeated pair
+        l >= 20 && &history[l - 3] == &history[l - 1] && &history[l - 4] == &history[l - 2]
     }
 }
 
@@ -274,8 +320,8 @@ mod tests {
         // assert_eq!(part2(EXAMPLE, 10), 50);
         // assert_eq!(part2(EXAMPLE, 50), 1594);
         // assert_eq!(part2(EXAMPLE, 100), 6536);
-        assert_eq!(part2(EXAMPLE, 500), 167004);
-        // assert_eq!(part2(EXAMPLE, 1000), 668697);
+        // assert_eq!(part2(EXAMPLE, 500), 167004);
+        assert_eq!(part2(EXAMPLE, 1000), 668697);
         // assert_eq!(part2(EXAMPLE, 5000), 16733044);
     }
 
