@@ -90,6 +90,10 @@ impl Coord {
     pub fn neighbours(&self) -> Vec<Coord> {
         ALL_DIRECTIONS.iter().map(|d| self.shift(d)).collect()
     }
+
+    pub fn manhattan_distance(&self, other: &Coord) -> usize {
+        ((self.x - other.x).abs() + (self.y - other.y).abs()) as usize
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]

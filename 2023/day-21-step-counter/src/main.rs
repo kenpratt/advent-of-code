@@ -1,7 +1,7 @@
 pub mod grid;
 
 use std::{
-    collections::{BTreeSet, HashMap, HashSet},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     fs,
 };
 
@@ -36,7 +36,7 @@ struct Solver<'a> {
 }
 
 impl<'a> Solver<'a> {
-    fn solve(grid: &'a Grid<Terrain>, steps: usize) -> usize {
+    fn solve(grid: &'a Grid<Terrain>, steps: usize, exploration_distance: usize) -> usize {
         let rocks: HashSet<Coord> = grid
             .cells
             .iter()
@@ -60,10 +60,10 @@ impl<'a> Solver<'a> {
             next_state_calculator: NextStateCalculator::new(),
         };
 
-        solver.run(steps)
+        solver.run(steps, exploration_distance)
     }
 
-    fn run(&mut self, steps: usize) -> usize {
+    fn run(&mut self, steps: usize, exploration_distance: usize) -> usize {
         // set up initial state
         let initial_state = TileState::from_coords(
             BTreeSet::from([self.starting_location]),
@@ -76,13 +76,16 @@ impl<'a> Solver<'a> {
 
         // run simulation
         let mut step = 0;
-        self.print(step);
-        while step < steps {
+        while step < steps
+            && !self
+                .memory
+                .captured_enough(&self.starting_location, exploration_distance)
+        {
             step = self.step(step);
-            self.print(step);
         }
 
-        self.memory.count_plots(step, &self.coords_cache)
+        self.memory
+            .final_plot_count(step, steps, &self.coords_cache)
     }
 
     fn step(&mut self, curr_step: usize) -> usize {
@@ -115,66 +118,6 @@ impl<'a> Solver<'a> {
 
         next_step
     }
-
-    fn print(&self, step: usize) {
-        let min_y = self.memory.active_tiles.keys().map(|p| p.y).min().unwrap();
-        let max_y = self.memory.active_tiles.keys().map(|p| p.y).max().unwrap();
-        let min_x = self.memory.active_tiles.keys().map(|p| p.x).min().unwrap();
-        let max_x = self.memory.active_tiles.keys().map(|p| p.x).max().unwrap();
-        let y_range = max_y - min_y + 1;
-
-        let gh = self.grid.height;
-        let gw = self.grid.width;
-
-        let num_lines = y_range * (gh + 1);
-        let mut output: Vec<String> = vec!["".to_string(); num_lines as usize];
-
-        for yi in 0..y_range {
-            let yo = yi * (gh + 1);
-            let ty = min_y + yi;
-
-            for tx in min_x..=max_x {
-                let tpos = Coord::new(tx, ty);
-                if self.memory.active_tiles.contains_key(&tpos) {
-                    for y in 0..gh {
-                        for x in 0..gw {
-                            let p = Coord::new(x, y);
-                            let state = self.memory.active_tiles.get(&tpos).unwrap().whole;
-                            let coords = self.coords_cache.get(&state);
-
-                            output[(yo + y) as usize].push_str(if coords.contains(&p) {
-                                "O"
-                            } else if self.rocks.contains(&p) {
-                                "#"
-                            } else if self.starting_location == p {
-                                "S"
-                            } else {
-                                "."
-                            });
-                        }
-                    }
-                } else {
-                    // fill with spaces
-                    for y in 0..gh {
-                        for _x in 0..gw {
-                            output[(yo + y) as usize].push_str(" ");
-                        }
-                    }
-                }
-
-                // add an empty column
-                for y in 0..gh {
-                    output[(yo + y) as usize].push_str(" ");
-                }
-            }
-        }
-
-        println!("After {} steps:", step);
-        for line in output {
-            println!("{}", line);
-        }
-        println!();
-    }
 }
 
 struct TileMemory {
@@ -192,18 +135,14 @@ impl TileMemory {
         }
     }
 
-    fn get(&self, tile_pos: &Coord, step: usize) -> &TileState {
+    fn get(&self, tile_pos: &Coord, target_step: usize) -> &TileState {
         if self.active_tiles.contains_key(tile_pos) {
             self.active_tiles.get(tile_pos).unwrap()
         } else if self.looping_tiles.contains(tile_pos) {
             let (started_step, history) = self.histories.get(tile_pos).unwrap();
-            let missing = step - (started_step + history.len() - 1);
 
-            // if missing history is even, final elem == last elem, second-last elem for odd
-            let index_from_end = if missing % 2 == 0 { 1 } else { 2 };
-
-            let (_input_states, state) = &history[history.len() - index_from_end];
-            state
+            let hstep = target_step - started_step; // steps into history
+            Self::looped_state_at_step(history, hstep)
         } else {
             &EMPTY_TILE_STATE
         }
@@ -234,25 +173,6 @@ impl TileMemory {
         }
 
         res
-    }
-
-    fn count_plots(&self, step: usize, coords_cache: &CoordsCache) -> usize {
-        let active_sum: usize = self
-            .active_tiles
-            .values()
-            .map(|state| coords_cache.for_state(state).len())
-            .sum();
-
-        let looping_sum: usize = self
-            .looping_tiles
-            .iter()
-            .map(|tile_pos| {
-                let state = self.get(tile_pos, step);
-                coords_cache.for_state(state).len()
-            })
-            .sum();
-
-        active_sum + looping_sum
     }
 
     fn process_next_states(
@@ -287,6 +207,215 @@ impl TileMemory {
 
         // last 4 entries are a repeated pair
         l >= 20 && &history[l - 3] == &history[l - 1] && &history[l - 4] == &history[l - 2]
+    }
+
+    fn captured_enough(&self, origin: &Coord, exploration_distance: usize) -> bool {
+        // have we found enough looping tiles to infer remaining expansion?
+        let have = self
+            .looping_tiles
+            .iter()
+            .filter(|pos| origin.manhattan_distance(pos) <= exploration_distance)
+            .count();
+
+        // want all tiles within manhattan distance
+        let diameter = exploration_distance * 2 + 1;
+        let area = ((diameter * diameter) as f64 / 2.0).ceil() as usize;
+
+        have >= area
+    }
+
+    fn final_plot_count(&self, step: usize, steps: usize, coords_cache: &CoordsCache) -> usize {
+        if step == steps {
+            self.simple_final_plot_count(steps, coords_cache)
+        } else {
+            self.infer_final_plot_count(steps, coords_cache)
+        }
+    }
+
+    fn simple_final_plot_count(&self, steps: usize, coords_cache: &CoordsCache) -> usize {
+        // start with active tiles
+        let mut tiles: Vec<(&Coord, &TileState)> = self.active_tiles.iter().collect();
+
+        // add looping tiles
+        for pos in &self.looping_tiles {
+            let state = self.get(pos, steps);
+            tiles.push((pos, state));
+        }
+
+        // sum counts
+        tiles
+            .into_iter()
+            .map(|(_pos, state)| coords_cache.for_state(state).len())
+            .sum()
+    }
+
+    fn looped_state_at_step(history: &Vec<(TileInputState, TileState)>, step: usize) -> &TileState {
+        // let's say history is len 3:
+        // step 0 => 0
+        // step 1 => 1
+        // step 2 => 2
+        // step 3 => 1 [1 past end]
+        // step 4 => 2 [2 past end]
+        let hlen = history.len();
+        let last_index = hlen - 1;
+
+        let index = if step <= last_index {
+            // special case, we are still in the history range
+            step
+        } else {
+            // if overshoot is even, final elem == last elem, second-last elem for odd
+            let overshoot = step - last_index;
+            let index_from_end = if overshoot % 2 == 0 { 1 } else { 2 };
+            hlen - index_from_end
+        };
+
+        let (_input, state) = &history[index];
+        state
+    }
+
+    fn infer_final_plot_count(&self, steps: usize, coords_cache: &CoordsCache) -> usize {
+        // group looping histories by common history
+        let mut groups: HashMap<&Vec<(TileInputState, TileState)>, Vec<(&Coord, &usize)>> =
+            HashMap::new();
+        for pos in &self.looping_tiles {
+            let (started, hist) = self.histories.get(pos).unwrap();
+            groups.entry(hist).or_default().push((pos, started));
+        }
+
+        // should have exactly 8 groups with more than 1 element: N/S/E/W lines, NW/NE/SW/SE quadrants
+        let num_larger_than_1 = groups
+            .iter()
+            .filter(|(_hist, tiles)| tiles.len() > 1)
+            .count();
+        assert_eq!(num_larger_than_1, 8);
+
+        let mut frequency: HashMap<TileState, usize> = HashMap::new();
+        for (hist, tiles) in groups {
+            self.add_history_frequency_for_group(hist, tiles.clone(), steps, &mut frequency);
+        }
+
+        frequency
+            .into_iter()
+            .map(|(state, num)| {
+                let len = coords_cache.for_state(&state).len();
+                len * num
+            })
+            .sum()
+    }
+
+    fn add_history_frequency_for_group(
+        &self,
+        history: &Vec<(TileInputState, TileState)>,
+        tiles: Vec<(&Coord, &usize)>,
+        steps: usize,
+        frequency: &mut HashMap<TileState, usize>,
+    ) {
+        if tiles.len() == 1 {
+            // special case - not a growing pattern, just need the simple count
+            let (_pos, started_step) = tiles[0];
+            let hstep = steps - started_step;
+            let state = Self::looped_state_at_step(history, hstep);
+            *frequency.entry(*state).or_default() += 1;
+            return;
+        }
+
+        // ensure all tiles in this group are in the same quadrant/line
+        let signs: HashSet<(i16, i16)> = tiles
+            .iter()
+            .map(|(pos, _)| (pos.x.signum(), pos.y.signum()))
+            .collect();
+        assert_eq!(signs.len(), 1);
+
+        // group tiles by starting step
+        let mut by_step: BTreeMap<&usize, Vec<&Coord>> = BTreeMap::new();
+        for (pos, start) in &tiles {
+            by_step.entry(start).or_default().push(pos);
+        }
+
+        // record sequence start
+        let pattern_start = **by_step.first_key_value().unwrap().0;
+
+        // calculate diff of starting step and tile count between each pair of starting step groups
+        let uniq_diffs: HashSet<(usize, usize)> = by_step
+            .into_iter()
+            .collect::<Vec<(&usize, Vec<&Coord>)>>()
+            .windows(2)
+            .map(|w| {
+                let (start0, tiles0) = &w[0];
+                let (start1, tiles1) = &w[1];
+                (*start1 - *start0, tiles1.len() - tiles0.len())
+            })
+            .collect();
+
+        // ensure there's a single, consistent pattern in the history sequence
+        assert_eq!(uniq_diffs.len(), 1);
+        let (pattern_interval, pattern_growth) = uniq_diffs.into_iter().next().unwrap();
+
+        // this is how much time we have to fill in total
+        let pattern_steps = steps - pattern_start;
+
+        // we can safely fill this much with looping tiles, to give enough time to settle
+        let looping_steps = pattern_steps - history.len();
+        let loop_count = looping_steps / pattern_interval + 1;
+
+        // this part is what's left after the looping tiles
+        let remaining_steps = pattern_steps - loop_count * pattern_interval;
+
+        // handle main part, the looping tiles
+        // alternating pattern of two groups, since pattern_interval can be odd and the looping
+        // tiles have two states.
+        let second_group_loop_count = loop_count / 2;
+        let first_group_loop_count = loop_count - second_group_loop_count;
+
+        let (first_group_tile_count, second_group_tile_count) = match pattern_growth {
+            0 => {
+                // linear pattern, N/E/S/W
+                // same count as number of loops
+                (first_group_loop_count, second_group_loop_count)
+            }
+            1 => {
+                // quadrant pattern, NE/SE/SW/NW
+                // grows by size 1 at each iteration
+
+                // determine sum of increasing sequences
+                let first = first_group_loop_count * first_group_loop_count;
+                let second = second_group_loop_count * (second_group_loop_count + 1);
+
+                // double check the math
+                let looping_tile_count = loop_count * (loop_count + 1) / 2;
+                assert_eq!(first + second, looping_tile_count);
+
+                (first, second)
+            }
+            _ => panic!("Unexpected pattern growth: {}", pattern_growth),
+        };
+
+        // first group starts at local [0] / global [pattern_start]
+        // second group starts at local [interval] / global [pattern_start + interval]
+        let first_group_steps = pattern_steps;
+        let second_group_steps = pattern_steps - pattern_interval;
+
+        // get the final state for each group
+        let first_group_state = Self::looped_state_at_step(history, first_group_steps);
+        let second_group_state = Self::looped_state_at_step(history, second_group_steps);
+
+        // add the looping tile groups to the frequency map
+        *frequency.entry(*first_group_state).or_default() += first_group_tile_count;
+        *frequency.entry(*second_group_state).or_default() += second_group_tile_count;
+
+        // handle remainder
+        for i in 0..=(remaining_steps / pattern_interval) {
+            let rem_steps = remaining_steps - (i * pattern_interval);
+
+            let tile_count = match pattern_growth {
+                0 => 1,
+                1 => loop_count + 1 + i,
+                _ => panic!("Unexpected pattern growth: {}", pattern_growth),
+            };
+
+            let state = Self::looped_state_at_step(history, rem_steps);
+            *frequency.entry(*state).or_default() += tile_count;
+        }
     }
 }
 
@@ -568,7 +697,7 @@ impl Map {
     }
 
     fn count_plots_within_reach(&self, steps: usize) -> usize {
-        Solver::solve(&self.grid, steps)
+        Solver::solve(&self.grid, steps, 4)
     }
 }
 
@@ -639,18 +768,18 @@ mod tests {
 
     #[test]
     fn test_part2_example() {
-        // assert_eq!(part2(EXAMPLE, 6), 16);
-        // assert_eq!(part2(EXAMPLE, 10), 50);
-        // assert_eq!(part2(EXAMPLE, 50), 1594);
+        assert_eq!(part2(EXAMPLE, 6), 16);
+        assert_eq!(part2(EXAMPLE, 10), 50);
+        assert_eq!(part2(EXAMPLE, 50), 1594);
         assert_eq!(part2(EXAMPLE, 100), 6536);
-        // assert_eq!(part2(EXAMPLE, 500), 167004);
-        // assert_eq!(part2(EXAMPLE, 1000), 668697);
-        // assert_eq!(part2(EXAMPLE, 5000), 16733044);
+        assert_eq!(part2(EXAMPLE, 500), 167004);
+        assert_eq!(part2(EXAMPLE, 1000), 668697);
+        assert_eq!(part2(EXAMPLE, 5000), 16733044);
     }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file(), 300);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file(), 26501365);
+        assert_eq!(result, 627960775905777);
+    }
 }
