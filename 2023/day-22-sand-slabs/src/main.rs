@@ -86,18 +86,95 @@ impl Simulation {
             }
         }
 
-        let mut result = HashMap::new();
-        for brick in &self.bricks {
+        // find bricks supporting others by themselves
+        let mut targets: Vec<&Brick> = self
+            .bricks
+            .iter()
+            .filter(|brick| {
+                // can we disintegrate this brick?
+                let safe_to_dissolve = match supporting.get(&brick.id) {
+                    Some(supp) => {
+                        // do all the supported bricks have more than just this brick supporting them?
+                        // if so, safe to dissolve this one
+                        supp.iter().all(|s| supported_by.get(s).unwrap().len() > 1)
+                    }
+                    None => {
+                        // this brick is not supporting anything, safe to dissolve
+                        true
+                    }
+                };
+                !safe_to_dissolve
+            })
+            .collect();
+
+        // sort highest z first
+        targets.sort_by(|a, b| b.right.z.cmp(&a.right.z));
+
+        // find targets with clean subtrees (no extra dependencies)
+        let mut subtree_dependencies = HashMap::new();
+        for brick in &targets {
+            let res = Self::calculate_subtree_dependencies(
+                brick.id,
+                &supporting,
+                &supported_by,
+                &subtree_dependencies,
+            );
+            subtree_dependencies.insert(brick.id, res);
+        }
+
+        // calculate results
+        let mut results = HashMap::new();
+        for brick in targets {
             // get count of removing just this one brick
             let val = Self::calculate_falling_brick_count(
                 &BTreeSet::from([brick.id]),
                 &BTreeSet::new(),
                 &supporting,
                 &supported_by,
+                &results,
+                &subtree_dependencies,
             );
-            result.insert(brick.id, val);
+            results.insert(brick.id, val);
         }
-        result
+        results
+    }
+
+    fn calculate_subtree_dependencies(
+        id: usize,
+        supporting: &HashMap<usize, BTreeSet<usize>>,
+        supported_by: &HashMap<usize, BTreeSet<usize>>,
+        cache: &HashMap<usize, BTreeSet<usize>>,
+    ) -> BTreeSet<usize> {
+        let mut seen = BTreeSet::from([id]);
+        let mut deps = BTreeSet::new();
+        let mut to_visit = supporting.get(&id).unwrap().clone();
+
+        while let Some(id) = to_visit.pop_first() {
+            seen.insert(id);
+
+            match supported_by.get(&id) {
+                Some(set) => deps.append(&mut set.clone()),
+                None => (),
+            }
+
+            match cache.get(&id) {
+                Some(subtree_deps) => {
+                    if subtree_deps.is_empty() {
+                        // safe to ignore, this is a clean subtree from previous run
+                    } else {
+                        // we can just add these deps
+                        deps.append(&mut subtree_deps.clone());
+                    }
+                }
+                None => match supporting.get(&id) {
+                    // need to expand the next nodes in the tree
+                    Some(set) => to_visit.append(&mut set.clone()),
+                    None => (),
+                },
+            }
+        }
+
+        deps.difference(&seen).cloned().collect()
     }
 
     fn calculate_falling_brick_count(
@@ -105,7 +182,20 @@ impl Simulation {
         already_removed: &BTreeSet<usize>,
         supporting: &HashMap<usize, BTreeSet<usize>>,
         supported_by: &HashMap<usize, BTreeSet<usize>>,
+        results: &HashMap<usize, usize>,
+        subtree_dependencies: &HashMap<usize, BTreeSet<usize>>,
     ) -> usize {
+        if to_remove.len() == 1 {
+            let id = to_remove.first().unwrap();
+            if let Some(v) = results.get(id) {
+                if let Some(deps) = subtree_dependencies.get(id) {
+                    if deps.is_empty() {
+                        return *v;
+                    }
+                }
+            }
+        }
+
         // what bricks are supported by the ones we're removing?
         let mut might_fall: BTreeSet<usize> = BTreeSet::new();
         for id in to_remove {
@@ -139,13 +229,39 @@ impl Simulation {
             let mut recur_removed = already_removed.clone();
             recur_removed.append(&mut to_remove.clone());
 
-            let recur_val = Self::calculate_falling_brick_count(
-                &will_fall,
-                &recur_removed,
-                supporting,
-                supported_by,
-            );
-            val += recur_val;
+            // for subtrees with no deps, can recur solo which should be nice for caching
+            let mut leftovers = BTreeSet::new();
+            for id in will_fall {
+                match subtree_dependencies.get(&id) {
+                    Some(deps) if deps.is_empty() => {
+                        let recur_val = Self::calculate_falling_brick_count(
+                            &BTreeSet::from([id]),
+                            &recur_removed,
+                            supporting,
+                            supported_by,
+                            results,
+                            subtree_dependencies,
+                        );
+                        val += recur_val;
+                    }
+                    _ => {
+                        leftovers.insert(id);
+                    }
+                }
+            }
+
+            // now recur on all the unclean subtrees at once, to avoid complex dependency analysis
+            if !leftovers.is_empty() {
+                let recur_val = Self::calculate_falling_brick_count(
+                    &leftovers,
+                    &recur_removed,
+                    supporting,
+                    supported_by,
+                    results,
+                    subtree_dependencies,
+                );
+                val += recur_val;
+            }
         }
 
         val
@@ -153,7 +269,13 @@ impl Simulation {
 
     fn num_safe_to_disintegrate(&self) -> usize {
         let counts = self.falling_brick_counts();
-        counts.values().filter(|v| **v == 0).count()
+        self.bricks
+            .iter()
+            .filter(|b| match counts.get(&b.id) {
+                Some(n) => *n == 0,
+                None => true,
+            })
+            .count()
     }
 
     fn sum_of_falling_brick_counts(&self) -> usize {
@@ -162,7 +284,7 @@ impl Simulation {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct Brick {
     id: usize,
     left: Coord3D,
