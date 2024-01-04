@@ -1,6 +1,6 @@
 use std::{
     cmp::Ordering,
-    collections::{HashMap, HashSet},
+    collections::{BTreeSet, HashMap},
     fs,
     ops::RangeInclusive,
 };
@@ -10,7 +10,7 @@ use regex::Regex;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
-    // println!("part 2 result: {:?}", part2(&read_input_file()));
+    println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
 fn read_input_file() -> String {
@@ -70,10 +70,10 @@ impl Simulation {
         }
     }
 
-    fn num_safe_to_disintegrate(&self) -> usize {
-        let mut supporting: HashMap<usize, HashSet<usize>> = HashMap::new();
-        let mut supported_by: HashMap<usize, HashSet<usize>> = HashMap::new();
-
+    fn falling_brick_counts(&self) -> HashMap<usize, usize> {
+        // build supporting metadata
+        let mut supporting: HashMap<usize, BTreeSet<usize>> = HashMap::new();
+        let mut supported_by: HashMap<usize, BTreeSet<usize>> = HashMap::new();
         for column in self.settled.values() {
             for w in column.windows(2) {
                 let (z_under, id_under) = &w[0];
@@ -86,23 +86,79 @@ impl Simulation {
             }
         }
 
-        self.bricks
+        let mut result = HashMap::new();
+        for brick in &self.bricks {
+            // get count of removing just this one brick
+            let val = Self::calculate_falling_brick_count(
+                &BTreeSet::from([brick.id]),
+                &BTreeSet::new(),
+                &supporting,
+                &supported_by,
+            );
+            result.insert(brick.id, val);
+        }
+        result
+    }
+
+    fn calculate_falling_brick_count(
+        to_remove: &BTreeSet<usize>,
+        already_removed: &BTreeSet<usize>,
+        supporting: &HashMap<usize, BTreeSet<usize>>,
+        supported_by: &HashMap<usize, BTreeSet<usize>>,
+    ) -> usize {
+        // what bricks are supported by the ones we're removing?
+        let mut might_fall: BTreeSet<usize> = BTreeSet::new();
+        for id in to_remove {
+            match supporting.get(id) {
+                Some(ids) => might_fall.extend(ids),
+                None => (),
+            }
+        }
+
+        // does each at-risk brick have more than just these bricks supporting them?
+        // or are these the only bricks supporting them?
+        let will_fall: BTreeSet<usize> = might_fall
             .iter()
-            .filter(|brick| {
-                // can we disintegrate this brick?
-                match supporting.get(&brick.id) {
-                    Some(supp) => {
-                        // do all the supported bricks have more than just this brick supporting them?
-                        // if so, safe to dissolve this one
-                        supp.iter().all(|s| supported_by.get(s).unwrap().len() > 1)
-                    }
-                    None => {
-                        // this brick is not supporting anything, safe to dissolve
-                        true
-                    }
-                }
+            .filter(|id| {
+                supported_by
+                    .get(id)
+                    .unwrap()
+                    .iter()
+                    .filter(|x| !already_removed.contains(x) && !to_remove.contains(x))
+                    .count()
+                    == 0
             })
-            .count()
+            .cloned()
+            .collect();
+
+        // at least this many will fall
+        let mut val = will_fall.len();
+
+        // plus recur
+        if !will_fall.is_empty() {
+            let mut recur_removed = already_removed.clone();
+            recur_removed.append(&mut to_remove.clone());
+
+            let recur_val = Self::calculate_falling_brick_count(
+                &will_fall,
+                &recur_removed,
+                supporting,
+                supported_by,
+            );
+            val += recur_val;
+        }
+
+        val
+    }
+
+    fn num_safe_to_disintegrate(&self) -> usize {
+        let counts = self.falling_brick_counts();
+        counts.values().filter(|v| **v == 0).count()
+    }
+
+    fn sum_of_falling_brick_counts(&self) -> usize {
+        let counts = self.falling_brick_counts();
+        counts.values().sum()
     }
 }
 
@@ -151,9 +207,6 @@ impl Brick {
         Self::new(id, left, right)
     }
 
-    // TODO see if I can make this an iter instead of building an array?
-    // or maybe just make a cached fn with (x1, x2, y1, y2)?
-    // or don't bother, if it's fast enough
     fn columns(&self) -> Vec<Coord2D> {
         let mut out = vec![];
 
@@ -234,10 +287,11 @@ fn part1(input: &str) -> usize {
     simulation.num_safe_to_disintegrate()
 }
 
-// fn part2(input: &str) -> usize {
-//     let items = Data::parse(input);
-//     0
-// }
+fn part2(input: &str) -> usize {
+    let mut simulation = Simulation::parse(input);
+    simulation.settle();
+    simulation.sum_of_falling_brick_counts()
+}
 
 #[cfg(test)]
 mod tests {
@@ -267,15 +321,15 @@ mod tests {
         assert_eq!(result, 480);
     }
 
-    // #[test]
-    // fn test_part2_example() {
-    //     let result = part2(EXAMPLE);
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example() {
+        let result = part2(EXAMPLE);
+        assert_eq!(result, 7);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_input_file());
+        assert_eq!(result, 84021);
+    }
 }
