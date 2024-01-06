@@ -1,8 +1,8 @@
+pub mod grid;
+
 use std::fs;
 
-// use itertools::Itertools;
-use lazy_static::lazy_static;
-use regex::Regex;
+use grid::*;
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
@@ -14,37 +14,49 @@ fn read_input_file() -> String {
 }
 
 #[derive(Debug)]
-struct Item {
-    foo: String,
-    bar: usize,
+struct Map {
+    grid: Grid<Terrain>,
 }
 
-impl Item {
-    fn parse_list(input: &str) -> Vec<Self> {
-        input.lines().map(|line| Self::parse(line)).collect()
-    }
-
+impl Map {
     fn parse(input: &str) -> Self {
-        lazy_static! {
-            static ref ITEM_RE: Regex = Regex::new(r"\A(.+)=(\d+)\z").unwrap();
-        }
+        let grid = Grid::parse(input, |c| Terrain::parse(c));
+        Self { grid }
+    }
+}
 
-        let caps = ITEM_RE.captures(input).unwrap();
-        let foo = caps.get(1).unwrap().as_str().to_string();
-        let bar = caps.get(2).unwrap().as_str().parse::<usize>().unwrap();
-        Self { foo, bar }
+#[derive(Debug)]
+enum Terrain {
+    Path,
+    Forest,
+    Slope(Direction),
+}
+
+impl Terrain {
+    fn parse(input: &char) -> Self {
+        use Direction::*;
+        use Terrain::*;
+
+        match input {
+            '.' => Path,
+            '#' => Forest,
+            '^' => Slope(North),
+            '>' => Slope(West),
+            'v' => Slope(South),
+            '<' => Slope(East),
+            _ => panic!("Unexpected terrain: {:?}", input),
+        }
     }
 }
 
 fn part1(input: &str) -> usize {
-    let items = Item::parse_list(input);
-    dbg!(&items);
+    let map = Map::parse(input);
+    dbg!(&map);
     0
 }
 
 // fn part2(input: &str) -> usize {
 //     let items = Data::parse(input);
-//     dbg!(&items);
 //     0
 // }
 
@@ -52,15 +64,13 @@ fn part1(input: &str) -> usize {
 mod tests {
     use super::*;
 
-    use indoc::indoc;
-
-    static EXAMPLE: &str = indoc! {"
-        foo=22
-    "};
+    fn read_example_file() -> String {
+        fs::read_to_string("example.txt").expect("Something went wrong reading the file")
+    }
 
     #[test]
     fn test_part1_example() {
-        let result = part1(EXAMPLE);
+        let result = part1(&read_example_file());
         assert_eq!(result, 0);
     }
 
@@ -72,7 +82,7 @@ mod tests {
 
     // #[test]
     // fn test_part2_example() {
-    //     let result = part2(EXAMPLE);
+    //     let result = part2(&read_example_file());
     //     assert_eq!(result, 0);
     // }
 
