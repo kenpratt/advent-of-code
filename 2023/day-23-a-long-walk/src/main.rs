@@ -1,6 +1,6 @@
 pub mod grid;
 
-use std::fs;
+use std::{collections::BTreeSet, fs};
 
 use grid::*;
 
@@ -25,7 +25,7 @@ impl Map {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Terrain {
     Path,
     Forest,
@@ -41,18 +41,104 @@ impl Terrain {
             '.' => Path,
             '#' => Forest,
             '^' => Slope(North),
-            '>' => Slope(West),
+            '>' => Slope(East),
             'v' => Slope(South),
-            '<' => Slope(East),
+            '<' => Slope(West),
             _ => panic!("Unexpected terrain: {:?}", input),
         }
+    }
+
+    fn next_directions(&self) -> Vec<Direction> {
+        use Terrain::*;
+
+        match self {
+            Path => ALL_DIRECTIONS.to_vec(),
+            Forest => panic!("Shouldn't be on a forest tile"),
+            Slope(d) => vec![*d],
+        }
+    }
+}
+
+struct Solver<'a> {
+    grid: &'a Grid<Terrain>,
+    end: Coord,
+}
+
+impl<'a> Solver<'a> {
+    fn run(grid: &'a Grid<Terrain>) -> usize {
+        // start on path in top row
+        let start = (0..grid.width)
+            .map(|x| Coord::new(x, 0))
+            .find(|c| grid.value(c) == &Terrain::Path)
+            .unwrap();
+
+        // end on path in bottom row
+        let end = (0..grid.width)
+            .map(|x| Coord::new(x, grid.height - 1))
+            .find(|c| grid.value(c) == &Terrain::Path)
+            .unwrap();
+
+        let mut solver = Solver { grid, end };
+        let initial = SolutionState::new(start);
+
+        solver.solve(initial)
+    }
+
+    fn solve(&mut self, initial: SolutionState) -> usize {
+        let mut open_set = vec![initial];
+        let mut at_goal = vec![];
+
+        while let Some(curr) = open_set.pop() {
+            if curr.pos == self.end {
+                at_goal.push(curr);
+            } else {
+                let mut next = curr.next(self.grid);
+                open_set.append(&mut next);
+            }
+        }
+
+        let tiles = at_goal.into_iter().map(|s| s.visited.len()).max().unwrap();
+        tiles - 1 // count steps
+    }
+}
+
+#[derive(Clone, Debug, Hash, Eq, PartialEq)]
+struct SolutionState {
+    pos: Coord,
+    visited: BTreeSet<Coord>,
+}
+
+impl SolutionState {
+    fn new(start: Coord) -> Self {
+        let visited = BTreeSet::from([start.clone()]);
+        let pos = start;
+        Self { pos, visited }
+    }
+
+    fn next(&self, grid: &Grid<Terrain>) -> Vec<SolutionState> {
+        let curr_terrain = grid.value(&self.pos);
+        curr_terrain
+            .next_directions()
+            .into_iter()
+            .filter_map(|dir| grid.neighbour(&self.pos, &dir))
+            .filter(|dest| !self.visited.contains(dest))
+            .filter(|dest| grid.value(dest) != &Terrain::Forest)
+            .map(|dest| self.move_to(dest))
+            .collect()
+    }
+
+    fn move_to(&self, dest: Coord) -> Self {
+        let mut visited = self.visited.clone();
+        visited.insert(dest.clone());
+
+        let pos = dest;
+        Self { pos, visited }
     }
 }
 
 fn part1(input: &str) -> usize {
     let map = Map::parse(input);
-    dbg!(&map);
-    0
+    Solver::run(&map.grid)
 }
 
 // fn part2(input: &str) -> usize {
@@ -71,14 +157,14 @@ mod tests {
     #[test]
     fn test_part1_example() {
         let result = part1(&read_example_file());
-        assert_eq!(result, 0);
+        assert_eq!(result, 94);
     }
 
-    // #[test]
-    // fn test_part1_solution() {
-    //     let result = part1(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part1_solution() {
+        let result = part1(&read_input_file());
+        assert_eq!(result, 1966);
+    }
 
     // #[test]
     // fn test_part2_example() {

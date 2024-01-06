@@ -35,34 +35,21 @@ impl<T> Grid<T> {
         self.cells.get(pos).unwrap()
     }
 
-    pub fn neighbours(&self, pos: &Coord) -> Vec<(Coord, Option<Direction>)> {
-        neighbours(*pos, self.width, self.height)
+    pub fn neighbour(&self, pos: &Coord, direction: &Direction) -> Option<Coord> {
+        neighbour(*pos, *direction, self.width, self.height)
     }
 }
 
 #[cached]
-fn neighbours(pos: Coord, width: i16, height: i16) -> Vec<(Coord, Option<Direction>)> {
-    ALL_DIRECTIONS
-        .iter()
-        .map(|d: &Direction| neighbour(pos, *d, width, height))
-        .collect()
-}
-
-#[cached]
-fn neighbour(
-    pos: Coord,
-    direction: Direction,
-    width: i16,
-    height: i16,
-) -> (Coord, Option<Direction>) {
+fn neighbour(pos: Coord, direction: Direction, width: i16, height: i16) -> Option<Coord> {
     let r = width - 1;
     let b = height - 1;
     match (direction, pos.x, pos.y) {
-        (Direction::North, x, 0) => (Coord::new(x, b), Some(Direction::North)),
-        (Direction::West, 0, y) => (Coord::new(r, y), Some(Direction::West)),
-        (Direction::South, x, y) if y == b => (Coord::new(x, 0), Some(Direction::South)),
-        (Direction::East, x, y) if x == r => (Coord::new(0, y), Some(Direction::East)),
-        _ => (pos.shift(&direction), None),
+        (Direction::North, _, 0) => None,
+        (Direction::West, 0, _) => None,
+        (Direction::South, _, y) if y == b => None,
+        (Direction::East, x, _) if x == r => None,
+        _ => Some(pos.shift(&direction)),
     }
 }
 
