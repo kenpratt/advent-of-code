@@ -1,11 +1,16 @@
-use std::fs;
+use std::{fs, ops::RangeInclusive};
 
-// use itertools::Itertools;
+use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::Regex;
 
+const PART1_RANGE: RangeInclusive<i64> = 200000000000000..=400000000000000;
+
 fn main() {
-    println!("part 1 result: {:?}", part1(&read_input_file()));
+    println!(
+        "part 1 result: {:?}",
+        part1(&read_input_file(), PART1_RANGE)
+    );
     // println!("part 2 result: {:?}", part2(&read_input_file()));
 }
 
@@ -33,6 +38,34 @@ impl Hailstone {
         let position = Coord::parse(caps.get(1).unwrap().as_str());
         let velocity = Coord::parse(caps.get(2).unwrap().as_str());
         Self { position, velocity }
+    }
+
+    fn count_intersections_2d(stones: &[Hailstone], range: &RangeInclusive<i64>) -> usize {
+        let range_f64 = (*range.start() as f64)..=(*range.end() as f64);
+        stones
+            .iter()
+            .combinations(2)
+            .filter(|v| v[0].intersects_2d(&v[1], &range_f64))
+            .count()
+    }
+
+    fn slope_and_y_intercept_2d(&self) -> (f64, f64) {
+        let slope = (self.velocity.y as f64) / (self.velocity.x as f64);
+        let intercept = (self.position.y as f64) - slope * (self.position.x as f64);
+        (slope, intercept)
+    }
+
+    fn intersects_2d(&self, other: &Hailstone, range: &RangeInclusive<f64>) -> bool {
+        let (s1, i1) = self.slope_and_y_intercept_2d();
+        let (s2, i2) = other.slope_and_y_intercept_2d();
+
+        let x = (i2 - i1) / (s1 - s2);
+        let y = s1 * x + i1;
+
+        let f1 = (y - (self.position.y as f64)).signum() as i64 == self.velocity.y.signum();
+        let f2 = (y - (other.position.y as f64)).signum() as i64 == other.velocity.y.signum();
+
+        f1 && f2 && range.contains(&x) && range.contains(&y)
     }
 }
 
@@ -62,15 +95,13 @@ impl Coord {
     }
 }
 
-fn part1(input: &str) -> usize {
+fn part1(input: &str, val_range: RangeInclusive<i64>) -> usize {
     let hailstones = Hailstone::parse_list(input);
-    dbg!(&hailstones);
-    0
+    Hailstone::count_intersections_2d(&hailstones, &val_range)
 }
 
 // fn part2(input: &str) -> usize {
 //     let hailstones = Data::parse(input);
-//     dbg!(&hailstones);
 //     0
 // }
 
@@ -90,15 +121,15 @@ mod tests {
 
     #[test]
     fn test_part1_example() {
-        let result = part1(EXAMPLE);
-        assert_eq!(result, 0);
+        let result = part1(EXAMPLE, 7..=27);
+        assert_eq!(result, 2);
     }
 
-    // #[test]
-    // fn test_part1_solution() {
-    //     let result = part1(&read_input_file());
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part1_solution() {
+        let result = part1(&read_input_file(), PART1_RANGE);
+        assert_eq!(result, 16589);
+    }
 
     // #[test]
     // fn test_part2_example() {
