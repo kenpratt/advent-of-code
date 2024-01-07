@@ -12,3 +12,11 @@ Profiling on OS X:
 [profile.release]
 debug = 1
 - cargo instruments --release -t time
+
+Profiling on Windows in WSL2:
+- https://github.com/wkennedy/wsl2-rust-profiling
+- https://ntietz.com/blog/profiling-rust-programs-the-easy-way/
+  - using https://github.com/flamegraph-rs/flamegraph
+- add to Cargo.toml:
+[profile.release]
+debug = 1
