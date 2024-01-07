@@ -75,22 +75,23 @@ impl Map {
             .map(|(id, pos)| (pos, id.try_into().unwrap()))
             .collect();
 
+        // convert connections hash to a vec of ids
+        let mut graph_connections_tmp: Vec<Option<Vec<(u8, usize)>>> = vec![None; id_map.len()];
+        for (pos, id) in &id_map {
+            let conns = connections.get(pos).unwrap();
+            let id_conns: Vec<(u8, usize)> = conns
+                .iter()
+                .map(|(c, d)| (*id_map.get(c).unwrap(), *d))
+                .collect();
+            graph_connections_tmp[*id as usize] = Some(id_conns);
+        }
+        let graph_connections = graph_connections_tmp.into_iter().flatten().collect();
+
         // return a graph structure
         Graph {
             start: *id_map.get(&start).unwrap(),
             end: *id_map.get(&end).unwrap(),
-            connections: connections
-                .iter()
-                .map(|(pos, conns)| {
-                    (
-                        *id_map.get(pos).unwrap(),
-                        conns
-                            .iter()
-                            .map(|(c, d)| (*id_map.get(c).unwrap(), *d))
-                            .collect(),
-                    )
-                })
-                .collect(),
+            connections: graph_connections,
         }
     }
 
@@ -187,13 +188,13 @@ impl Terrain {
 struct Graph {
     start: u8,
     end: u8,
-    connections: HashMap<u8, Vec<(u8, usize)>>,
+    connections: Vec<Vec<(u8, usize)>>,
 }
 
 impl Graph {
     fn solve(&self) -> usize {
         let mut high_score = 0;
-        let mut open_set = vec![SolutionState::new(self.start)];
+        let mut open_set = vec![SolutionState::new(self.start, self.connections.len())];
 
         while let Some(curr) = open_set.pop() {
             if curr.pos == self.end {
@@ -202,7 +203,7 @@ impl Graph {
                     high_score = curr.distance;
                 }
             } else {
-                let conns = self.connections.get(&curr.pos).unwrap();
+                let conns = &self.connections[curr.pos as usize];
                 let mut next = curr.next(conns);
                 open_set.append(&mut next);
             }
@@ -215,15 +216,18 @@ impl Graph {
 #[derive(Debug)]
 struct SolutionState {
     pos: u8,
-    visited: HashSet<u8>,
+    visited: Vec<bool>,
     distance: usize,
 }
 
 impl SolutionState {
-    fn new(start: u8) -> Self {
+    fn new(start: u8, num_ids: usize) -> Self {
+        let mut visited = vec![false; num_ids];
+        visited[start as usize] = true;
+
         Self {
             pos: start,
-            visited: HashSet::from([start]),
+            visited: visited,
             distance: 0,
         }
     }
@@ -231,14 +235,14 @@ impl SolutionState {
     fn next(&self, connections: &[(u8, usize)]) -> Vec<SolutionState> {
         connections
             .iter()
-            .filter(|(dest, _)| !self.visited.contains(dest))
+            .filter(|(dest, _)| !self.visited[*dest as usize])
             .map(|(dest, dist)| self.move_to(dest, dist))
             .collect()
     }
 
     fn move_to(&self, destination: &u8, distance: &usize) -> Self {
         let mut next_visited = self.visited.clone();
-        next_visited.insert(*destination);
+        next_visited[*destination as usize] = true;
 
         Self {
             pos: *destination,
