@@ -14,37 +14,63 @@ fn read_input_file() -> String {
 }
 
 #[derive(Debug)]
-struct Item {
-    foo: String,
-    bar: usize,
+struct Hailstone {
+    position: Coord,
+    velocity: Coord,
 }
 
-impl Item {
+impl Hailstone {
     fn parse_list(input: &str) -> Vec<Self> {
         input.lines().map(|line| Self::parse(line)).collect()
     }
 
     fn parse(input: &str) -> Self {
         lazy_static! {
-            static ref ITEM_RE: Regex = Regex::new(r"\A(.+)=(\d+)\z").unwrap();
+            static ref HAILSTONE_RE: Regex = Regex::new(r"\A(.+) @ (.+)\z").unwrap();
         }
 
-        let caps = ITEM_RE.captures(input).unwrap();
-        let foo = caps.get(1).unwrap().as_str().to_string();
-        let bar = caps.get(2).unwrap().as_str().parse::<usize>().unwrap();
-        Self { foo, bar }
+        let caps = HAILSTONE_RE.captures(input).unwrap();
+        let position = Coord::parse(caps.get(1).unwrap().as_str());
+        let velocity = Coord::parse(caps.get(2).unwrap().as_str());
+        Self { position, velocity }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+struct Coord {
+    x: i64,
+    y: i64,
+    z: i64,
+}
+
+impl Coord {
+    fn parse(input: &str) -> Self {
+        let nums: Vec<i64> = input
+            .split(",")
+            .map(|s| s.trim().parse::<i64>().unwrap())
+            .collect();
+        Self::from_slice(&nums)
+    }
+
+    fn new(x: i64, y: i64, z: i64) -> Self {
+        Self { x, y, z }
+    }
+
+    fn from_slice(nums: &[i64]) -> Self {
+        assert_eq!(nums.len(), 3);
+        Self::new(nums[0], nums[1], nums[2])
     }
 }
 
 fn part1(input: &str) -> usize {
-    let items = Item::parse_list(input);
-    dbg!(&items);
+    let hailstones = Hailstone::parse_list(input);
+    dbg!(&hailstones);
     0
 }
 
 // fn part2(input: &str) -> usize {
-//     let items = Data::parse(input);
-//     dbg!(&items);
+//     let hailstones = Data::parse(input);
+//     dbg!(&hailstones);
 //     0
 // }
 
