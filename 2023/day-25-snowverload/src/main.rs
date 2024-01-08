@@ -1,8 +1,7 @@
-use std::fs;
-
-// use itertools::Itertools;
-use lazy_static::lazy_static;
-use regex::Regex;
+use std::{
+    collections::{HashMap, HashSet},
+    fs,
+};
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_input_file()));
@@ -14,32 +13,44 @@ fn read_input_file() -> String {
 }
 
 #[derive(Debug)]
-struct Item {
-    foo: String,
-    bar: usize,
+struct ConnectionMap<'a> {
+    conns: HashMap<&'a str, HashSet<&'a str>>,
 }
 
-impl Item {
-    fn parse_list(input: &str) -> Vec<Self> {
-        input.lines().map(|line| Self::parse(line)).collect()
-    }
+impl<'a> ConnectionMap<'a> {
+    fn parse(input: &'a str) -> Self {
+        let lines = input.lines().map(|line| Self::parse_line(line));
 
-    fn parse(input: &str) -> Self {
-        lazy_static! {
-            static ref ITEM_RE: Regex = Regex::new(r"\A(.+)=(\d+)\z").unwrap();
+        let mut conns: HashMap<&str, HashSet<&str>> = HashMap::new();
+        for (from, tos) in lines {
+            for to in tos {
+                conns.entry(from).or_default().insert(to);
+                conns.entry(to).or_default().insert(from);
+            }
         }
 
-        let caps = ITEM_RE.captures(input).unwrap();
-        let foo = caps.get(1).unwrap().as_str().to_string();
-        let bar = caps.get(2).unwrap().as_str().parse::<usize>().unwrap();
-        Self { foo, bar }
+        Self { conns }
+    }
+
+    fn parse_line(input: &str) -> (&str, Vec<&str>) {
+        // jqt: rhn xhk nvd
+        let mut parts = input.split(": ");
+        let left = parts.next().unwrap();
+        let right = parts.next().unwrap().split(" ").collect();
+        assert_eq!(parts.next(), None);
+        (left, right)
+    }
+
+    fn disconnect_groups(&self) -> (usize, usize) {
+        // TODO
+        (self.conns.len(), 0)
     }
 }
 
 fn part1(input: &str) -> usize {
-    let items = Item::parse_list(input);
-    dbg!(&items);
-    0
+    let map = ConnectionMap::parse(input);
+    let (a, b) = map.disconnect_groups();
+    a * b
 }
 
 // fn part2(input: &str) -> usize {
@@ -59,7 +70,7 @@ mod tests {
     #[test]
     fn test_part1_example() {
         let result = part1(&read_example_file());
-        assert_eq!(result, 0);
+        assert_eq!(result, 54);
     }
 
     // #[test]
