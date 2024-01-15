@@ -4,7 +4,7 @@ const INPUT_FILE: &'static str = "input.txt";
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_file(INPUT_FILE)));
-    // println!("part 2 result: {:?}", part2(&read_file(INPUT_FILE)));
+    println!("part 2 result: {:?}", part2(&read_file(INPUT_FILE)));
 }
 
 fn read_file(filename: &str) -> String {
@@ -47,8 +47,19 @@ fn part1(input: &str) -> i16 {
     directions.iter().map(|d| d.value()).sum()
 }
 
-// fn part2(input: &str) -> usize {
-// }
+fn part2(input: &str) -> Option<usize> {
+    let directions = Direction::parse_list(input);
+    let mut acc = 0;
+    let mut position = 0;
+    for direction in &directions {
+        position += 1;
+        acc += direction.value();
+        if acc < 0 {
+            return Some(position);
+        }
+    }
+    None
+}
 
 #[cfg(test)]
 mod tests {
@@ -73,15 +84,16 @@ mod tests {
         assert_eq!(result, 232);
     }
 
-    // #[test]
-    // fn test_part2_example() {
-    //     let result = part2(&read_file(EXAMPLE_FILE));
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example() {
+        assert_eq!(part2(&")"), Some(1));
+        assert_eq!(part2(&"()())"), Some(5));
+        assert_eq!(part2(&"()()"), None);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_file(INPUT_FILE));
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_file(INPUT_FILE));
+        assert_eq!(result, Some(1783));
+    }
 }
