@@ -49,16 +49,14 @@ fn part1(input: &str) -> i16 {
 
 fn part2(input: &str) -> Option<usize> {
     let directions = Direction::parse_list(input);
-    let mut acc = 0;
-    let mut position = 0;
-    for direction in &directions {
-        position += 1;
-        acc += direction.value();
-        if acc < 0 {
-            return Some(position);
-        }
-    }
-    None
+    directions
+        .iter()
+        .scan(0, |acc, d| {
+            *acc += d.value();
+            Some(*acc)
+        })
+        .position(|v| v < 0)
+        .map(|i| i + 1)
 }
 
 #[cfg(test)]
