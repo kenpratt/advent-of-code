@@ -1,7 +1,10 @@
 [package]
-name = "day-02-inventory-management-system"
+name = "advent-of-code-2018"
 version = "0.1.0"
-authors = ["Ken Pratt <ken@stripe.com>"]
-edition = "2018"
+authors = ["Ken Pratt <ken@kenpratt.net>"]
+edition = "2021"
+
+[profile.release]
+debug = 1
 
 [dependencies]

@@ -1,66 +1,108 @@
-use std::fs;
-use std::collections::HashMap;
+use std::{collections::HashMap, fs};
+
+const INPUT_FILE: &'static str = "input.txt";
 
 fn main() {
-    // read input & split into lines
-    let contents = fs::read_to_string("input.txt").expect("Something went wrong reading the file");
-    let lines = contents.lines();
-
-    println!("part 1:\n{}", part1(&lines));
-    println!("part 2:\n{}", part2(&lines).expect("Didn't return a string"));
+    println!("part 1 result: {:?}", part1(&read_file(INPUT_FILE)));
+    println!("part 2 result: {:?}", part2(&read_file(INPUT_FILE)));
 }
 
-fn part1(lines: &std::str::Lines) -> usize {
-    let scores = lines.clone().map(|l| score_line(l));
-
-    let count_with_2 = scores.clone().filter(|map| map.values().any(|x| *x == 2)).count();
-    let count_with_3 = scores.clone().filter(|map| map.values().any(|x| *x == 3)).count();
-
-    return count_with_2 * count_with_3;
+fn read_file(filename: &str) -> String {
+    fs::read_to_string(filename).expect("Something went wrong reading the file")
 }
 
-fn score_line(line: &str) -> HashMap<char, u8> {
-    let mut scores = HashMap::new();
+#[derive(Debug)]
+struct Box {
+    id: Vec<char>,
+}
 
-    for ch in line.chars() {
-        let count = scores.entry(ch).or_insert(0);
-        *count += 1;
+impl Box {
+    fn parse_list(input: &str) -> Vec<Self> {
+        input.lines().map(|line| Self::parse(line)).collect()
     }
 
-    return scores;
+    fn parse(input: &str) -> Self {
+        let id = input.chars().collect();
+        Self { id }
+    }
+
+    fn char_frequencies(&self) -> HashMap<&char, usize> {
+        let mut freq = HashMap::new();
+        for c in &self.id {
+            *freq.entry(c).or_default() += 1;
+        }
+        freq
+    }
 }
 
-fn part2(lines: &std::str::Lines) -> Option<String> {
-    let foo: Vec<&str> = lines.clone().collect();
-    let len = foo.len();
+fn part1(input: &str) -> usize {
+    let boxes = Box::parse_list(input);
+    let freqs: Vec<HashMap<&char, usize>> = boxes.iter().map(|b| b.char_frequencies()).collect();
+    let twos = freqs.iter().filter(|f| f.values().any(|n| *n == 2)).count();
+    let threes = freqs.iter().filter(|f| f.values().any(|n| *n == 3)).count();
+    twos * threes
+}
 
-    let mut best: Option<String> = None;
+fn part2(input: &str) -> String {
+    let boxes = Box::parse_list(input);
 
-    for x in 0..len {
-        for y in (x+1)..len {
-            // println!("x: {}, y: {}", x, y);
-            let in_common = letters_in_common(foo[x], foo[y]);
-            let res = match best {
-                Some(curr) => {
-                    if in_common.len() > curr.len() {
-                        in_common
-                    } else {
-                        curr
-                    }
-                },
-                None => in_common,
-            };
-            best = Some(res);
+    // find two boxes that only differ by one character
+    // in order to do so more efficiently than O(N*N),
+    // let's build a map of variants of each box ID, by
+    // removing one char at a time.
+    let mut variants: HashMap<(&[char], &[char]), usize> = HashMap::new();
+    for b in &boxes {
+        for i in 0..b.id.len() {
+            let l = &b.id[0..i];
+            let r = &b.id[i + 1..b.id.len()];
+            *variants.entry((l, r)).or_default() += 1;
         }
     }
 
-    return best;
+    // find the collision in the map -- there should only be one!
+    let collisions: Vec<((&[char], &[char]), usize)> =
+        variants.into_iter().filter(|(_k, v)| *v > 1).collect();
+    assert_eq!(collisions.len(), 1);
+
+    let (key, count) = collisions[0];
+    assert_eq!(count, 2);
+
+    // return chars in common
+    let (left, right) = key;
+    let mut left_str: String = left.iter().collect();
+    let right_str: String = right.iter().collect();
+    left_str.push_str(&right_str);
+    left_str
 }
 
-fn letters_in_common(word1: &str, word2: &str) -> String {
-    let chars1: Vec<char> = word1.chars().collect();
-    let chars2: Vec<char> = word2.chars().collect();
-    let len: usize = std::cmp::min(chars1.len(), chars2.len());
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    return (0..len).filter(|&i| chars1[i] == chars2[i]).map(|i| chars1[i]).collect();
- }
+    const EXAMPLE_FILE_1: &'static str = "example1.txt";
+    const EXAMPLE_FILE_2: &'static str = "example2.txt";
+
+    #[test]
+    fn test_part1_example() {
+        let result = part1(&read_file(EXAMPLE_FILE_1));
+        assert_eq!(result, 12);
+    }
+
+    #[test]
+    fn test_part1_solution() {
+        let result = part1(&read_file(INPUT_FILE));
+        assert_eq!(result, 4920);
+    }
+
+    #[test]
+    fn test_part2_example() {
+        let result = part2(&read_file(EXAMPLE_FILE_2));
+        assert_eq!(result, "fgij");
+    }
+
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_file(INPUT_FILE));
+        assert_eq!(result, "fonbwmjquwtapeyzikghtvdxl");
+    }
+}
