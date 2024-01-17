@@ -3,5 +3,5 @@
 version = 3
 
 [[package]]
-name = "day-01-chronal-calibration"
+name = "advent-of-code-2018"
 version = "0.1.0"
