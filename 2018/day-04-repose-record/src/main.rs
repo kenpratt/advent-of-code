@@ -1,219 +1,235 @@
-extern crate chrono;
-extern crate regex;
+use std::{collections::HashMap, fs, ops::Range};
 
-use chrono::prelude::*;
+use lazy_static::lazy_static;
 use regex::Regex;
-use std::collections::HashMap;
-use std::fs;
+use time::{macros::format_description, PrimitiveDateTime};
+
+const INPUT_FILE: &'static str = "input.txt";
 
 fn main() {
-    // read input & split into lines
-    let contents = fs::read_to_string("input.txt").expect("Something went wrong reading the file");
-    let lines = contents.lines();
+    println!("part 1 result: {:?}", part1(&read_file(INPUT_FILE)));
+    println!("part 2 result: {:?}", part2(&read_file(INPUT_FILE)));
+}
 
-    // parse input
-    let mut log: Vec<Entry> = lines.map(|l| Entry::parse(l)).collect();
+fn read_file(filename: &str) -> String {
+    fs::read_to_string(filename).expect("Something went wrong reading the file")
+}
 
-    // sort by time
-    log.sort_unstable_by_key(|e| e.time);
+#[derive(Debug)]
+struct Record {
+    time: PrimitiveDateTime,
+    entry: Entry,
+}
 
-    //println!("log: {:?}", log);
-
-    let guards = build_guard_map(&log);
-    //println!("guards: {:?}", guards);
-
-    for (id, data) in guards.iter() {
-        println!("{:?}: {:?}, {:?}", id, data.total_nap_duration(), data.sleepiest_minute());
+impl Record {
+    fn parse_list(input: &str) -> Vec<Self> {
+        input.lines().map(|line| Self::parse(line)).collect()
     }
 
-
-    let part1 = part1(&guards);
-    println!("part 1: {:?}", part1);
-
-    let part2 = part2(&guards);
-    println!("part 2: {:?}", part2);
-}
-
-fn part1(guards: &HashMap<u16, GuardMetadata>) -> u32 {
-    let target = guards.iter().max_by_key(|(_id, data)| data.total_nap_duration()).unwrap();
-
-    let id = target.0;
-    let sleepiest_minute = target.1.sleepiest_minute();
-    let minute = sleepiest_minute.0;
-    let result = (*id as u32) * (minute as u32);
-
-    println!("guard {}, minute: {:?}, result: {}", id, sleepiest_minute, result);
-
-    return result;
-}
-
-fn part2(guards: &HashMap<u16, GuardMetadata>) -> u32 {
-    let target = guards.iter().max_by_key(|(_id, data)| data.sleepiest_minute().1).unwrap();
-
-    let id = target.0;
-    let sleepiest_minute = target.1.sleepiest_minute();
-    let minute = sleepiest_minute.0;
-    let result = (*id as u32) * (minute as u32);
-
-    println!("guard {}, minute: {:?}, result: {}", id, sleepiest_minute, result);
-
-    return result;
-}
-
-fn build_guard_map(entries: &[Entry]) -> HashMap<u16, GuardMetadata> {
-    let mut output = HashMap::new();
-    let mut curr_shift_id = None;
-    let mut curr_nap_start: Option<DateTime<Utc>> = None;
-
-    for entry in entries {
-        match entry.status {
-            Status::BeginsShift(id) => {
-                assert!(curr_nap_start.is_none(), "curr_nap_start is Some during WakesUp");
-
-                if !output.contains_key(&id) {
-                    output.insert(id, vec![]);
-                }
-
-                let shift = Shift {
-                    start_time: entry.time,
-                    naps: vec![],
-                };
-                output.get_mut(&id).unwrap().push(shift);
-
-                curr_shift_id = Some(id);
-                curr_nap_start = None;
-            },
-            Status::FallsAsleep => {
-                assert!(curr_shift_id.is_some(), "curr_shift_id is None during FallsAsleep");
-                assert!(curr_nap_start.is_none(), "curr_nap_start is Some during WakesUp");
-
-                curr_nap_start = Some(entry.time);
-            },
-            Status::WakesUp => {
-                assert!(&curr_shift_id.is_some(), "curr_shift_id is None during FallsAsleep");
-                assert!(curr_nap_start.is_some(), "curr_nap_start is None during WakesUp");
-
-                let nap = Nap {
-                    start_time: curr_nap_start.unwrap(),
-                    end_time: entry.time,
-                };
-
-                let shift_id = curr_shift_id.unwrap();
-                let shift = output.get_mut(&shift_id).unwrap().last_mut().unwrap();
-                shift.naps.push(nap);
-
-                curr_nap_start = None;
-            },
-        }
-    }
-
-    return output;
-}
-
-type GuardMetadata = Vec<Shift>;
-
-trait GuardMetadataHelpers {
-    fn total_nap_duration(&self) -> i64;
-    fn sleepiest_minute(&self) -> (u8, u8);
-}
-
-impl GuardMetadataHelpers for GuardMetadata {
-    fn total_nap_duration(&self) -> i64 {
-        return self.iter().map(|shift| shift.total_nap_duration()).sum();
-    }
-    fn sleepiest_minute(&self) -> (u8, u8) {
-        let mut v: [u8; 60] = [0; 60];
-
-        for shift in self {
-            for nap in &shift.naps {
-                for minute in nap.start_time.minute()..nap.end_time.minute() {
-                    v[minute as usize] += 1;
-                }
-            }
+    fn parse(input: &str) -> Self {
+        lazy_static! {
+            static ref RECORD_RE: Regex = Regex::new(r"\A\[(.+)\] (.+)\z").unwrap();
         }
 
-        let with_indices: Vec<(usize, &u8)> = v.iter().enumerate().collect();
-        let sleepiest = with_indices.iter().max_by_key(|(_minute, total)| total);
+        let time_format = format_description!("[year]-[month]-[day] [hour]:[minute]");
 
-        let minute = sleepiest.unwrap().0 as u8;
-        let nap_count = *sleepiest.unwrap().1 as u8;
-        return (minute, nap_count);
+        let caps = RECORD_RE.captures(input).unwrap();
+        let time = PrimitiveDateTime::parse(caps.get(1).unwrap().as_str(), time_format).unwrap();
+        let entry = Entry::parse(caps.get(2).unwrap().as_str());
+        Self { time, entry }
+    }
+}
+
+const SLEEP: &'static str = "falls asleep";
+const WAKE: &'static str = "wakes up";
+
+#[derive(Debug)]
+enum Entry {
+    Begin(u16),
+    Sleep,
+    Wake,
+}
+
+impl Entry {
+    fn parse(input: &str) -> Self {
+        use Entry::*;
+
+        lazy_static! {
+            static ref SHIFT_RE: Regex = Regex::new(r"\AGuard #(\d+) begins shift\z").unwrap();
+        }
+
+        match input {
+            SLEEP => Sleep,
+            WAKE => Wake,
+            _ => match SHIFT_RE.captures(input) {
+                Some(caps) => Begin(caps.get(1).unwrap().as_str().parse::<u16>().unwrap()),
+                None => panic!("Unexpected entry format: {:?}", input),
+            },
+        }
     }
 }
 
 #[derive(Debug)]
 struct Shift {
-    start_time: DateTime<Utc>,
-    //end_time: DateTime<Utc>,
-    naps: Vec<Nap>,
+    guard: u16,
+    naps: Vec<Range<u8>>,
 }
 
 impl Shift {
-    fn total_nap_duration(&self) -> i64 {
-        return self.naps.iter().map(|nap| nap.duration()).sum();
+    fn parse_list(input: &str) -> Vec<Self> {
+        let mut records = Record::parse_list(input);
+        records.sort_by_cached_key(|r| r.time);
+
+        let mut records_iter = records.iter().peekable();
+
+        let mut shifts = vec![];
+        while let Some(shift) = Self::next_shift(&mut records_iter) {
+            shifts.push(shift);
+        }
+        shifts
     }
-}
 
-#[derive(Debug)]
-struct Nap {
-    start_time: DateTime<Utc>,
-    end_time: DateTime<Utc>,
-}
+    fn next_shift<'a, I: Iterator<Item = &'a Record>>(
+        iter: &mut std::iter::Peekable<I>,
+    ) -> Option<Self> {
+        match iter.next() {
+            Some(Record {
+                time: _,
+                entry: Entry::Begin(guard),
+            }) => {
+                let mut naps = vec![];
+                while let Some(nap) = Self::next_nap(iter) {
+                    naps.push(nap);
+                }
 
-impl Nap {
-    fn duration(&self) -> i64 {
-        return (self.end_time - self.start_time).num_minutes();
-    }
-}
-
-#[derive(Debug)]
-struct Entry {
-    time: DateTime<Utc>,
-    status: Status,
-}
-
-#[derive(Debug)]
-enum Status {
-    BeginsShift(u16),
-    FallsAsleep,
-    WakesUp,
-}
-
-impl Entry {
-    fn parse(line: &str) -> Entry {
-        let re = Regex::new(r"\[(.+)\] (.+)").expect("failed to match regexp");
-        let m = re.captures(line).expect("failed to unpack re captures");
-
-        let time_str = m.get(1).map_or("", |m| m.as_str());
-        let status_str = m.get(2).map_or("", |m| m.as_str());
-
-        let time = Entry::parse_time(time_str).expect("failed to parse time");
-        let status = Entry::parse_status(status_str).expect("failed to parse status");
-
-        return Entry {
-            time: time,
-            status: status,
+                Some(Self {
+                    guard: *guard,
+                    naps,
+                })
+            }
+            Some(r) => panic!("Expected record to be the beginning of a shift: {:?}", r),
+            None => None,
         }
     }
 
-    fn parse_time(time: &str) -> Result<DateTime<Utc>, chrono::ParseError> {
-        return Utc.datetime_from_str(time, "%Y-%m-%d %H:%M");
+    fn next_nap<'a, I: Iterator<Item = &'a Record>>(
+        iter: &mut std::iter::Peekable<I>,
+    ) -> Option<Range<u8>> {
+        match iter.peek() {
+            Some(Record {
+                time: _,
+                entry: Entry::Begin(_),
+            }) => None,
+            Some(Record {
+                time: sleep,
+                entry: Entry::Sleep,
+            }) => {
+                iter.next();
+                match iter.next() {
+                    Some(Record {
+                        time: wake,
+                        entry: Entry::Wake,
+                    }) => {
+                        assert_eq!(sleep.date(), wake.date());
+                        assert_eq!(sleep.hour(), wake.hour());
+                        Some(sleep.minute()..wake.minute())
+                    }
+                    r => panic!("Expected wake, got {:?}", r),
+                }
+            }
+            Some(Record {
+                time,
+                entry: Entry::Wake,
+            }) => panic!("Expected sleep or new shift, got wake at: {:?}", time),
+            None => None,
+        }
     }
 
-    fn parse_status(status: &str) -> Result<Status, &str> {
-        let begins_shift = Regex::new(r"Guard #(\d+) begins shift").expect("failed to construct regexp");
+    fn total_nap_time(&self) -> usize {
+        self.naps.iter().map(|r| r.len()).sum()
+    }
 
-        if status == "falls asleep" {
-            return Ok(Status::FallsAsleep);
-        } else if status == "wakes up" {
-            return Ok(Status::WakesUp);
-        } else if begins_shift.is_match(status) {
-            let m = begins_shift.captures(status).expect("failed to unpack re captures");
-            let id_str = m.get(1).map_or("", |m| m.as_str());
-            let id = id_str.parse::<u16>().unwrap();
-            return Ok(Status::BeginsShift(id));
-        } else {
-            return Err("unknown status string");
+    fn sleepiest_minute(shifts: &[Shift]) -> (usize, usize) {
+        let mut mins: Vec<usize> = vec![0; 60];
+
+        for shift in shifts {
+            for nap in &shift.naps {
+                for min in nap.clone() {
+                    mins[min as usize] += 1;
+                }
+            }
         }
+
+        mins.into_iter()
+            .enumerate()
+            .max_by_key(|(_, v)| *v)
+            .unwrap()
+    }
+}
+
+fn parse_shifts_by_guard(input: &str) -> HashMap<u16, Vec<Shift>> {
+    let shifts = Shift::parse_list(input);
+    let mut by_guard: HashMap<u16, Vec<Shift>> = HashMap::new();
+    for shift in shifts {
+        by_guard.entry(shift.guard).or_default().push(shift);
+    }
+
+    by_guard
+}
+
+fn part1(input: &str) -> usize {
+    let by_guard = parse_shifts_by_guard(input);
+    let (sleepiest_guard, sleepiest_shifts) = by_guard
+        .iter()
+        .max_by_key(|(_guard, shifts)| {
+            shifts
+                .iter()
+                .map(|shift| shift.total_nap_time())
+                .sum::<usize>()
+        })
+        .unwrap();
+
+    let (minute, _count) = Shift::sleepiest_minute(sleepiest_shifts);
+    *sleepiest_guard as usize * minute as usize
+}
+
+fn part2(input: &str) -> usize {
+    let by_guard = parse_shifts_by_guard(input);
+    let (guard, (minute, _count)) = by_guard
+        .iter()
+        .map(|(guard, shifts)| (guard, Shift::sleepiest_minute(shifts)))
+        .max_by_key(|(_guard, (_minute, count))| *count)
+        .unwrap();
+    *guard as usize * minute
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const EXAMPLE_FILE: &'static str = "example.txt";
+
+    #[test]
+    fn test_part1_example() {
+        let result = part1(&read_file(EXAMPLE_FILE));
+        assert_eq!(result, 240);
+    }
+
+    #[test]
+    fn test_part1_solution() {
+        let result = part1(&read_file(INPUT_FILE));
+        assert_eq!(result, 125444);
+    }
+
+    #[test]
+    fn test_part2_example() {
+        let result = part2(&read_file(EXAMPLE_FILE));
+        assert_eq!(result, 4455);
+    }
+
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_file(INPUT_FILE));
+        assert_eq!(result, 18325);
     }
 }
