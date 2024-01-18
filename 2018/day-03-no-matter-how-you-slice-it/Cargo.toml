@@ -1,8 +1,12 @@
 [package]
-name = "day-03-no-matter-how-you-slice-it"
+name = "advent-of-code-2018"
 version = "0.1.0"
-authors = ["Ken Pratt <ken@stripe.com>"]
-edition = "2018"
+authors = ["Ken Pratt <ken@kenpratt.net>"]
+edition = "2021"
+
+[profile.release]
+debug = 1
 
 [dependencies]
-regex = "1"
+lazy_static = "1.4.0"
+regex = "1.10.2"

@@ -3,7 +3,7 @@
 version = 3
 
 [[package]]
-name = "advent-of-code-2015"
+name = "advent-of-code-2018"
 version = "0.1.0"
 dependencies = [
  "lazy_static",
