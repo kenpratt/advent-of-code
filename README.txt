@@ -20,3 +20,4 @@ Profiling on Windows in WSL2:
 - add to Cargo.toml:
 [profile.release]
 debug = 1
+- cargo flamegraph
