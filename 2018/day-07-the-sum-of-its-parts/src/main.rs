@@ -1,5 +1,5 @@
 use std::{
-    cmp::Reverse,
+    cmp::{self, Reverse},
     collections::{BinaryHeap, HashMap, HashSet},
     fs,
 };
@@ -11,7 +11,7 @@ const INPUT_FILE: &'static str = "input.txt";
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_file(INPUT_FILE)));
-    // println!("part 2 result: {:?}", part2(&read_file(INPUT_FILE)));
+    println!("part 2 result: {:?}", part2(&read_file(INPUT_FILE), 5, 60));
 }
 
 fn read_file(filename: &str) -> String {
@@ -116,16 +116,19 @@ fn part1(input: &str) -> String {
         .iter()
         .map(|c| Reverse(*c))
         .collect();
+
     let mut visited = HashSet::new();
     let mut visited_order = vec![];
 
+    // visit first node in alphabetic order
     while let Some(Reverse(curr)) = frontier.pop() {
         visited.insert(curr);
         visited_order.push(curr);
 
+        // expand all nodes who now have their dependencies met
         for to_expand in dependencies.expansions(&curr) {
             if dependencies.prerequisites_met(to_expand, &visited) {
-                frontier.push(Reverse(*to_expand))
+                frontier.push(Reverse(*to_expand));
             }
         }
     }
@@ -133,8 +136,46 @@ fn part1(input: &str) -> String {
     visited_order.into_iter().collect()
 }
 
-// fn part2(input: &str) -> usize {
-// }
+fn part2(input: &str, num_workers: usize, base_duration: usize) -> usize {
+    let dependencies = Dependencies::parse(input);
+
+    // reversed binary heap will pop the lowest item first
+    let mut frontier: BinaryHeap<Reverse<(usize, char)>> = dependencies
+        .starting_nodes
+        .iter()
+        .map(|c| Reverse((0, *c)))
+        .collect();
+
+    // also track worker available times in a binary heap
+    let mut workers: BinaryHeap<Reverse<usize>> = BinaryHeap::new();
+    for _ in 0..num_workers {
+        workers.push(Reverse(0));
+    }
+
+    let mut visited = HashSet::new();
+
+    // visit first available node (using alphabitec order as tie-break)
+    while let Some(Reverse((curr_available_at, curr_id))) = frontier.pop() {
+        visited.insert(curr_id);
+
+        let Reverse(worker_available_at) = workers.pop().unwrap();
+
+        let start_at = cmp::max(worker_available_at, curr_available_at);
+        let end_at = start_at + base_duration + (curr_id as usize - 64);
+
+        // schedule the worker for post completion
+        workers.push(Reverse(end_at));
+
+        // expand all nodes who now have their dependencies met
+        for to_expand in dependencies.expansions(&curr_id) {
+            if dependencies.prerequisites_met(to_expand, &visited) {
+                frontier.push(Reverse((end_at, *to_expand)));
+            }
+        }
+    }
+
+    workers.into_iter().map(|Reverse(v)| v).max().unwrap()
+}
 
 #[cfg(test)]
 mod tests {
@@ -154,15 +195,15 @@ mod tests {
         assert_eq!(result, "EPWCFXKISTZVJHDGNABLQYMORU");
     }
 
-    // #[test]
-    // fn test_part2_example() {
-    //     let result = part2(&read_file(EXAMPLE_FILE));
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_example() {
+        let result = part2(&read_file(EXAMPLE_FILE), 2, 0);
+        assert_eq!(result, 15);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_file(INPUT_FILE));
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_file(INPUT_FILE), 5, 60);
+        assert_eq!(result, 952);
+    }
 }
