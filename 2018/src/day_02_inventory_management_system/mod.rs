@@ -1,14 +1,10 @@
-use std::{collections::HashMap, fs};
+use crate::file::*;
+use std::collections::HashMap;
 
-const INPUT_FILE: &'static str = "input.txt";
-
-fn main() {
-    println!("part 1 result: {:?}", part1(&read_file(INPUT_FILE)));
-    println!("part 2 result: {:?}", part2(&read_file(INPUT_FILE)));
-}
-
-fn read_file(filename: &str) -> String {
-    fs::read_to_string(filename).expect("Something went wrong reading the file")
+pub fn run() {
+    let input = parse(&read_input_file!());
+    println!("part 1 result: {:?}", part1(&input));
+    println!("part 2 result: {:?}", part2(&input));
 }
 
 #[derive(Debug)]
@@ -35,23 +31,24 @@ impl Box {
     }
 }
 
-fn part1(input: &str) -> usize {
-    let boxes = Box::parse_list(input);
+fn parse(input: &str) -> Vec<Box> {
+    Box::parse_list(input)
+}
+
+fn part1(boxes: &[Box]) -> usize {
     let freqs: Vec<HashMap<&char, usize>> = boxes.iter().map(|b| b.char_frequencies()).collect();
     let twos = freqs.iter().filter(|f| f.values().any(|n| *n == 2)).count();
     let threes = freqs.iter().filter(|f| f.values().any(|n| *n == 3)).count();
     twos * threes
 }
 
-fn part2(input: &str) -> String {
-    let boxes = Box::parse_list(input);
-
+fn part2(boxes: &[Box]) -> String {
     // find two boxes that only differ by one character
     // in order to do so more efficiently than O(N*N),
     // let's build a map of variants of each box ID, by
     // removing one char at a time.
     let mut variants: HashMap<(&[char], &[char]), usize> = HashMap::new();
-    for b in &boxes {
+    for b in boxes {
         for i in 0..b.id.len() {
             let l = &b.id[0..i];
             let r = &b.id[i + 1..b.id.len()];
@@ -84,25 +81,25 @@ mod tests {
 
     #[test]
     fn test_part1_example() {
-        let result = part1(&read_file(EXAMPLE_FILE_1));
+        let result = part1(&parse(&read_file!(EXAMPLE_FILE_1)));
         assert_eq!(result, 12);
     }
 
     #[test]
     fn test_part1_solution() {
-        let result = part1(&read_file(INPUT_FILE));
+        let result = part1(&parse(&read_input_file!()));
         assert_eq!(result, 4920);
     }
 
     #[test]
     fn test_part2_example() {
-        let result = part2(&read_file(EXAMPLE_FILE_2));
+        let result = part2(&parse(&read_file!(EXAMPLE_FILE_2)));
         assert_eq!(result, "fgij");
     }
 
     #[test]
     fn test_part2_solution() {
-        let result = part2(&read_file(INPUT_FILE));
+        let result = part2(&parse(&read_input_file!()));
         assert_eq!(result, "fonbwmjquwtapeyzikghtvdxl");
     }
 }

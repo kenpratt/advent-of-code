@@ -1,18 +1,13 @@
+use crate::file::*;
 use std::{
     collections::{HashMap, HashSet},
-    fs,
     hash::Hash,
 };
 
-const INPUT_FILE: &'static str = "input.txt";
-
-fn main() {
-    println!("part 1 result: {:?}", part1(&read_file(INPUT_FILE)));
-    println!("part 2 result: {:?}", part2(&read_file(INPUT_FILE), 10000));
-}
-
-fn read_file(filename: &str) -> String {
-    fs::read_to_string(filename).expect("Something went wrong reading the file")
+pub fn run() {
+    let input = parse(&read_input_file!());
+    println!("part 1 result: {:?}", part1(&input));
+    println!("part 2 result: {:?}", part2(&input, 10000));
 }
 
 struct Map<'a, T> {
@@ -144,10 +139,13 @@ enum Territory {
     Conflict,
 }
 
-fn part1(input: &str) -> usize {
+fn parse(input: &str) -> (Vec<Coord>, Bounds) {
     let nodes = Coord::parse_list(input);
     let bounds = Bounds::calculate(&nodes);
+    (nodes, bounds)
+}
 
+fn part1((nodes, bounds): &(Vec<Coord>, Bounds)) -> usize {
     let mut infinite: HashSet<usize> = HashSet::new();
     let mut map: Map<Territory> = Map::new(&bounds);
     let node_indices: Vec<usize> = nodes.iter().map(|c| map.coord_to_index(c)).collect();
@@ -222,9 +220,7 @@ fn part1(input: &str) -> usize {
     *bounded.values().max().unwrap()
 }
 
-fn part2(input: &str, target_distance: usize) -> usize {
-    let nodes = Coord::parse_list(input);
-    let bounds = Bounds::calculate(&nodes);
+fn part2((nodes, bounds): &(Vec<Coord>, Bounds), target_distance: usize) -> usize {
     let mut map: Map<()> = Map::new(&bounds);
 
     let middle = Coord::new(
@@ -268,25 +264,25 @@ mod tests {
 
     #[test]
     fn test_part1_example() {
-        let result = part1(&read_file(EXAMPLE_FILE));
+        let result = part1(&parse(&read_example_file!()));
         assert_eq!(result, 17);
     }
 
     #[test]
     fn test_part1_solution() {
-        let result = part1(&read_file(INPUT_FILE));
+        let result = part1(&parse(&read_input_file!()));
         assert_eq!(result, 6047);
     }
 
     #[test]
     fn test_part2_example() {
-        let result = part2(&read_file(EXAMPLE_FILE), 32);
+        let result = part2(&parse(&read_example_file!()), 32);
         assert_eq!(result, 16);
     }
 
     #[test]
     fn test_part2_solution() {
-        let result = part2(&read_file(INPUT_FILE), 10000);
+        let result = part2(&parse(&read_input_file!()), 10000);
         assert_eq!(result, 46320);
     }
 }

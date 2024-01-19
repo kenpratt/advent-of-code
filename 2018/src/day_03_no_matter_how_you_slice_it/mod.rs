@@ -1,21 +1,16 @@
+use crate::file::*;
 use std::{
     collections::BTreeSet,
-    fs,
     ops::{Range, RangeInclusive},
 };
 
 use lazy_static::lazy_static;
 use regex::Regex;
 
-const INPUT_FILE: &'static str = "input.txt";
-
-fn main() {
-    println!("part 1 result: {:?}", part1(&read_file(INPUT_FILE)));
-    println!("part 2 result: {:?}", part2(&read_file(INPUT_FILE)));
-}
-
-fn read_file(filename: &str) -> String {
-    fs::read_to_string(filename).expect("Something went wrong reading the file")
+pub fn run() {
+    let input = parse(&read_input_file!());
+    println!("part 1 result: {:?}", part1(&input));
+    println!("part 2 result: {:?}", part2(&input));
 }
 
 #[derive(Debug)]
@@ -170,15 +165,17 @@ impl Grid {
     }
 }
 
-fn part1(input: &str) -> usize {
+fn parse(input: &str) -> (Vec<Claim>, Grid) {
     let claims = Claim::parse_list(input);
     let grid = Grid::build(&claims);
+    (claims, grid)
+}
+
+fn part1((_claims, grid): &(Vec<Claim>, Grid)) -> usize {
     grid.area_with_overlap()
 }
 
-fn part2(input: &str) -> u16 {
-    let claims = Claim::parse_list(input);
-    let grid = Grid::build(&claims);
+fn part2((claims, grid): &(Vec<Claim>, Grid)) -> u16 {
     let non_overlapping: Vec<&Claim> = claims
         .iter()
         .filter(|c| grid.is_non_overlapping(c))
@@ -195,25 +192,25 @@ mod tests {
 
     #[test]
     fn test_part1_example() {
-        let result = part1(&read_file(EXAMPLE_FILE));
+        let result = part1(&parse(&read_example_file!()));
         assert_eq!(result, 4);
     }
 
     #[test]
     fn test_part1_solution() {
-        let result = part1(&read_file(INPUT_FILE));
+        let result = part1(&parse(&read_input_file!()));
         assert_eq!(result, 98005);
     }
 
     #[test]
     fn test_part2_example() {
-        let result = part2(&read_file(EXAMPLE_FILE));
+        let result = part2(&parse(&read_example_file!()));
         assert_eq!(result, 3);
     }
 
     #[test]
     fn test_part2_solution() {
-        let result = part2(&read_file(INPUT_FILE));
+        let result = part2(&parse(&read_input_file!()));
         assert_eq!(result, 331);
     }
 }

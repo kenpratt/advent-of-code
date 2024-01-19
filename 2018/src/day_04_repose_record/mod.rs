@@ -1,18 +1,14 @@
-use std::{collections::HashMap, fs, ops::Range};
+use crate::file::*;
+use std::{collections::HashMap, ops::Range};
 
 use lazy_static::lazy_static;
 use regex::Regex;
 use time::{macros::format_description, PrimitiveDateTime};
 
-const INPUT_FILE: &'static str = "input.txt";
-
-fn main() {
-    println!("part 1 result: {:?}", part1(&read_file(INPUT_FILE)));
-    println!("part 2 result: {:?}", part2(&read_file(INPUT_FILE)));
-}
-
-fn read_file(filename: &str) -> String {
-    fs::read_to_string(filename).expect("Something went wrong reading the file")
+pub fn run() {
+    let input = parse(&read_input_file!());
+    println!("part 1 result: {:?}", part1(&input));
+    println!("part 2 result: {:?}", part2(&input));
 }
 
 #[derive(Debug)]
@@ -167,7 +163,7 @@ impl Shift {
     }
 }
 
-fn parse_shifts_by_guard(input: &str) -> HashMap<u16, Vec<Shift>> {
+fn parse(input: &str) -> HashMap<u16, Vec<Shift>> {
     let shifts = Shift::parse_list(input);
     let mut by_guard: HashMap<u16, Vec<Shift>> = HashMap::new();
     for shift in shifts {
@@ -177,8 +173,7 @@ fn parse_shifts_by_guard(input: &str) -> HashMap<u16, Vec<Shift>> {
     by_guard
 }
 
-fn part1(input: &str) -> usize {
-    let by_guard = parse_shifts_by_guard(input);
+fn part1(by_guard: &HashMap<u16, Vec<Shift>>) -> usize {
     let (sleepiest_guard, sleepiest_shifts) = by_guard
         .iter()
         .max_by_key(|(_guard, shifts)| {
@@ -193,8 +188,7 @@ fn part1(input: &str) -> usize {
     *sleepiest_guard as usize * minute as usize
 }
 
-fn part2(input: &str) -> usize {
-    let by_guard = parse_shifts_by_guard(input);
+fn part2(by_guard: &HashMap<u16, Vec<Shift>>) -> usize {
     let (guard, (minute, _count)) = by_guard
         .iter()
         .map(|(guard, shifts)| (guard, Shift::sleepiest_minute(shifts)))
@@ -207,29 +201,27 @@ fn part2(input: &str) -> usize {
 mod tests {
     use super::*;
 
-    const EXAMPLE_FILE: &'static str = "example.txt";
-
     #[test]
     fn test_part1_example() {
-        let result = part1(&read_file(EXAMPLE_FILE));
+        let result = part1(&parse(&read_example_file!()));
         assert_eq!(result, 240);
     }
 
     #[test]
     fn test_part1_solution() {
-        let result = part1(&read_file(INPUT_FILE));
+        let result = part1(&parse(&read_input_file!()));
         assert_eq!(result, 125444);
     }
 
     #[test]
     fn test_part2_example() {
-        let result = part2(&read_file(EXAMPLE_FILE));
+        let result = part2(&parse(&read_example_file!()));
         assert_eq!(result, 4455);
     }
 
     #[test]
     fn test_part2_solution() {
-        let result = part2(&read_file(INPUT_FILE));
+        let result = part2(&parse(&read_input_file!()));
         assert_eq!(result, 18325);
     }
 }

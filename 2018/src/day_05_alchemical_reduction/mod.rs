@@ -1,14 +1,9 @@
-use std::fs;
+use crate::file::*;
 
-const INPUT_FILE: &'static str = "input.txt";
-
-fn main() {
-    println!("part 1 result: {:?}", part1(&read_file(INPUT_FILE)));
-    println!("part 2 result: {:?}", part2(&read_file(INPUT_FILE)));
-}
-
-fn read_file(filename: &str) -> String {
-    fs::read_to_string(filename).expect("Something went wrong reading the file")
+pub fn run() {
+    let input = parse(&read_input_file!());
+    println!("part 1 result: {:?}", part1(&input));
+    println!("part 2 result: {:?}", part2(&input));
 }
 
 struct Solver<'a> {
@@ -84,13 +79,15 @@ impl Solver<'_> {
     }
 }
 
-fn part1(input: &str) -> usize {
-    let chars: Vec<char> = input.chars().collect();
-    Solver::length_after_reduction(&chars, None)
+fn parse(input: &str) -> Vec<char> {
+    input.chars().collect()
 }
 
-fn part2(input: &str) -> usize {
-    let chars: Vec<char> = input.chars().collect();
+fn part1(chars: &[char]) -> usize {
+    Solver::length_after_reduction(chars, None)
+}
+
+fn part2(chars: &[char]) -> usize {
     ('a'..='z')
         .map(|ignore| Solver::length_after_reduction(&chars, Some(&ignore)))
         .min()
@@ -105,25 +102,25 @@ mod tests {
 
     #[test]
     fn test_part1_examples() {
-        let result = part1(&read_file(EXAMPLE_FILE));
+        let result = part1(&parse(&read_example_file!()));
         assert_eq!(result, 10);
     }
 
     #[test]
     fn test_part1_solution() {
-        let result = part1(&read_file(INPUT_FILE));
+        let result = part1(&parse(&read_input_file!()));
         assert_eq!(result, 11476);
     }
 
     #[test]
     fn test_part2_example() {
-        let result = part2(&read_file(EXAMPLE_FILE));
+        let result = part2(&parse(&read_example_file!()));
         assert_eq!(result, 4);
     }
 
     #[test]
     fn test_part2_solution() {
-        let result = part2(&read_file(INPUT_FILE));
+        let result = part2(&parse(&read_input_file!()));
         assert_eq!(result, 5446);
     }
 }

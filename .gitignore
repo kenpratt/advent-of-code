@@ -1,5 +1,8 @@
 .DS_Store
-*/*/target
+target
 *.log
+*.svg
+perf.data
+perf.data.old
 profile*.txt
 output*.txt

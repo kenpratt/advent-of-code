@@ -1,21 +1,16 @@
+use crate::file::*;
 use std::{
     cmp::{self, Reverse},
     collections::{BinaryHeap, HashMap, HashSet},
-    fs,
 };
 
 use lazy_static::lazy_static;
 use regex::Regex;
 
-const INPUT_FILE: &'static str = "input.txt";
-
-fn main() {
-    println!("part 1 result: {:?}", part1(&read_file(INPUT_FILE)));
-    println!("part 2 result: {:?}", part2(&read_file(INPUT_FILE), 5, 60));
-}
-
-fn read_file(filename: &str) -> String {
-    fs::read_to_string(filename).expect("Something went wrong reading the file")
+pub fn run() {
+    let input = parse(&read_input_file!());
+    println!("part 1 result: {:?}", part1(&input));
+    println!("part 2 result: {:?}", part2(&input, 5, 60));
 }
 
 #[derive(Debug)]
@@ -107,9 +102,11 @@ impl Dependencies {
     }
 }
 
-fn part1(input: &str) -> String {
-    let dependencies = Dependencies::parse(input);
+fn parse(input: &str) -> Dependencies {
+    Dependencies::parse(input)
+}
 
+fn part1(dependencies: &Dependencies) -> String {
     // reversed binary heap will pop the lowest char first
     let mut frontier: BinaryHeap<Reverse<char>> = dependencies
         .starting_nodes
@@ -136,9 +133,7 @@ fn part1(input: &str) -> String {
     visited_order.into_iter().collect()
 }
 
-fn part2(input: &str, num_workers: usize, base_duration: usize) -> usize {
-    let dependencies = Dependencies::parse(input);
-
+fn part2(dependencies: &Dependencies, num_workers: usize, base_duration: usize) -> usize {
     // reversed binary heap will pop the lowest item first
     let mut frontier: BinaryHeap<Reverse<(usize, char)>> = dependencies
         .starting_nodes
@@ -181,29 +176,27 @@ fn part2(input: &str, num_workers: usize, base_duration: usize) -> usize {
 mod tests {
     use super::*;
 
-    const EXAMPLE_FILE: &'static str = "example.txt";
-
     #[test]
     fn test_part1_example() {
-        let result = part1(&read_file(EXAMPLE_FILE));
+        let result = part1(&parse(&read_example_file!()));
         assert_eq!(result, "CABDFE");
     }
 
     #[test]
     fn test_part1_solution() {
-        let result = part1(&read_file(INPUT_FILE));
+        let result = part1(&parse(&read_input_file!()));
         assert_eq!(result, "EPWCFXKISTZVJHDGNABLQYMORU");
     }
 
     #[test]
     fn test_part2_example() {
-        let result = part2(&read_file(EXAMPLE_FILE), 2, 0);
+        let result = part2(&parse(&read_example_file!()), 2, 0);
         assert_eq!(result, 15);
     }
 
     #[test]
     fn test_part2_solution() {
-        let result = part2(&read_file(INPUT_FILE), 5, 60);
+        let result = part2(&parse(&read_input_file!()), 5, 60);
         assert_eq!(result, 952);
     }
 }
