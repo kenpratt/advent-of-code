@@ -21,6 +21,10 @@ impl Tree {
     fn iter(&self) -> TreeIterator {
         TreeIterator::new(&self)
     }
+
+    fn value(&self) -> usize {
+        self.root.value()
+    }
 }
 
 #[derive(Debug)]
@@ -54,6 +58,20 @@ impl Node {
         let node = Self { children, metadata };
         (node, curr_i)
     }
+
+    fn value(&self) -> usize {
+        if self.children.is_empty() {
+            self.metadata.iter().sum::<u8>() as usize
+        } else {
+            self.metadata
+                .iter()
+                .map(|i| match self.children.get((i - 1) as usize) {
+                    Some(child) => child.value(),
+                    None => 0,
+                })
+                .sum()
+        }
+    }
 }
 
 struct TreeIterator<'a> {
@@ -83,7 +101,7 @@ impl<'a> Iterator for TreeIterator<'a> {
                     // push the next child onto the stack and recur to visit it
                     let child = &node.children[*child_index];
                     *child_index += 1;
-                    self.stack.push((&child, false, 0));
+                    self.stack.push((child, false, 0));
                     self.next()
                 } else {
                     // we've reached the end of this node, pop and recur
@@ -110,8 +128,8 @@ fn part1(tree: &Tree) -> usize {
         .sum()
 }
 
-fn part2(_tree: &Tree) -> usize {
-    0
+fn part2(tree: &Tree) -> usize {
+    tree.value()
 }
 
 #[cfg(test)]
@@ -133,12 +151,12 @@ mod tests {
     #[test]
     fn test_part2_example() {
         let result = part2(&parse(&read_example_file!()));
-        assert_eq!(result, 0);
+        assert_eq!(result, 66);
     }
 
     #[test]
     fn test_part2_solution() {
         let result = part2(&parse(&read_input_file!()));
-        assert_eq!(result, 0);
+        assert_eq!(result, 33891);
     }
 }
