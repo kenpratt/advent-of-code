@@ -28,6 +28,7 @@ fn run_day(day: u8, timer: &Instant) -> Option<Duration> {
         5 => day_05_alchemical_reduction::run,
         6 => day_06_chronal_coordinates::run,
         7 => day_07_the_sum_of_its_parts::run,
+        8 => day_08_memory_maneuver::run,
         _ => return None,
     };
 
