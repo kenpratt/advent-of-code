@@ -13,5 +13,6 @@ debug = 1
 [dependencies]
 itertools = "0.12.0"
 lazy_static = "1.4.0"
+num = "0.4.1"
 regex = "1.10.2"
 time = { version = "0.3.31", features = ["macros", "parsing"] }
