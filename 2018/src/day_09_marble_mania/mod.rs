@@ -144,7 +144,7 @@ impl Game {
 
         // swap first marble to the back:
         //   -, 2, 20, 10, 21, 5, 22, 11, 1, 12, 6, 13, 3, 14, 7, 15, 0, 16, 8, 17, 4, 18, 19, -, -, -, -, -, -, -, -, -, -, -, -, -, -, -, -, -, -, -, -, -, -, -, -, -, -, -, -, -, -, -, -, -, -, -, -,
-        self.marbles.swap(self.start_index, self.end_index);
+        self.marbles[self.end_index] = self.marbles[self.start_index];
         self.start_index = self.from_start(1);
         self.end_index = self.from_end(1);
 
@@ -156,10 +156,9 @@ impl Game {
 
             let existing_marble_prev_index = self.from_start(i);
             let existing_marble_new_index = self.from_end(i * 2);
-            let new_marble_index = self.from_end(i * 2 + 1);
+            self.marbles[existing_marble_new_index] = self.marbles[existing_marble_prev_index];
 
-            self.marbles
-                .swap(existing_marble_prev_index, existing_marble_new_index);
+            let new_marble_index = self.from_end(i * 2 + 1);
             self.marbles[new_marble_index] = new_marble;
         }
         self.start_index = self.from_start(18);
@@ -181,8 +180,7 @@ impl Game {
             if i < 4 {
                 let existing_marble_prev_index = self.from_start(i);
                 let existing_marble_new_index = self.from(new_start_index, i * 2 + 1);
-                self.marbles
-                    .swap(existing_marble_prev_index, existing_marble_new_index);
+                self.marbles[existing_marble_new_index] = self.marbles[existing_marble_prev_index];
             }
 
             let new_marble_index = self.from(new_start_index, i * 2);
