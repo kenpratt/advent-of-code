@@ -59,7 +59,7 @@ impl Claim {
 struct Grid {
     x_ranges: Vec<Range<u16>>,
     y_ranges: Vec<Range<u16>>,
-    tiles: Vec<Vec<u16>>,
+    tiles: Vec<u8>,
     width: usize,
     height: usize,
 }
@@ -72,7 +72,7 @@ impl Grid {
         let width = x_ranges.len();
         let height = y_ranges.len();
 
-        let tiles = vec![vec![]; width * height];
+        let tiles = vec![0; width * height];
 
         // blank grid
         let mut grid = Self {
@@ -124,9 +124,15 @@ impl Grid {
         for y in y_indices {
             for x in x_indices.clone() {
                 let i = self.tile_index(x, y);
-                self.tiles[i].push(claim.id);
+                self.tiles[i] += 1;
             }
         }
+    }
+
+    fn tile_has_overlap(&self, x: usize, y: usize) -> bool {
+        let i = self.tile_index(x, y);
+        let tile = self.tiles[i];
+        tile >= 2
     }
 
     fn area_with_overlap(&self) -> usize {
@@ -136,9 +142,7 @@ impl Grid {
             let y_range = &self.y_ranges[y];
             for x in 0..self.width {
                 let x_range = &self.x_ranges[x];
-                let i = self.tile_index(x, y);
-                let tile = &self.tiles[i];
-                if tile.len() >= 2 {
+                if self.tile_has_overlap(x, y) {
                     area += x_range.len() * y_range.len();
                 }
             }
@@ -153,9 +157,7 @@ impl Grid {
 
         for y in y_indices {
             for x in x_indices.clone() {
-                let i = self.tile_index(x, y);
-                let tile = &self.tiles[i];
-                if tile.len() >= 2 {
+                if self.tile_has_overlap(x, y) {
                     return false;
                 }
             }
