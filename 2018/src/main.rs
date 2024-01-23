@@ -8,6 +8,13 @@ fn main() {
     let timer = Instant::now();
 
     let args: Vec<String> = env::args().collect_vec();
+    if args.len() > 2 {
+        panic!(
+            "Unexpected extra args: {:?} - maybe try moving the flags around?",
+            &args
+        );
+    }
+
     match args.get(1).map(|s| s.as_str()) {
         None | Some("all") => {
             run_all(&timer);
