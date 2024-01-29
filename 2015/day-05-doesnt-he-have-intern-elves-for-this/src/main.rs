@@ -1,4 +1,7 @@
-use std::{collections::HashSet, fs};
+use std::{
+    collections::{HashMap, HashSet},
+    fs,
+};
 
 use lazy_static::lazy_static;
 
@@ -12,14 +15,14 @@ lazy_static! {
 
 fn main() {
     println!("part 1 result: {:?}", part1(&read_file(INPUT_FILE)));
-    // println!("part 2 result: {:?}", part2(&read_file(INPUT_FILE)));
+    println!("part 2 result: {:?}", part2(&read_file(INPUT_FILE)));
 }
 
 fn read_file(filename: &str) -> String {
     fs::read_to_string(filename).expect("Something went wrong reading the file")
 }
 
-fn is_nice(input: &str) -> bool {
+fn is_nice1(input: &str) -> bool {
     let mut has_double_letter = false;
     let mut vowel_count = 0;
 
@@ -51,11 +54,37 @@ fn is_nice(input: &str) -> bool {
 }
 
 fn part1(input: &str) -> usize {
-    input.lines().filter(|line| is_nice(line)).count()
+    input.lines().filter(|line| is_nice1(line)).count()
 }
 
-// fn part2(input: &str) -> usize {
-// }
+fn is_nice2(input: &str) -> bool {
+    let chars: Vec<char> = input.chars().collect();
+
+    let has_sandwich = chars.windows(3).any(|w| w[0] == w[2]);
+    if !has_sandwich {
+        return false;
+    }
+
+    let mut seen_pairs: HashMap<&[char], usize> = HashMap::new();
+    for (curr_index, pair) in chars.windows(2).enumerate() {
+        match seen_pairs.get(&pair) {
+            Some(existing_index) => {
+                if curr_index - existing_index > 1 {
+                    return true;
+                }
+            }
+            None => {
+                seen_pairs.insert(pair, curr_index);
+            }
+        }
+    }
+
+    false
+}
+
+fn part2(input: &str) -> usize {
+    input.lines().filter(|line| is_nice2(line)).count()
+}
 
 #[cfg(test)]
 mod tests {
@@ -76,15 +105,17 @@ mod tests {
         assert_eq!(result, 236);
     }
 
-    // #[test]
-    // fn test_part2_example() {
-    //     let result = part2(&read_file(EXAMPLE_FILE));
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_examples() {
+        assert_eq!(part2("qjhvhtzxzqqjkmpb"), 1);
+        assert_eq!(part2("xxyxx"), 1);
+        assert_eq!(part2("uurcxstgmygtbstg"), 0);
+        assert_eq!(part2("ieodomkazucvgmuy"), 0);
+    }
 
-    // #[test]
-    // fn test_part2_solution() {
-    //     let result = part2(&read_file(INPUT_FILE));
-    //     assert_eq!(result, 0);
-    // }
+    #[test]
+    fn test_part2_solution() {
+        let result = part2(&read_file(INPUT_FILE));
+        assert_eq!(result, 51);
+    }
 }
