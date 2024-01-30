@@ -1,6 +1,7 @@
 use std::{
+    cmp::Ordering,
     fmt::Debug,
-    ops::{Add, Sub},
+    ops::{Add, Div, Mul, Sub},
     str::FromStr,
 };
 
@@ -12,7 +13,7 @@ macro_rules! cast {
     };
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct Coord<T> {
     pub x: T,
     pub y: T,
@@ -28,7 +29,9 @@ where
     }
 
     pub fn parse(input: &str, separator: &str) -> Self {
-        let mut parts = input.split(separator).map(|s| s.parse::<T>().unwrap());
+        let mut parts = input
+            .split(separator)
+            .map(|s| s.trim().parse::<T>().unwrap());
         let x = parts.next().unwrap();
         let y = parts.next().unwrap();
         assert!(parts.next().is_none());
@@ -45,6 +48,24 @@ where
         } else {
             a - b
         }
+    }
+}
+
+impl<T> Ord for Coord<T>
+where
+    T: PrimInt,
+{
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.y.cmp(&other.y).then(self.x.cmp(&other.x))
+    }
+}
+
+impl<T> PartialOrd for Coord<T>
+where
+    T: PrimInt,
+{
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }
 
@@ -72,6 +93,34 @@ where
         Self {
             x: self.x - other.x,
             y: self.y - other.y,
+        }
+    }
+}
+
+impl<T, N> Mul<N> for Coord<T>
+where
+    T: Mul<N, Output = T>,
+    N: Copy,
+{
+    type Output = Coord<T>;
+    fn mul(self, rhs: N) -> Self::Output {
+        Self {
+            x: self.x * rhs,
+            y: self.y * rhs,
+        }
+    }
+}
+
+impl<T, N> Div<N> for Coord<T>
+where
+    T: Div<N, Output = T>,
+    N: Copy,
+{
+    type Output = Coord<T>;
+    fn div(self, rhs: N) -> Self::Output {
+        Self {
+            x: self.x / rhs,
+            y: self.y / rhs,
         }
     }
 }

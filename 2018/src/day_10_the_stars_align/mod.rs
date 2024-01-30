@@ -29,29 +29,19 @@ impl Point {
     fn parse(input: &str) -> Self {
         lazy_static! {
             static ref POINT_RE: Regex =
-                Regex::new(r"\Aposition=<(.+),(.+)> velocity=<(.+),(.+)>\z").unwrap();
+                Regex::new(r"\Aposition=<(.+)> velocity=<(.+)>\z").unwrap();
         }
 
         let caps = POINT_RE.captures(input).unwrap();
-        let mut nums = caps
-            .iter()
-            .skip(1)
-            .map(|c| c.unwrap().as_str().trim().parse::<NumT>().unwrap());
-
-        let position = Coord::new(nums.next().unwrap(), nums.next().unwrap());
-        let velocity = Coord::new(nums.next().unwrap(), nums.next().unwrap());
-        assert_eq!(nums.next(), None);
+        let position = Coord::parse(caps.get(1).unwrap().as_str(), ",");
+        let velocity = Coord::parse(caps.get(2).unwrap().as_str(), ",");
 
         Self { position, velocity }
     }
 
     fn fast_forward(&self, n: NumT) -> Self {
-        // TODO try to implement mul for Coord
         Self {
-            position: Coord {
-                x: self.position.x + self.velocity.x * n,
-                y: self.position.y + self.velocity.y * n,
-            },
+            position: self.position + self.velocity * n,
             velocity: self.velocity,
         }
     }
