@@ -1,4 +1,8 @@
-use std::{fmt::Debug, str::FromStr};
+use std::{
+    fmt::Debug,
+    ops::{Add, Sub},
+    str::FromStr,
+};
 
 use num::{one, PrimInt};
 
@@ -8,7 +12,7 @@ macro_rules! cast {
     };
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Coord<T> {
     pub x: T,
     pub y: T,
@@ -40,6 +44,34 @@ where
             b - a
         } else {
             a - b
+        }
+    }
+}
+
+impl<T> Add for Coord<T>
+where
+    T: Add<Output = T>,
+{
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        Self {
+            x: self.x + other.x,
+            y: self.y + other.y,
+        }
+    }
+}
+
+impl<T> Sub for Coord<T>
+where
+    T: Sub<Output = T>,
+{
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self {
+        Self {
+            x: self.x - other.x,
+            y: self.y - other.y,
         }
     }
 }
