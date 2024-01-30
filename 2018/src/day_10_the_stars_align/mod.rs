@@ -66,7 +66,7 @@ impl Point {
 
     fn find_word(initial_points: &[Self]) -> String {
         // the arrangement with the least entropy should be the one that spells the word!
-        let least_entropy = Self::find_least_entropy_arrangement(initial_points);
+        let (least_entropy, _) = Self::find_least_entropy_arrangement(initial_points);
         let coords: Vec<CoordT> = least_entropy.into_iter().map(|p| p.position).collect();
 
         // build an output string
@@ -89,7 +89,7 @@ impl Point {
         chars.into_iter().collect()
     }
 
-    fn find_least_entropy_arrangement(initial_points: &[Self]) -> Vec<Self> {
+    fn find_least_entropy_arrangement(initial_points: &[Self]) -> (Vec<Self>, NumT) {
         // find the time when the furthest x points will intersect
         let min_x = initial_points.iter().min_by_key(|p| p.position.x).unwrap();
         let max_x = initial_points.iter().max_by_key(|p| p.position.x).unwrap();
@@ -111,14 +111,10 @@ impl Point {
         );
 
         // for a start time, take the min of those two, and subtract 100 to ensure we don't miss the word
-        let fast_forward = cmp::min(converge_x, converge_y) - 100;
+        let fast_forward = cmp::max(cmp::min(converge_x, converge_y) - 100, 0);
 
         // advance the simulation to the start time
-        let mut prev_points = if fast_forward > 0 {
-            Self::fast_forward_arrangement(initial_points, fast_forward)
-        } else {
-            initial_points.to_vec()
-        };
+        let mut prev_points = Self::fast_forward_arrangement(initial_points, fast_forward);
 
         // track the lowest entropy
         let mut least_entropy = Self::calculate_entropy(&prev_points);
@@ -128,6 +124,7 @@ impl Point {
         // TODO mutate the points instead of making new ones each time?
 
         // run until we haven't beaten our best in 50 ticks
+        let mut t = fast_forward;
         while time_since_least_entropy < 50 {
             let points = Self::next_arrangement(&prev_points);
             let entropy = Self::calculate_entropy(&points);
@@ -140,10 +137,11 @@ impl Point {
                 time_since_least_entropy += 1;
             }
 
+            t += 1;
             prev_points = points;
         }
 
-        least_entropy_points
+        (least_entropy_points, t - 50)
     }
 
     fn next_arrangement(points: &[Self]) -> Vec<Self> {
@@ -172,13 +170,12 @@ fn parse(input: &str) -> Vec<Point> {
 }
 
 fn part1(points: &[Point]) -> String {
-    let result = Point::find_word(points);
-    println!("{}", result);
-    result
+    Point::find_word(points)
 }
 
-fn part2(_points: &[Point]) -> usize {
-    0
+fn part2(points: &[Point]) -> NumT {
+    let (_, took) = Point::find_least_entropy_arrangement(points);
+    took
 }
 
 #[cfg(test)]
@@ -226,12 +223,12 @@ mod tests {
     #[test]
     fn test_part2_example() {
         let result = part2(&parse(&read_example_file!()));
-        assert_eq!(result, 0);
+        assert_eq!(result, 3);
     }
 
     #[test]
     fn test_part2_solution() {
         let result = part2(&parse(&read_input_file!()));
-        assert_eq!(result, 0);
+        assert_eq!(result, 10619);
     }
 }
