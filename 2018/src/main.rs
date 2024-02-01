@@ -38,6 +38,7 @@ fn run_day(day: u8, timer: &Instant) -> Option<Duration> {
         8 => day_08_memory_maneuver::run,
         9 => day_09_marble_mania::run,
         10 => day_10_the_stars_align::run,
+        11 => day_11_chronal_charge::run,
         _ => return None,
     };
 
