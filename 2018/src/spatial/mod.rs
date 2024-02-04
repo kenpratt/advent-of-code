@@ -49,6 +49,15 @@ where
             a - b
         }
     }
+
+    pub fn shift(&self, direction: &Direction) -> Self {
+        match direction {
+            Direction::North => Coord::new(self.x, self.y - T::one()),
+            Direction::South => Coord::new(self.x, self.y + T::one()),
+            Direction::West => Coord::new(self.x - T::one(), self.y),
+            Direction::East => Coord::new(self.x + T::one(), self.y),
+        }
+    }
 }
 
 impl<T> Ord for Coord<T>
@@ -125,6 +134,39 @@ where
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+pub enum Direction {
+    North,
+    South,
+    West,
+    East,
+}
+
+impl Direction {
+    pub fn clockwise(&self) -> Self {
+        use Direction::*;
+
+        match self {
+            North => East,
+            South => West,
+            West => North,
+            East => South,
+        }
+    }
+
+    pub fn counterclockwise(&self) -> Self {
+        use Direction::*;
+
+        match self {
+            North => West,
+            South => East,
+            West => South,
+            East => North,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Bounds<T> {
     pub left: T,
     pub right: T,
@@ -158,19 +200,66 @@ where
     }
 }
 
-pub struct Grid<'a, T, V> {
-    bounds: &'a Bounds<T>,
+#[derive(Clone, Debug)]
+pub struct Grid<T, V> {
+    bounds: Bounds<T>,
     width: usize,
     height: usize,
     cells: Vec<Option<V>>,
 }
 
-impl<'a, T, V> Grid<'a, T, V>
+impl<T, V> Grid<T, V>
 where
     T: FromStr + PrimInt,
     <T as FromStr>::Err: Debug,
 {
-    pub fn new(bounds: &'a Bounds<T>) -> Self {
+    pub fn parse<F>(input: &str, parse_val: F) -> Self
+    where
+        F: Fn(&char) -> Option<V>,
+    {
+        let mut values: Vec<(Coord<T>, V)> = vec![];
+
+        let left: T = T::zero();
+        let mut right = T::zero();
+        let top = T::zero();
+        let mut bottom = T::zero();
+
+        for (yu, line) in input.lines().enumerate() {
+            let y = T::from(yu).unwrap();
+            bottom = y;
+
+            for (xu, c) in line.chars().enumerate() {
+                let x = T::from(xu).unwrap();
+                right = x;
+
+                match parse_val(&c) {
+                    Some(val) => {
+                        let coord = Coord::new(x, y);
+                        values.push((coord, val));
+                    }
+                    None => (),
+                }
+            }
+        }
+
+        let bounds: Bounds<T> = Bounds {
+            left,
+            right,
+            top,
+            bottom,
+        };
+
+        let mut grid = Self::new(bounds);
+
+        for (coord, val) in values {
+            let i = grid.coord_to_index(&coord);
+            grid.set(i, val);
+        }
+
+        grid
+    }
+
+    pub fn new(bounds: Bounds<T>) -> Self {
         let width = cast!(bounds.width());
         let height = cast!(bounds.height());
 
@@ -203,6 +292,10 @@ where
         &self.cells[index]
     }
 
+    pub fn get_mut(&mut self, index: usize) -> &mut Option<V> {
+        &mut self.cells[index]
+    }
+
     pub fn set(&mut self, index: usize, val: V) {
         self.cells[index] = Some(val);
     }
@@ -219,6 +312,20 @@ where
             .into_iter()
             .enumerate()
             .filter_map(|(i, maybe_val)| maybe_val.map(|val| (i, val)))
+    }
+
+    pub fn print<F>(&self, print_val: F)
+    where
+        F: Fn(&Option<V>),
+        std::ops::RangeInclusive<T>: Iterator<Item = T>,
+    {
+        for y in self.bounds.top..=self.bounds.bottom {
+            for x in self.bounds.left..=self.bounds.right {
+                let val = self.get(self.coord_to_index(&Coord::new(x, y)));
+                print_val(val);
+            }
+            println!();
+        }
     }
 
     pub fn neighbours(&self, index: usize) -> [Option<usize>; 4] {

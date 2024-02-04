@@ -40,6 +40,7 @@ fn run_day(day: u8, timer: &Instant) -> Option<Duration> {
         10 => day_10_the_stars_align::run,
         11 => day_11_chronal_charge::run,
         12 => day_12_subterranean_sustainability::run,
+        13 => day_13_mine_cart_madness::run,
         _ => return None,
     };
 

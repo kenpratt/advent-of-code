@@ -25,7 +25,7 @@ fn parse(input: &str) -> (Vec<CoordT>, BoundsT) {
 
 fn part1((nodes, bounds): &(Vec<CoordT>, BoundsT)) -> usize {
     let mut infinite: HashSet<usize> = HashSet::new();
-    let mut map: Grid<NumT, Territory> = Grid::new(&bounds);
+    let mut map: Grid<NumT, Territory> = Grid::new(*bounds);
     let node_indices: Vec<usize> = nodes.iter().map(|c| map.coord_to_index(c)).collect();
 
     for i in &node_indices {
@@ -38,7 +38,7 @@ fn part1((nodes, bounds): &(Vec<CoordT>, BoundsT)) -> usize {
         // for each round of exploration, expand to neighbours, tracking
         // which nodes are exploring to the new cell this round, so we can
         // detect collisions
-        let mut tmp_map: Grid<NumT, Territory> = Grid::new(&bounds);
+        let mut tmp_map: Grid<NumT, Territory> = Grid::new(*bounds);
         for (to_expand, node) in frontier {
             for maybe_neighbour in map.neighbours(to_expand) {
                 match maybe_neighbour {
@@ -94,7 +94,7 @@ fn part1((nodes, bounds): &(Vec<CoordT>, BoundsT)) -> usize {
 }
 
 fn part2((nodes, bounds): &(Vec<CoordT>, BoundsT), target_distance: usize) -> usize {
-    let mut map: Grid<NumT, ()> = Grid::new(&bounds);
+    let mut map: Grid<NumT, ()> = Grid::new(*bounds);
 
     let middle = Coord::new(
         bounds.left + (bounds.right - bounds.left) / 2,
