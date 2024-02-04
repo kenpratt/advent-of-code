@@ -37,21 +37,26 @@ impl U256 {
 impl Shl<usize> for U256 {
     type Output = Self;
 
-    fn shl(self, amount: usize) -> Self::Output {
+    fn shl(self, bits: usize) -> Self::Output {
         let mut out = self.clone();
-        out.shl_assign(amount);
+        out.shl_assign(bits);
         out
     }
 }
 
 impl ShlAssign<usize> for U256 {
-    fn shl_assign(&mut self, amount: usize) {
-        for _ in 0..amount {
-            self.left <<= 1;
-            if self.right & U128_LEFTMOST_BIT == U128_LEFTMOST_BIT {
-                self.left |= 1;
-            }
-            self.right <<= 1;
+    fn shl_assign(&mut self, bits: usize) {
+        if bits >= 128 {
+            // replace left side with right side, and apply remaining shift
+            let rem = bits - 128;
+            self.left = self.right << rem;
+            self.right = 0;
+        } else {
+            // move some bits from right to left
+            let mask = self.right >> (128 - bits);
+            self.left <<= bits;
+            self.right <<= bits;
+            self.left |= mask;
         }
     }
 }
@@ -59,21 +64,26 @@ impl ShlAssign<usize> for U256 {
 impl Shr<usize> for U256 {
     type Output = Self;
 
-    fn shr(self, amount: usize) -> Self::Output {
+    fn shr(self, bits: usize) -> Self::Output {
         let mut out = self.clone();
-        out.shr_assign(amount);
+        out.shr_assign(bits);
         out
     }
 }
 
 impl ShrAssign<usize> for U256 {
-    fn shr_assign(&mut self, amount: usize) {
-        for _ in 0..amount {
-            self.right >>= 1;
-            if self.left & 1 == 1 {
-                self.right |= U128_LEFTMOST_BIT
-            }
-            self.left >>= 1;
+    fn shr_assign(&mut self, bits: usize) {
+        if bits >= 128 {
+            // replace right side with left side, and apply remaining shift
+            let rem = bits - 128;
+            self.right = self.left >> rem;
+            self.left = 0;
+        } else {
+            // move some bits from left to right
+            let mask = self.left << (128 - bits);
+            self.left >>= bits;
+            self.right >>= bits;
+            self.right |= mask;
         }
     }
 }
