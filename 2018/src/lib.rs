@@ -11,5 +11,6 @@ pub mod day_10_the_stars_align;
 pub mod day_11_chronal_charge;
 pub mod day_12_subterranean_sustainability;
 pub mod file;
+pub mod math;
 pub mod spatial;
 pub mod template;

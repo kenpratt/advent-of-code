@@ -1,4 +1,5 @@
 use crate::file::*;
+use crate::math::*;
 
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -73,12 +74,9 @@ impl Input {
     }
 }
 
-const U128_LEFTMOST_BIT: u128 = 170141183460469231731687303715884105728;
-const PLANT_MASK: u128 = 31;
-
 #[derive(Debug)]
 struct Simulation {
-    state: u128,
+    state: U256,
     width: u8,
     start_index: isize,
 }
@@ -87,19 +85,41 @@ impl Simulation {
     fn initial_state(input: &Input) -> Self {
         let (state, width) = input.initial;
         Self {
-            state,
-            width,
+            state: U256::from_u128(state),
             start_index: 0,
+            width,
         }
     }
 
     fn run(input: &Input, num_generations: usize) -> Self {
-        (0..num_generations).fold(Self::initial_state(input), |state, _| {
-            Self::tick(&state, &input.notes)
-        })
+        let mut sim = Self::initial_state(input);
+        let plant_mask = U256::from_u128(31);
+
+        for generation in 1..=num_generations {
+            let next_sim = Self::tick(&sim, &input.notes, &plant_mask);
+
+            if sim.state == next_sim.state {
+                // we found a repeating pattern!
+                assert_eq!(sim.width, next_sim.width);
+
+                let index_diff = next_sim.start_index - sim.start_index;
+                let remaining = (num_generations - generation) as isize;
+                let start_index = next_sim.start_index + (remaining * index_diff);
+
+                return Self {
+                    state: sim.state,
+                    width: sim.width,
+                    start_index,
+                };
+            } else {
+                sim = next_sim;
+            }
+        }
+
+        sim
     }
 
-    fn tick(prev: &Self, notes: &Notes) -> Self {
+    fn tick(prev: &Self, notes: &Notes, plant_mask: &U256) -> Self {
         // we'll want to visit numbers two on either side of the prev generation
         // #..#.#
         //      ^^^^^
@@ -112,22 +132,23 @@ impl Simulation {
         //      m
         // so start with prev generation shifted 4 left so it aligns with the mask
         let mut prev_state = prev.state << 4;
-        let mut new_state: u128 = 0;
+        let mut new_state: U256 = U256::new();
 
         let mut new_width = prev.width + 4;
         let mut new_start_index = prev.start_index - 2;
 
         // build a new number with two new values on either side
         // for now, this number will be on the left side of the u128 bits
+        // let seen_one = false;
         for _ in 0..new_width {
-            let val = prev_state & PLANT_MASK;
-            let i = val as usize;
+            let val = prev_state & *plant_mask;
+            let i = val.as_usize();
 
             // bump new state to the right
             new_state >>= 1;
 
             if notes[i] {
-                new_state |= U128_LEFTMOST_BIT;
+                new_state |= U256::LEFTMOST_BIT;
             }
 
             // bump prev state to the right
@@ -135,17 +156,17 @@ impl Simulation {
         }
 
         // trim left side of any extra zeroes
-        while (new_state & U128_LEFTMOST_BIT) == 0 {
+        while (new_state & U256::LEFTMOST_BIT) == 0 {
             new_state <<= 1;
             new_width -= 1;
             new_start_index += 1;
         }
 
         // shift to right side of int
-        new_state >>= 128 - new_width;
+        new_state >>= 256 - new_width as usize;
 
         // trim right side of any extra zeroes
-        while (new_state & 1) == 0 {
+        while (new_state & U256::ONE) == 0 {
             new_state >>= 1;
             new_width -= 1;
         }
@@ -162,7 +183,7 @@ impl Simulation {
         let mut state = self.state;
         let mut index = self.start_index + self.width as isize - 1;
         for _ in 0..self.width {
-            if (state & 1) == 1 {
+            if (state & U256::ONE) == 1 {
                 sum += index;
             }
             state >>= 1;
@@ -181,8 +202,9 @@ fn part1(input: &Input) -> isize {
     sim.sum_plant_indices()
 }
 
-fn part2(input: &Input) -> usize {
-    0
+fn part2(input: &Input) -> isize {
+    let sim = Simulation::run(input, 50000000000);
+    sim.sum_plant_indices()
 }
 
 #[cfg(test)]
@@ -204,12 +226,12 @@ mod tests {
     #[test]
     fn test_part2_example() {
         let result = part2(&parse(&read_example_file!()));
-        assert_eq!(result, 0);
+        assert_eq!(result, 999999999374);
     }
 
     #[test]
     fn test_part2_solution() {
         let result = part2(&parse(&read_input_file!()));
-        assert_eq!(result, 0);
+        assert_eq!(result, 399999999957);
     }
 }
