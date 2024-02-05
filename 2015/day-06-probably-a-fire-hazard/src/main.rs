@@ -61,58 +61,89 @@ impl Action {
         }
     }
 
-    fn apply(&self, on: bool) -> bool {
+    fn apply_lit(&self, on: &bool) -> bool {
         match self {
             Action::TurnOn => true,
             Action::TurnOff => false,
             Action::Toggle => !on,
         }
     }
+
+    fn apply_brightness(&self, brightness: &u8) -> u8 {
+        match self {
+            Action::TurnOn => brightness + 1,
+            Action::TurnOff => {
+                if *brightness > 1 {
+                    brightness - 1
+                } else {
+                    0
+                }
+            }
+            Action::Toggle => brightness + 2,
+        }
+    }
 }
 
 #[derive(Debug)]
-struct LightArray {
-    grid: Grid<u32, bool>,
+struct LightArray<V> {
+    grid: Grid<u32, V>,
 }
 
-impl LightArray {
-    fn new() -> Self {
+impl<V> LightArray<V> {
+    fn new(initial: V) -> Self
+    where
+        V: Copy,
+    {
         let bounds = Bounds::new(0, 999, 0, 999);
-        let grid = Grid::new(bounds, || Some(false));
+        let grid = Grid::new(bounds, || Some(initial));
         Self { grid }
     }
 
-    fn run(&mut self, instructions: &[Instruction]) -> usize {
+    fn run<F>(&mut self, instructions: &[Instruction], apply_action: F)
+    where
+        F: Fn(&Action, &V) -> V,
+    {
         for instruction in instructions {
-            self.apply_instruction(instruction);
+            self.apply_instruction(instruction, &apply_action);
         }
-        self.count_on()
     }
 
-    fn apply_instruction(&mut self, instruction: &Instruction) {
+    fn apply_instruction<F>(&mut self, instruction: &Instruction, apply_action: F)
+    where
+        F: Fn(&Action, &V) -> V,
+    {
         for y in instruction.start.y..=instruction.end.y {
             for x in instruction.start.x..=instruction.end.x {
                 let pos = Coord::new(x, y);
                 let val = self.grid.get_mut(self.grid.coord_to_index(&pos));
-                let new_val = instruction.action.apply(val.unwrap());
+                let new_val = apply_action(&instruction.action, val.as_ref().unwrap());
                 *val = Some(new_val);
             }
         }
     }
 
-    fn count_on(&self) -> usize {
-        self.grid.iter().filter(|(_index, v)| **v).count()
+    fn sum_by<F>(&self, f: F) -> usize
+    where
+        F: Fn(&V) -> usize,
+    {
+        self.grid.iter().map(|(_index, v)| f(v)).sum()
     }
 }
 
 fn part1(input: &str) -> usize {
     let instructions = Instruction::parse_list(input);
-    let mut lights = LightArray::new();
-    lights.run(&instructions)
+    let mut lights: LightArray<bool> = LightArray::new(false);
+    lights.run(&instructions, |action, on| action.apply_lit(on));
+    lights.sum_by(|b| if *b { 1 } else { 0 })
 }
 
 fn part2(input: &str) -> usize {
-    0
+    let instructions = Instruction::parse_list(input);
+    let mut lights: LightArray<u8> = LightArray::new(0);
+    lights.run(&instructions, |action, brightness| {
+        action.apply_brightness(brightness)
+    });
+    lights.sum_by(|b| *b as usize)
 }
 
 #[cfg(test)]
@@ -136,12 +167,12 @@ mod tests {
     #[test]
     fn test_part2_example() {
         let result = part2(&read_file(EXAMPLE_FILE));
-        assert_eq!(result, 0);
+        assert_eq!(result, 1001996);
     }
 
     #[test]
     fn test_part2_solution() {
         let result = part2(&read_file(INPUT_FILE));
-        assert_eq!(result, 0);
+        assert_eq!(result, 17836115);
     }
 }
