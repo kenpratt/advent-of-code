@@ -10,6 +10,7 @@ pub fn run() {
 #[derive(Clone, Debug)]
 struct State {
     grid: Grid<usize, (Track, Option<Cart>)>,
+    remaining_carts: usize,
 }
 
 impl State {
@@ -27,43 +28,74 @@ impl State {
             ' ' => None,
             _ => panic!("Unexpected input char: {:?}", c),
         });
-        Self { grid }
+        let remaining_carts = grid
+            .iter()
+            .filter(|(_index, (_track, maybe_cart))| maybe_cart.is_some())
+            .count();
+        Self {
+            grid,
+            remaining_carts,
+        }
     }
 
     fn first_collision(&mut self) -> Coord<usize> {
         loop {
-            match self.tick() {
-                Some(coord) => return coord,
-                None => (),
+            let collisions = self.tick();
+            if !collisions.is_empty() {
+                return collisions[0];
             }
         }
     }
 
-    fn tick(&mut self) -> Option<Coord<usize>> {
-        let carts: Vec<(usize, Track, Cart)> = self
-            .grid
+    fn run_removing_collisions(&mut self) -> Coord<usize> {
+        while self.remaining_carts > 1 {
+            self.tick();
+        }
+
+        let index = self.cart_indices().next().unwrap();
+        self.grid.index_to_coord(index)
+    }
+
+    fn cart_indices(&self) -> impl Iterator<Item = usize> + '_ {
+        self.grid
             .iter()
             .filter(|(_index, (_track, maybe_cart))| maybe_cart.is_some())
-            .map(|(index, (track, cart))| (index, *track, cart.unwrap()))
-            .collect();
+            .map(|(index, _)| index)
+    }
 
-        for (index, track, cart) in carts {
+    fn tick(&mut self) -> Vec<Coord<usize>> {
+        let cart_indices: Vec<usize> = self.cart_indices().collect();
+
+        let mut collisions: Vec<Coord<usize>> = vec![];
+
+        for index in cart_indices {
+            let (track, maybe_cart) = self.grid.get(index).unwrap();
+            if maybe_cart.is_none() {
+                // must have been deleted in a collision
+                continue;
+            }
+            let cart = maybe_cart.unwrap();
+
             let pos = self.grid.index_to_coord(index);
             let (next_cart, next_pos) = cart.tick(&pos, &track);
             let next_index = self.grid.coord_to_index(&next_pos);
 
+            // remove the cart from the old location
+            self.set_cart(index, None);
+
             if self.grid.get(next_index).unwrap().1.is_some() {
-                // collision!
-                return Some(next_pos);
+                // collision! delete the cart in the colliding location,
+                // and delete the current cart by neglecting to add it back
+                self.set_cart(next_index, None);
+                collisions.push(self.grid.index_to_coord(next_index));
+                self.remaining_carts -= 2;
             } else {
                 // no collision, move the cart to the new location
-                self.set_cart(index, None);
                 self.set_cart(next_index, Some(next_cart));
             }
         }
 
-        // no collision
-        None
+        collisions
     }
 
     fn set_cart(&mut self, index: usize, cart: Option<Cart>) {
@@ -143,13 +175,15 @@ fn part1(mut state: State) -> Coord<usize> {
     state.first_collision()
 }
 
-fn part2(_state: State) -> usize {
-    0
+fn part2(mut state: State) -> Coord<usize> {
+    state.run_removing_collisions()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const EXAMPLE_FILE_2: &'static str = "example2.txt";
 
     #[test]
     fn test_part1_example() {
@@ -165,13 +199,13 @@ mod tests {
 
     #[test]
     fn test_part2_example() {
-        let result = part2(parse(&read_example_file!()));
-        assert_eq!(result, 0);
+        let result = part2(parse(&read_file!(EXAMPLE_FILE_2)));
+        assert_eq!(result, Coord::new(6, 4));
     }
 
     #[test]
     fn test_part2_solution() {
         let result = part2(parse(&read_input_file!()));
-        assert_eq!(result, 0);
+        assert_eq!(result, Coord::new(71, 123));
     }
 }
