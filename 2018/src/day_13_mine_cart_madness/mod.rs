@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::BTreeMap;
 
 use crate::file::*;
 use crate::spatial::*;
@@ -11,31 +11,45 @@ pub fn run() {
 
 #[derive(Clone, Debug)]
 struct State {
-    grid: Grid<usize, (Track, Option<Cart>)>,
-    cart_indices: BTreeSet<usize>,
+    grid: Grid<usize, Track>,
+    carts: BTreeMap<usize, Cart>,
 }
 
 impl State {
     fn parse(input: &str) -> Self {
-        let grid = Grid::parse(input, |c| match c {
-            '|' => Some((Track::Vertical, None)),
-            '-' => Some((Track::Horizontal, None)),
-            '/' => Some((Track::CurveRight, None)),
-            '\\' => Some((Track::CurveLeft, None)),
-            '+' => Some((Track::Intersection, None)),
-            '^' => Some((Track::Vertical, Some(Cart::new(Direction::North)))),
-            'v' => Some((Track::Vertical, Some(Cart::new(Direction::South)))),
-            '<' => Some((Track::Horizontal, Some(Cart::new(Direction::West)))),
-            '>' => Some((Track::Horizontal, Some(Cart::new(Direction::East)))),
-            ' ' => None,
-            _ => panic!("Unexpected input char: {:?}", c),
+        let mut carts_tmp = vec![];
+
+        let grid = Grid::parse(input, |c, pos| {
+            let (maybe_track, maybe_cart) = Self::parse_char(c);
+            match maybe_cart {
+                Some(cart) => carts_tmp.push((*pos, cart)),
+                None => (),
+            };
+            maybe_track
         });
-        let cart_indices: BTreeSet<usize> = grid
-            .iter()
-            .filter(|(_index, (_track, maybe_cart))| maybe_cart.is_some())
-            .map(|(index, _)| index)
+
+        let carts: BTreeMap<usize, Cart> = carts_tmp
+            .into_iter()
+            .map(|(pos, cart)| (grid.coord_to_index(&pos), cart))
             .collect();
-        Self { grid, cart_indices }
+
+        Self { grid, carts }
+    }
+
+    fn parse_char(c: &char) -> (Option<Track>, Option<Cart>) {
+        match c {
+            '|' => (Some(Track::Vertical), None),
+            '-' => (Some(Track::Horizontal), None),
+            '/' => (Some(Track::CurveRight), None),
+            '\\' => (Some(Track::CurveLeft), None),
+            '+' => (Some(Track::Intersection), None),
+            '^' => (Some(Track::Vertical), Some(Cart::new(Direction::North))),
+            'v' => (Some(Track::Vertical), Some(Cart::new(Direction::South))),
+            '<' => (Some(Track::Horizontal), Some(Cart::new(Direction::West))),
+            '>' => (Some(Track::Horizontal), Some(Cart::new(Direction::East))),
+            ' ' => (None, None),
+            _ => panic!("Unexpected input char: {:?}", c),
+        }
     }
 
     fn first_collision(&mut self) -> Coord<usize> {
@@ -48,56 +62,48 @@ impl State {
     }
 
     fn run_removing_collisions(&mut self) -> Coord<usize> {
-        while self.cart_indices.len() > 1 {
+        while self.carts.len() > 1 {
             self.tick();
         }
 
-        let index = self.cart_indices.first().unwrap();
-        self.grid.index_to_coord(*index)
+        let (index, _cart) = self.carts.pop_first().unwrap();
+        self.grid.index_to_coord(index)
     }
 
     fn tick(&mut self) -> Vec<Coord<usize>> {
-        let cart_indices = self.cart_indices.clone();
+        let cart_indices: Vec<usize> = self.carts.keys().cloned().collect();
 
         let mut collisions: Vec<Coord<usize>> = vec![];
 
         for index in cart_indices {
-            let (track, maybe_cart) = self.grid.get(index).unwrap();
-            if maybe_cart.is_none() {
-                // must have been deleted in a collision
-                continue;
-            }
-            let cart = maybe_cart.unwrap();
+            let cart = match self.carts.get(&index) {
+                Some(c) => c,
+                None => {
+                    // must have been deleted in a collision
+                    continue;
+                }
+            };
 
+            let track = self.grid.get(index).unwrap();
             let pos = self.grid.index_to_coord(index);
+
             let (next_cart, next_pos) = cart.tick(&pos, &track);
             let next_index = self.grid.coord_to_index(&next_pos);
 
             // remove the cart from the old location
-            self.set_cart(index, None);
-            self.cart_indices.remove(&index);
+            self.carts.remove(&index);
 
-            if self.grid.get(next_index).unwrap().1.is_some() {
+            if self.carts.remove(&next_index).is_some() {
                 // collision! delete the cart in the colliding location,
                 // and delete the current cart by neglecting to add it back
-                self.set_cart(next_index, None);
-                self.cart_indices.remove(&next_index);
-                collisions.push(self.grid.index_to_coord(next_index));
+                collisions.push(next_pos);
             } else {
                 // no collision, move the cart to the new location
-                self.set_cart(next_index, Some(next_cart));
-                self.cart_indices.insert(next_index);
+                self.carts.insert(next_index, next_cart);
             }
         }
 
         collisions
-    }
-
-    fn set_cart(&mut self, index: usize, cart: Option<Cart>) {
-        match self.grid.get_mut(index) {
-            Some((_track, maybe_cart)) => *maybe_cart = cart,
-            None => panic!("expected a track at index {}", index),
-        }
     }
 }
 

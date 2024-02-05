@@ -213,9 +213,9 @@ where
     T: FromStr + PrimInt,
     <T as FromStr>::Err: Debug,
 {
-    pub fn parse<F>(input: &str, parse_val: F) -> Self
+    pub fn parse<F>(input: &str, mut parse_val: F) -> Self
     where
-        F: Fn(&char) -> Option<V>,
+        F: FnMut(&char, &Coord<T>) -> Option<V>,
     {
         let mut values: Vec<(Coord<T>, V)> = vec![];
 
@@ -232,9 +232,9 @@ where
                 let x = T::from(xu).unwrap();
                 right = x;
 
-                match parse_val(&c) {
+                let coord = Coord::new(x, y);
+                match parse_val(&c, &coord) {
                     Some(val) => {
-                        let coord = Coord::new(x, y);
                         values.push((coord, val));
                     }
                     None => (),
