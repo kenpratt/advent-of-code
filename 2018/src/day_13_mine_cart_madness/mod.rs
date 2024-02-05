@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use crate::file::*;
 use crate::spatial::*;
 
@@ -10,7 +12,7 @@ pub fn run() {
 #[derive(Clone, Debug)]
 struct State {
     grid: Grid<usize, (Track, Option<Cart>)>,
-    remaining_carts: usize,
+    cart_indices: BTreeSet<usize>,
 }
 
 impl State {
@@ -28,14 +30,12 @@ impl State {
             ' ' => None,
             _ => panic!("Unexpected input char: {:?}", c),
         });
-        let remaining_carts = grid
+        let cart_indices: BTreeSet<usize> = grid
             .iter()
             .filter(|(_index, (_track, maybe_cart))| maybe_cart.is_some())
-            .count();
-        Self {
-            grid,
-            remaining_carts,
-        }
+            .map(|(index, _)| index)
+            .collect();
+        Self { grid, cart_indices }
     }
 
     fn first_collision(&mut self) -> Coord<usize> {
@@ -48,23 +48,16 @@ impl State {
     }
 
     fn run_removing_collisions(&mut self) -> Coord<usize> {
-        while self.remaining_carts > 1 {
+        while self.cart_indices.len() > 1 {
             self.tick();
         }
 
-        let index = self.cart_indices().next().unwrap();
-        self.grid.index_to_coord(index)
-    }
-
-    fn cart_indices(&self) -> impl Iterator<Item = usize> + '_ {
-        self.grid
-            .iter()
-            .filter(|(_index, (_track, maybe_cart))| maybe_cart.is_some())
-            .map(|(index, _)| index)
+        let index = self.cart_indices.first().unwrap();
+        self.grid.index_to_coord(*index)
     }
 
     fn tick(&mut self) -> Vec<Coord<usize>> {
-        let cart_indices: Vec<usize> = self.cart_indices().collect();
+        let cart_indices = self.cart_indices.clone();
 
         let mut collisions: Vec<Coord<usize>> = vec![];
 
@@ -82,16 +75,18 @@ impl State {
 
             // remove the cart from the old location
             self.set_cart(index, None);
+            self.cart_indices.remove(&index);
 
             if self.grid.get(next_index).unwrap().1.is_some() {
                 // collision! delete the cart in the colliding location,
                 // and delete the current cart by neglecting to add it back
                 self.set_cart(next_index, None);
+                self.cart_indices.remove(&next_index);
                 collisions.push(self.grid.index_to_coord(next_index));
-                self.remaining_carts -= 2;
             } else {
                 // no collision, move the cart to the new location
                 self.set_cart(next_index, Some(next_cart));
+                self.cart_indices.insert(next_index);
             }
         }
 
