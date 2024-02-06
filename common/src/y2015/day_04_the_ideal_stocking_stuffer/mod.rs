@@ -4,14 +4,16 @@ use md5::*;
 
 const INPUT: &'static str = "bgvyzdsv";
 
+// each parallel worker will grab this many jobs at the
+// same time, to avoid contention on the work queue.
+const BATCH_SIZE: usize = 500;
+
 pub fn run() {
     println!("part 1 result: {:?}", part1(INPUT));
     println!("part 2 result: {:?}", part2(INPUT));
 }
 
-fn calculate_md5(key: &str, num: &usize) -> Digest {
-    let mut context = Context::new();
-    context.consume(key);
+fn calculate_md5(mut context: Context, num: &usize) -> Digest {
     context.consume(num.to_string());
     context.compute()
 }
@@ -30,32 +32,28 @@ fn md5_has_6_leading_zeroes(digest: &Digest) -> bool {
     digest.0[0] == 0 && digest.0[1] == 0 && digest.0[2] == 0
 }
 
-fn test_md5_has_5_leading_zeroes((key, num): &(&str, usize)) -> Option<usize> {
-    if md5_has_5_leading_zeroes(&calculate_md5(key, &num)) {
-        Some(*num)
-    } else {
-        None
-    }
-}
+fn find_first_num(key: &str, condition: fn(&Digest) -> bool) -> usize {
+    // build initial context with key once, instead of on every iteration
+    let mut context = Context::new();
+    context.consume(key);
 
-fn test_md5_has_6_leading_zeroes((key, num): &(&str, usize)) -> Option<usize> {
-    if md5_has_6_leading_zeroes(&calculate_md5(key, &num)) {
-        Some(*num)
-    } else {
-        None
-    }
-}
-
-fn find_first_num(key: &str, condition: fn(&(&str, usize)) -> Option<usize>) -> usize {
-    parallel_find((1..usize::MAX).map(|i| (key, i)), 100, condition).unwrap()
+    parallel_find(1..usize::MAX, BATCH_SIZE, |i| {
+        let digest = calculate_md5(context.clone(), &i);
+        if condition(&digest) {
+            Some(i)
+        } else {
+            None
+        }
+    })
+    .unwrap()
 }
 
 fn part1(input: &str) -> usize {
-    find_first_num(input, test_md5_has_5_leading_zeroes)
+    find_first_num(input, md5_has_5_leading_zeroes)
 }
 
 fn part2(input: &str) -> usize {
-    find_first_num(input, test_md5_has_6_leading_zeroes)
+    find_first_num(input, md5_has_6_leading_zeroes)
 }
 
 #[cfg(test)]

@@ -73,7 +73,7 @@ fn run_year(year: usize, timer: &Instant) -> Duration {
 
 fn run_all(timer: &Instant) -> Duration {
     let total: Duration = days::YEARS.iter().map(|year| run_year(*year, timer)).sum();
-    println!("all took: {}ms\n", total.as_millis());
+    println!("all years total: {}ms\n", total.as_millis());
     total
 }
 

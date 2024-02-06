@@ -3,28 +3,27 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-pub fn parallel_find<I, T, R>(iter: I, batch_size: usize, do_work: fn(&T) -> Option<R>) -> Option<R>
+pub fn parallel_find<I, T, R, F>(iter: I, batch_size: usize, work_fn: F) -> Option<R>
 where
     I: Iterator<Item = T> + Send,
     R: Send + Debug,
+    F: Fn(T) -> Option<R> + Send + Sync,
 {
     let num_workers = thread::available_parallelism().unwrap().get();
     let work_queue = Arc::new(Mutex::new(iter));
     let complete = Arc::new(AtomicBool::new(false));
     let result = Arc::new(Mutex::new(None));
+    let do_work = Arc::new(work_fn);
 
     thread::scope(|s| {
         for _ in 0..num_workers {
-            let this_work_queue = Arc::clone(&work_queue);
-            let this_complete = Arc::clone(&complete);
-            let this_result = Arc::clone(&result);
-            s.spawn(move || {
+            s.spawn(|| {
                 work(
-                    this_work_queue,
-                    this_complete,
-                    this_result,
+                    Arc::clone(&work_queue),
+                    Arc::clone(&complete),
+                    Arc::clone(&result),
                     batch_size,
-                    do_work,
+                    Arc::clone(&do_work),
                 )
             });
         }
@@ -33,14 +32,15 @@ where
     Arc::try_unwrap(result).unwrap().into_inner().unwrap()
 }
 
-fn work<I, T, R>(
+fn work<I, T, R, F>(
     work_queue: Arc<Mutex<I>>,
     complete: Arc<AtomicBool>,
     global_result: Arc<Mutex<Option<R>>>,
     batch_size: usize,
-    do_work: fn(&T) -> Option<R>,
+    do_work: Arc<F>,
 ) where
     I: Iterator<Item = T>,
+    F: Fn(T) -> Option<R> + Send + Sync,
 {
     let mut jobs: Vec<Option<T>> = std::iter::repeat_with(|| None).take(batch_size).collect();
 
@@ -51,7 +51,7 @@ fn work<I, T, R>(
         }
 
         for job_index in 0..num_jobs {
-            let job = jobs[job_index].as_ref().unwrap();
+            let job = jobs[job_index].take().unwrap();
             if complete.load(Ordering::Relaxed) {
                 return;
             }
