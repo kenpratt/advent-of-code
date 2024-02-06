@@ -30,24 +30,24 @@ fn md5_has_6_leading_zeroes(digest: &Digest) -> bool {
     digest.0[0] == 0 && digest.0[1] == 0 && digest.0[2] == 0
 }
 
-fn test_md5_has_5_leading_zeroes((key, num): (&str, usize)) -> Option<usize> {
+fn test_md5_has_5_leading_zeroes((key, num): &(&str, usize)) -> Option<usize> {
     if md5_has_5_leading_zeroes(&calculate_md5(key, &num)) {
-        Some(num)
+        Some(*num)
     } else {
         None
     }
 }
 
-fn test_md5_has_6_leading_zeroes((key, num): (&str, usize)) -> Option<usize> {
+fn test_md5_has_6_leading_zeroes((key, num): &(&str, usize)) -> Option<usize> {
     if md5_has_6_leading_zeroes(&calculate_md5(key, &num)) {
-        Some(num)
+        Some(*num)
     } else {
         None
     }
 }
 
-fn find_first_num(key: &str, condition: fn((&str, usize)) -> Option<usize>) -> usize {
-    parallel_find((1..usize::MAX).map(|i| (key, i)), condition).unwrap()
+fn find_first_num(key: &str, condition: fn(&(&str, usize)) -> Option<usize>) -> usize {
+    parallel_find((1..usize::MAX).map(|i| (key, i)), 100, condition).unwrap()
 }
 
 fn part1(input: &str) -> usize {
