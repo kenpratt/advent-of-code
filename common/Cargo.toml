@@ -18,6 +18,8 @@ lazy_static = "1.4.0"
 md5 = "0.7.0"
 num = "0.4.1"
 regex = "1.10.2"
+serde = "1.0.196"
+serde_yaml = "0.9.31"
 time = { version = "0.3.31", features = ["macros", "parsing"] }
 
 [build-dependencies]
