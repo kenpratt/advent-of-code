@@ -1,0 +1,24 @@
+[package]
+name = "advent-of-code"
+version = "0.1.0"
+authors = ["Ken Pratt <ken@kenpratt.net>"]
+edition = "2021"
+build = "build.rs"
+
+[lib]
+doctest = false
+
+[profile.release]
+debug = 1
+
+[dependencies]
+indoc = "2.0.4"
+itertools = "0.12.0"
+lazy_static = "1.4.0"
+md5 = "0.7.0"
+num = "0.4.1"
+regex = "1.10.2"
+time = { version = "0.3.31", features = ["macros", "parsing"] }
+
+[build-dependencies]
+regex = "1.10.2"
