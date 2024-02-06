@@ -14,6 +14,10 @@ fn main() {
 
     let modules = explore();
 
+    for (year, _days) in &modules {
+        println!("cargo:rerun-if-changed=src/{}", year.name);
+    }
+
     write_days_file(&modules);
 
     for (year, days) in &modules {
