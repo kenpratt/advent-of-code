@@ -1,21 +1,30 @@
 use std::ops::RangeInclusive;
 
-use crate::file::*;
+use crate::interface::AoC;
 
-pub fn run() {
-    let input = parse(&read_input_file!());
-    println!("part 1 result: {:?}", part1(input));
-    println!("part 2 result: {:?}", part2(input));
+pub struct Day;
+impl AoC<usize, (i32, (usize, usize, usize)), (i32, (usize, usize, usize))> for Day {
+    const FILE: &'static str = file!();
+
+    fn parse(input: String) -> usize {
+        input.parse::<usize>().unwrap()
+    }
+
+    fn part1(serial_number: &usize) -> (i32, (usize, usize, usize)) {
+        let powers = calculate_powers(*serial_number);
+        best_square_of_size(&powers, 3)
+    }
+
+    fn part2(serial_number: &usize) -> (i32, (usize, usize, usize)) {
+        let powers = calculate_powers(*serial_number);
+        best_square_dynamic_size(&powers, 1..=300)
+    }
 }
 
 fn power_level(x: usize, y: usize, serial_number: usize) -> i32 {
     let rack_id = x + 10;
     let tmp = ((rack_id * y) + serial_number) * rack_id / 100 % 10;
     tmp as i32 - 5
-}
-
-fn parse(input: &str) -> usize {
-    input.parse::<usize>().unwrap()
 }
 
 const WIDTH: usize = 300;
@@ -109,16 +118,6 @@ fn best_square_dynamic_size(
     best
 }
 
-fn part1(serial_number: usize) -> (i32, (usize, usize, usize)) {
-    let powers = calculate_powers(serial_number);
-    best_square_of_size(&powers, 3)
-}
-
-fn part2(serial_number: usize) -> (i32, (usize, usize, usize)) {
-    let powers = calculate_powers(serial_number);
-    best_square_dynamic_size(&powers, 1..=300)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -133,25 +132,25 @@ mod tests {
 
     #[test]
     fn test_part1_examples() {
-        assert_eq!(part1(18), (29, (33, 45, 3)));
-        assert_eq!(part1(42), (30, (21, 61, 3)));
+        assert_eq!(Day::part1(&18), (29, (33, 45, 3)));
+        assert_eq!(Day::part1(&42), (30, (21, 61, 3)));
     }
 
     #[test]
     fn test_part1_solution() {
-        let result = part1(parse(&read_input_file!()));
+        let result = Day::part1(&Day::parse_input_file());
         assert_eq!(result, (30, (20, 41, 3)));
     }
 
     #[test]
     fn test_part2_examples() {
-        assert_eq!(part2(18), (113, (90, 269, 16)));
-        assert_eq!(part2(42), (119, (232, 251, 12)));
+        assert_eq!(Day::part2(&18), (113, (90, 269, 16)));
+        assert_eq!(Day::part2(&42), (119, (232, 251, 12)));
     }
 
     #[test]
     fn test_part2_solution() {
-        let result = part2(parse(&read_input_file!()));
+        let result = Day::part2(&Day::parse_input_file());
         assert_eq!(result, (76, (236, 270, 11)));
     }
 }

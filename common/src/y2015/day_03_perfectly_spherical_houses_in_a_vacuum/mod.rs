@@ -1,15 +1,49 @@
-use crate::file::*;
-
 use std::collections::HashSet;
 
-pub fn run() {
-    let input = parse(&read_input_file!());
-    println!("part 1 result: {:?}", part1(&input));
-    println!("part 2 result: {:?}", part2(&input));
+use crate::interface::AoC;
+
+pub struct Day;
+impl AoC<Vec<Direction>, usize, usize> for Day {
+    const FILE: &'static str = file!();
+
+    fn parse(input: String) -> Vec<Direction> {
+        Direction::parse_list(&input)
+    }
+
+    fn part1(directions: &Vec<Direction>) -> usize {
+        let mut pos = Coord::new(0, 0);
+        let mut visited = HashSet::from([pos]);
+
+        for direction in directions {
+            let next = pos.shift(direction);
+            visited.insert(next);
+            pos = next;
+        }
+
+        visited.len()
+    }
+
+    fn part2(directions: &Vec<Direction>) -> usize {
+        let mut santa = Coord::new(0, 0);
+        let mut robot = santa.clone();
+        let mut use_santa = true;
+
+        let mut visited = HashSet::from([santa]);
+
+        for direction in directions {
+            let pos = if use_santa { &mut santa } else { &mut robot };
+            let next = pos.shift(direction);
+            visited.insert(next.clone());
+            *pos = next;
+            use_santa = !use_santa;
+        }
+
+        visited.len()
+    }
 }
 
 #[derive(Debug)]
-enum Direction {
+pub enum Direction {
     North,
     South,
     East,
@@ -57,68 +91,33 @@ impl Coord {
     }
 }
 
-fn parse(input: &str) -> Vec<Direction> {
-    Direction::parse_list(input)
-}
-
-fn part1(directions: &[Direction]) -> usize {
-    let mut pos = Coord::new(0, 0);
-    let mut visited = HashSet::from([pos]);
-
-    for direction in directions {
-        let next = pos.shift(direction);
-        visited.insert(next);
-        pos = next;
-    }
-
-    visited.len()
-}
-
-fn part2(directions: &[Direction]) -> usize {
-    let mut santa = Coord::new(0, 0);
-    let mut robot = santa.clone();
-    let mut use_santa = true;
-
-    let mut visited = HashSet::from([santa]);
-
-    for direction in directions {
-        let pos = if use_santa { &mut santa } else { &mut robot };
-        let next = pos.shift(direction);
-        visited.insert(next.clone());
-        *pos = next;
-        use_santa = !use_santa;
-    }
-
-    visited.len()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_part1_examples() {
-        assert_eq!(part1(&parse(&">")), 2);
-        assert_eq!(part1(&parse(&"^>v<")), 4);
-        assert_eq!(part1(&parse(&"^v^v^v^v^v")), 2);
+        assert_eq!(Day::part1(&Day::parse_str(">")), 2);
+        assert_eq!(Day::part1(&Day::parse_str("^>v<")), 4);
+        assert_eq!(Day::part1(&Day::parse_str("^v^v^v^v^v")), 2);
     }
 
     #[test]
     fn test_part1_solution() {
-        let result = part1(&parse(&read_input_file!()));
+        let result = Day::part1(&Day::parse_input_file());
         assert_eq!(result, 2572);
     }
 
     #[test]
     fn test_part2_examples() {
-        assert_eq!(part2(&parse(&"^v")), 3);
-        assert_eq!(part2(&parse(&"^>v<")), 3);
-        assert_eq!(part2(&parse(&"^v^v^v^v^v")), 11);
+        assert_eq!(Day::part2(&Day::parse_str("^v")), 3);
+        assert_eq!(Day::part2(&Day::parse_str("^>v<")), 3);
+        assert_eq!(Day::part2(&Day::parse_str("^v^v^v^v^v")), 11);
     }
 
     #[test]
     fn test_part2_solution() {
-        let result = part2(&parse(&read_input_file!()));
+        let result = Day::part2(&Day::parse_input_file());
         assert_eq!(result, 2631);
     }
 }

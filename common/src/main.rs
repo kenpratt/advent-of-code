@@ -23,13 +23,13 @@ fn main() {
         // run all
         None => {
             assert!(args.len() == 0);
-            run_all(&timer)
+            run_all(&timer, true)
         }
 
         // run all
         Some("all") => {
             assert!(args.len() == 1);
-            run_all(&timer)
+            run_all(&timer, true)
         }
 
         // run year or day
@@ -38,12 +38,12 @@ fn main() {
             match args.get(1) {
                 None => {
                     assert!(args.len() == 1);
-                    run_year(year, &timer)
+                    run_year(year, &timer, true)
                 }
                 Some(day_s) if DAY_RE.is_match(day_s) => {
                     assert!(args.len() == 2);
                     let day = str_to_usize(day_s);
-                    run_day(year, day, &timer)
+                    run_day(year, day, &timer, true)
                 }
                 Some(_) => panic!("Unexpected args: {:?}", args),
             }
@@ -74,35 +74,42 @@ fn main() {
 }
 
 // cargo run --release 2015 4
-fn run_day(year: usize, day: usize, timer: &Instant) -> Duration {
+fn run_day(year: usize, day: usize, timer: &Instant, print: bool) -> Duration {
     let run = days::run_fn(year, day).unwrap();
     let start = timer.elapsed();
-    run();
+    run(print);
     let duration = timer.elapsed() - start;
-    println!("{} day {} took {}ms\n", year, day, duration.as_millis());
+    if print {
+        println!("{} day {} took {}ms\n", year, day, duration.as_millis());
+    }
     duration
 }
 
 // cargo run --release 2015
-fn run_year(year: usize, timer: &Instant) -> Duration {
+fn run_year(year: usize, timer: &Instant, print: bool) -> Duration {
     let total: Duration = days::days_for_year(year)
         .iter()
-        .map(|d| run_day(year, *d, timer))
+        .map(|d| run_day(year, *d, timer, print))
         .sum();
     println!("{} total: {}ms\n", year, total.as_millis());
     total
 }
 
 // cargo run --release
-fn run_all(timer: &Instant) -> Duration {
-    let total: Duration = days::YEARS.iter().map(|year| run_year(*year, timer)).sum();
+fn run_all(timer: &Instant, print: bool) -> Duration {
+    let total: Duration = days::YEARS
+        .iter()
+        .map(|year| run_year(*year, timer, print))
+        .sum();
     println!("all years total: {}ms\n", total.as_millis());
     total
 }
 
 // cargo run --release bench 2015 4 50
 fn benchmark_day(year: usize, day: usize, times: usize, timer: &Instant) -> Duration {
-    let mut durations: Vec<Duration> = (0..times).map(|_| run_day(year, day, timer)).collect();
+    let mut durations: Vec<Duration> = (0..times)
+        .map(|_| run_day(year, day, timer, false))
+        .collect();
     durations.sort();
     let median = durations[durations.len() / 2];
     println!(

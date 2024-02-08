@@ -1,20 +1,39 @@
 use std::collections::BTreeSet;
 use std::ops::Range;
 
-use crate::file::*;
+use crate::interface::AoC;
 use crate::spatial::*;
 
 use lazy_static::lazy_static;
 use regex::Regex;
 
-pub fn run() {
-    let input = parse(&read_input_file!());
-    println!("part 1 result: {:?}", part1(&input));
-    println!("part 2 result: {:?}", part2(&input));
+pub struct Day;
+impl AoC<(Vec<Instruction>, Windows), usize, usize> for Day {
+    const FILE: &'static str = file!();
+
+    fn parse(input: String) -> (Vec<Instruction>, Windows) {
+        let instructions = Instruction::parse_list(&input);
+        let windows = Windows::build(&instructions);
+        (instructions, windows)
+    }
+
+    fn part1((instructions, windows): &(Vec<Instruction>, Windows)) -> usize {
+        let mut lights: LightArray<bool> = LightArray::new(false, windows);
+        lights.run(instructions, |action, on| action.apply_lit(on));
+        lights.sum_by(|b| if *b { 1 } else { 0 })
+    }
+
+    fn part2((instructions, windows): &(Vec<Instruction>, Windows)) -> usize {
+        let mut lights: LightArray<u8> = LightArray::new(0, windows);
+        lights.run(instructions, |action, brightness| {
+            action.apply_brightness(brightness)
+        });
+        lights.sum_by(|b| *b as usize)
+    }
 }
 
 #[derive(Debug)]
-struct Instruction {
+pub struct Instruction {
     action: Action,
     start: Coord<u32>,
     end: Coord<u32>,
@@ -80,7 +99,7 @@ impl Action {
 }
 
 #[derive(Debug)]
-struct Windows {
+pub struct Windows {
     x_splits: Vec<u32>,
     y_splits: Vec<u32>,
     width: usize,
@@ -213,53 +232,31 @@ impl<'a, V> LightArray<'a, V> {
     }
 }
 
-fn parse(input: &str) -> (Vec<Instruction>, Windows) {
-    let instructions = Instruction::parse_list(input);
-    let windows = Windows::build(&instructions);
-    (instructions, windows)
-}
-
-fn part1((instructions, windows): &(Vec<Instruction>, Windows)) -> usize {
-    let mut lights: LightArray<bool> = LightArray::new(false, windows);
-    lights.run(instructions, |action, on| action.apply_lit(on));
-    lights.sum_by(|b| if *b { 1 } else { 0 })
-}
-
-fn part2((instructions, windows): &(Vec<Instruction>, Windows)) -> usize {
-    let mut lights: LightArray<u8> = LightArray::new(0, windows);
-    lights.run(instructions, |action, brightness| {
-        action.apply_brightness(brightness)
-    });
-    lights.sum_by(|b| *b as usize)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    const EXAMPLE_FILE: &'static str = "example.txt";
-
     #[test]
     fn test_part1_example() {
-        let result = part1(&parse(&read_example_file!()));
+        let result = Day::part1(&Day::parse_example_file());
         assert_eq!(result, 1000000 - 1000 - 4);
     }
 
     #[test]
     fn test_part1_solution() {
-        let result = part1(&parse(&read_input_file!()));
+        let result = Day::part1(&Day::parse_input_file());
         assert_eq!(result, 569999);
     }
 
     #[test]
     fn test_part2_example() {
-        let result = part2(&parse(&read_example_file!()));
+        let result = Day::part2(&Day::parse_example_file());
         assert_eq!(result, 1001996);
     }
 
     #[test]
     fn test_part2_solution() {
-        let result = part2(&parse(&read_input_file!()));
+        let result = Day::part2(&Day::parse_input_file());
         assert_eq!(result, 17836115);
     }
 }

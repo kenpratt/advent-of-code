@@ -1,9 +1,23 @@
-use crate::file::*;
+use crate::interface::AoC;
 
-pub fn run() {
-    let input = parse(&read_input_file!());
-    println!("part 1 result: {:?}", part1(&input));
-    println!("part 2 result: {:?}", part2(&input));
+pub struct Day;
+impl AoC<Vec<char>, usize, usize> for Day {
+    const FILE: &'static str = file!();
+
+    fn parse(input: String) -> Vec<char> {
+        input.chars().collect()
+    }
+
+    fn part1(chars: &Vec<char>) -> usize {
+        Solver::length_after_reduction(chars, None)
+    }
+
+    fn part2(chars: &Vec<char>) -> usize {
+        ('a'..='z')
+            .map(|ignore| Solver::length_after_reduction(&chars, Some(&ignore)))
+            .min()
+            .unwrap()
+    }
 }
 
 struct Solver<'a> {
@@ -79,48 +93,31 @@ impl Solver<'_> {
     }
 }
 
-fn parse(input: &str) -> Vec<char> {
-    input.chars().collect()
-}
-
-fn part1(chars: &[char]) -> usize {
-    Solver::length_after_reduction(chars, None)
-}
-
-fn part2(chars: &[char]) -> usize {
-    ('a'..='z')
-        .map(|ignore| Solver::length_after_reduction(&chars, Some(&ignore)))
-        .min()
-        .unwrap()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    const EXAMPLE_FILE: &'static str = "example.txt";
-
     #[test]
     fn test_part1_examples() {
-        let result = part1(&parse(&read_example_file!()));
+        let result = Day::part1(&Day::parse_example_file());
         assert_eq!(result, 10);
     }
 
     #[test]
     fn test_part1_solution() {
-        let result = part1(&parse(&read_input_file!()));
+        let result = Day::part1(&Day::parse_input_file());
         assert_eq!(result, 11476);
     }
 
     #[test]
     fn test_part2_example() {
-        let result = part2(&parse(&read_example_file!()));
+        let result = Day::part2(&Day::parse_example_file());
         assert_eq!(result, 4);
     }
 
     #[test]
     fn test_part2_solution() {
-        let result = part2(&parse(&read_input_file!()));
+        let result = Day::part2(&Day::parse_input_file());
         assert_eq!(result, 5446);
     }
 }

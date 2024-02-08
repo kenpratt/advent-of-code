@@ -1,22 +1,36 @@
 use std::cmp;
 
-use crate::file::*;
-use crate::spatial::{Bounds, Coord};
+use crate::{
+    interface::AoC,
+    spatial::{Bounds, Coord},
+};
 
 use lazy_static::lazy_static;
 use regex::Regex;
 
-pub fn run() {
-    let input = parse(&read_input_file!());
-    println!("part 1 result: {:?}", part1(&input));
-    println!("part 2 result: {:?}", part2(&input));
-}
-
 type NumT = i32;
 type CoordT = Coord<NumT>;
 
+pub struct Day;
+impl AoC<Vec<Point>, String, NumT> for Day {
+    const FILE: &'static str = file!();
+
+    fn parse(input: String) -> Vec<Point> {
+        Point::parse_list(&input)
+    }
+
+    fn part1(points: &Vec<Point>) -> String {
+        Point::find_word(points)
+    }
+
+    fn part2(points: &Vec<Point>) -> NumT {
+        let (_, took) = Point::find_convergence_arrangement(points);
+        took
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
-struct Point {
+pub struct Point {
     position: CoordT,
     velocity: CoordT,
 }
@@ -112,19 +126,6 @@ impl Point {
     }
 }
 
-fn parse(input: &str) -> Vec<Point> {
-    Point::parse_list(input)
-}
-
-fn part1(points: &[Point]) -> String {
-    Point::find_word(points)
-}
-
-fn part2(points: &[Point]) -> NumT {
-    let (_, took) = Point::find_convergence_arrangement(points);
-    took
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -157,25 +158,25 @@ mod tests {
 
     #[test]
     fn test_part1_example() {
-        let result = part1(&parse(&read_example_file!()));
+        let result = Day::part1(&Day::parse_example_file());
         assert_eq!(result, EXAMPLE_SOLUTION);
     }
 
     #[test]
     fn test_part1_solution() {
-        let result = part1(&parse(&read_input_file!()));
+        let result = Day::part1(&Day::parse_input_file());
         assert_eq!(result, REAL_SOLUTION);
     }
 
     #[test]
     fn test_part2_example() {
-        let result = part2(&parse(&read_example_file!()));
+        let result = Day::part2(&Day::parse_example_file());
         assert_eq!(result, 3);
     }
 
     #[test]
     fn test_part2_solution() {
-        let result = part2(&parse(&read_input_file!()));
+        let result = Day::part2(&Day::parse_input_file());
         assert_eq!(result, 10619);
     }
 }

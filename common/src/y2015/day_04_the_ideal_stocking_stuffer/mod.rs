@@ -1,16 +1,26 @@
-use crate::parallel::*;
+use crate::{interface::AoC, parallel::*};
 
 use md5::*;
-
-const INPUT: &'static str = "bgvyzdsv";
 
 // each parallel worker will grab this many jobs at the
 // same time, to avoid contention on the work queue.
 const BATCH_SIZE: usize = 500;
 
-pub fn run() {
-    println!("part 1 result: {:?}", part1(INPUT));
-    println!("part 2 result: {:?}", part2(INPUT));
+pub struct Day;
+impl AoC<String, usize, usize> for Day {
+    const FILE: &'static str = file!();
+
+    fn parse(input: String) -> String {
+        input.to_owned()
+    }
+
+    fn part1(input: &String) -> usize {
+        find_first_num(input, md5_has_5_leading_zeroes)
+    }
+
+    fn part2(input: &String) -> usize {
+        find_first_num(input, md5_has_6_leading_zeroes)
+    }
 }
 
 fn calculate_md5(mut context: Context, num: &usize) -> Digest {
@@ -48,33 +58,25 @@ fn find_first_num(key: &str, condition: fn(&Digest) -> bool) -> usize {
     .unwrap()
 }
 
-fn part1(input: &str) -> usize {
-    find_first_num(input, md5_has_5_leading_zeroes)
-}
-
-fn part2(input: &str) -> usize {
-    find_first_num(input, md5_has_6_leading_zeroes)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_part1_examples() {
-        assert_eq!(part1("abcdef"), 609043);
-        assert_eq!(part1("pqrstuv"), 1048970);
+        assert_eq!(Day::part1(&Day::parse_str("abcdef")), 609043);
+        assert_eq!(Day::part1(&Day::parse_str("pqrstuv")), 1048970);
     }
 
     #[test]
     fn test_part1_solution() {
-        let result = part1(INPUT);
+        let result = Day::part1(&Day::parse_input_file());
         assert_eq!(result, 254575);
     }
 
     #[test]
     fn test_part2_solution() {
-        let result = part2(INPUT);
+        let result = Day::part2(&Day::parse_input_file());
         assert_eq!(result, 1038736);
     }
 }

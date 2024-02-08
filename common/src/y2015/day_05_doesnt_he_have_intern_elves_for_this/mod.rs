@@ -1,19 +1,30 @@
-use crate::file::*;
+use crate::interface::AoC;
 
 use std::collections::{HashMap, HashSet};
 
 use lazy_static::lazy_static;
 
+pub struct Day;
+impl AoC<String, usize, usize> for Day {
+    const FILE: &'static str = file!();
+
+    fn parse(input: String) -> String {
+        input
+    }
+
+    fn part1(input: &String) -> usize {
+        input.lines().filter(|line| is_nice1(line)).count()
+    }
+
+    fn part2(input: &String) -> usize {
+        input.lines().filter(|line| is_nice2(line)).count()
+    }
+}
+
 lazy_static! {
     static ref NAUGHTY: HashSet<(char, char)> =
         HashSet::from([('a', 'b'), ('c', 'd'), ('p', 'q'), ('x', 'y')]);
     static ref VOWELS: HashSet<char> = HashSet::from(['a', 'e', 'i', 'o', 'u']);
-}
-
-pub fn run() {
-    let input = read_input_file!();
-    println!("part 1 result: {:?}", part1(&input));
-    println!("part 2 result: {:?}", part2(&input));
 }
 
 fn is_nice1(input: &str) -> bool {
@@ -47,10 +58,6 @@ fn is_nice1(input: &str) -> bool {
     has_double_letter && vowel_count >= 3
 }
 
-fn part1(input: &str) -> usize {
-    input.lines().filter(|line| is_nice1(line)).count()
-}
-
 fn is_nice2(input: &str) -> bool {
     let chars: Vec<char> = input.chars().collect();
 
@@ -76,40 +83,36 @@ fn is_nice2(input: &str) -> bool {
     false
 }
 
-fn part2(input: &str) -> usize {
-    input.lines().filter(|line| is_nice2(line)).count()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_part1_examples() {
-        assert_eq!(part1("ugknbfddgicrmopn"), 1);
-        assert_eq!(part1("aaa"), 1);
-        assert_eq!(part1("jchzalrnumimnmhp"), 0);
-        assert_eq!(part1("haegwjzuvuyypxyu"), 0);
-        assert_eq!(part1("dvszwmarrgswjxmb"), 0);
+        assert_eq!(Day::part1(&Day::parse_str("ugknbfddgicrmopn")), 1);
+        assert_eq!(Day::part1(&Day::parse_str("aaa")), 1);
+        assert_eq!(Day::part1(&Day::parse_str("jchzalrnumimnmhp")), 0);
+        assert_eq!(Day::part1(&Day::parse_str("haegwjzuvuyypxyu")), 0);
+        assert_eq!(Day::part1(&Day::parse_str("dvszwmarrgswjxmb")), 0);
     }
 
     #[test]
     fn test_part1_solution() {
-        let result = part1(&read_input_file!());
+        let result = Day::part1(&Day::parse_input_file());
         assert_eq!(result, 236);
     }
 
     #[test]
     fn test_part2_examples() {
-        assert_eq!(part2("qjhvhtzxzqqjkmpb"), 1);
-        assert_eq!(part2("xxyxx"), 1);
-        assert_eq!(part2("uurcxstgmygtbstg"), 0);
-        assert_eq!(part2("ieodomkazucvgmuy"), 0);
+        assert_eq!(Day::part2(&Day::parse_str("qjhvhtzxzqqjkmpb")), 1);
+        assert_eq!(Day::part2(&Day::parse_str("xxyxx")), 1);
+        assert_eq!(Day::part2(&Day::parse_str("uurcxstgmygtbstg")), 0);
+        assert_eq!(Day::part2(&Day::parse_str("ieodomkazucvgmuy")), 0);
     }
 
     #[test]
     fn test_part2_solution() {
-        let result = part2(&read_input_file!());
+        let result = Day::part2(&Day::parse_input_file());
         assert_eq!(result, 51);
     }
 }

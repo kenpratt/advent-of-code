@@ -1,16 +1,26 @@
 use std::collections::BTreeMap;
 
-use crate::file::*;
-use crate::spatial::*;
+use crate::{interface::AoC, spatial::*};
 
-pub fn run() {
-    let input = parse(&read_input_file!());
-    println!("part 1 result: {:?}", part1(input.clone()));
-    println!("part 2 result: {:?}", part2(input));
+pub struct Day;
+impl AoC<State, Coord<usize>, Coord<usize>> for Day {
+    const FILE: &'static str = file!();
+
+    fn parse(input: String) -> State {
+        State::parse(&input)
+    }
+
+    fn part1(state: &State) -> Coord<usize> {
+        state.clone().first_collision()
+    }
+
+    fn part2(state: &State) -> Coord<usize> {
+        state.clone().run_removing_collisions()
+    }
 }
 
 #[derive(Clone, Debug)]
-struct State {
+pub struct State {
     grid: Grid<usize, Track>,
     carts: BTreeMap<usize, Cart>,
 }
@@ -168,18 +178,6 @@ impl Cart {
     }
 }
 
-fn parse(input: &str) -> State {
-    State::parse(input)
-}
-
-fn part1(mut state: State) -> Coord<usize> {
-    state.first_collision()
-}
-
-fn part2(mut state: State) -> Coord<usize> {
-    state.run_removing_collisions()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -188,25 +186,25 @@ mod tests {
 
     #[test]
     fn test_part1_example() {
-        let result = part1(parse(&read_example_file!()));
+        let result = Day::part1(&Day::parse_example_file());
         assert_eq!(result, Coord::new(7, 3));
     }
 
     #[test]
     fn test_part1_solution() {
-        let result = part1(parse(&read_input_file!()));
+        let result = Day::part1(&Day::parse_input_file());
         assert_eq!(result, Coord::new(123, 18));
     }
 
     #[test]
     fn test_part2_example() {
-        let result = part2(parse(&read_file!(EXAMPLE_FILE_2)));
+        let result = Day::part2(&Day::parse_file(EXAMPLE_FILE_2));
         assert_eq!(result, Coord::new(6, 4));
     }
 
     #[test]
     fn test_part2_solution() {
-        let result = part2(parse(&read_input_file!()));
+        let result = Day::part2(&Day::parse_input_file());
         assert_eq!(result, Coord::new(71, 123));
     }
 }

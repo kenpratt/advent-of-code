@@ -1,13 +1,30 @@
-use crate::file::*;
+use crate::interface::AoC;
 
-pub fn run() {
-    let input = parse(&read_input_file!());
-    println!("part 1 result: {:?}", part1(&input));
-    println!("part 2 result: {:?}", part2(&input));
+pub struct Day;
+impl AoC<Tree, usize, usize> for Day {
+    const FILE: &'static str = file!();
+
+    fn parse(input: String) -> Tree {
+        let nums = input
+            .split_whitespace()
+            .flat_map(|s| s.parse::<u8>())
+            .collect();
+        Tree::from(nums)
+    }
+
+    fn part1(tree: &Tree) -> usize {
+        tree.iter()
+            .map(|node| node.metadata.iter().sum::<u8>() as usize)
+            .sum()
+    }
+
+    fn part2(tree: &Tree) -> usize {
+        tree.value()
+    }
 }
 
 #[derive(Debug)]
-struct Tree {
+pub struct Tree {
     root: Node,
 }
 
@@ -114,49 +131,31 @@ impl<'a> Iterator for TreeIterator<'a> {
     }
 }
 
-fn parse(input: &str) -> Tree {
-    let nums = input
-        .split_whitespace()
-        .flat_map(|s| s.parse::<u8>())
-        .collect();
-    Tree::from(nums)
-}
-
-fn part1(tree: &Tree) -> usize {
-    tree.iter()
-        .map(|node| node.metadata.iter().sum::<u8>() as usize)
-        .sum()
-}
-
-fn part2(tree: &Tree) -> usize {
-    tree.value()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_part1_example() {
-        let result = part1(&parse(&read_example_file!()));
+        let result = Day::part1(&Day::parse_example_file());
         assert_eq!(result, 138);
     }
 
     #[test]
     fn test_part1_solution() {
-        let result = part1(&parse(&read_input_file!()));
+        let result = Day::part1(&Day::parse_input_file());
         assert_eq!(result, 37905);
     }
 
     #[test]
     fn test_part2_example() {
-        let result = part2(&parse(&read_example_file!()));
+        let result = Day::part2(&Day::parse_example_file());
         assert_eq!(result, 66);
     }
 
     #[test]
     fn test_part2_solution() {
-        let result = part2(&parse(&read_input_file!()));
+        let result = Day::part2(&Day::parse_input_file());
         assert_eq!(result, 33891);
     }
 }

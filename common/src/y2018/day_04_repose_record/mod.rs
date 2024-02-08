@@ -1,14 +1,48 @@
-use crate::file::*;
 use std::{collections::HashMap, ops::Range};
 
 use lazy_static::lazy_static;
 use regex::Regex;
 use time::{macros::format_description, PrimitiveDateTime};
 
-pub fn run() {
-    let input = parse(&read_input_file!());
-    println!("part 1 result: {:?}", part1(&input));
-    println!("part 2 result: {:?}", part2(&input));
+use crate::interface::AoC;
+
+pub struct Day;
+impl AoC<HashMap<u16, Vec<Shift>>, usize, usize> for Day {
+    const FILE: &'static str = file!();
+
+    fn parse(input: String) -> HashMap<u16, Vec<Shift>> {
+        let shifts = Shift::parse_list(&input);
+        let mut by_guard: HashMap<u16, Vec<Shift>> = HashMap::new();
+        for shift in shifts {
+            by_guard.entry(shift.guard).or_default().push(shift);
+        }
+
+        by_guard
+    }
+
+    fn part1(by_guard: &HashMap<u16, Vec<Shift>>) -> usize {
+        let (sleepiest_guard, sleepiest_shifts) = by_guard
+            .iter()
+            .max_by_key(|(_guard, shifts)| {
+                shifts
+                    .iter()
+                    .map(|shift| shift.total_nap_time())
+                    .sum::<usize>()
+            })
+            .unwrap();
+
+        let (minute, _count) = Shift::sleepiest_minute(sleepiest_shifts);
+        *sleepiest_guard as usize * minute as usize
+    }
+
+    fn part2(by_guard: &HashMap<u16, Vec<Shift>>) -> usize {
+        let (guard, (minute, _count)) = by_guard
+            .iter()
+            .map(|(guard, shifts)| (guard, Shift::sleepiest_minute(shifts)))
+            .max_by_key(|(_guard, (_minute, count))| *count)
+            .unwrap();
+        *guard as usize * minute
+    }
 }
 
 #[derive(Debug)]
@@ -66,7 +100,7 @@ impl Entry {
 }
 
 #[derive(Debug)]
-struct Shift {
+pub struct Shift {
     guard: u16,
     naps: Vec<Range<u8>>,
 }
@@ -163,65 +197,31 @@ impl Shift {
     }
 }
 
-fn parse(input: &str) -> HashMap<u16, Vec<Shift>> {
-    let shifts = Shift::parse_list(input);
-    let mut by_guard: HashMap<u16, Vec<Shift>> = HashMap::new();
-    for shift in shifts {
-        by_guard.entry(shift.guard).or_default().push(shift);
-    }
-
-    by_guard
-}
-
-fn part1(by_guard: &HashMap<u16, Vec<Shift>>) -> usize {
-    let (sleepiest_guard, sleepiest_shifts) = by_guard
-        .iter()
-        .max_by_key(|(_guard, shifts)| {
-            shifts
-                .iter()
-                .map(|shift| shift.total_nap_time())
-                .sum::<usize>()
-        })
-        .unwrap();
-
-    let (minute, _count) = Shift::sleepiest_minute(sleepiest_shifts);
-    *sleepiest_guard as usize * minute as usize
-}
-
-fn part2(by_guard: &HashMap<u16, Vec<Shift>>) -> usize {
-    let (guard, (minute, _count)) = by_guard
-        .iter()
-        .map(|(guard, shifts)| (guard, Shift::sleepiest_minute(shifts)))
-        .max_by_key(|(_guard, (_minute, count))| *count)
-        .unwrap();
-    *guard as usize * minute
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_part1_example() {
-        let result = part1(&parse(&read_example_file!()));
+        let result = Day::part1(&Day::parse_example_file());
         assert_eq!(result, 240);
     }
 
     #[test]
     fn test_part1_solution() {
-        let result = part1(&parse(&read_input_file!()));
+        let result = Day::part1(&Day::parse_input_file());
         assert_eq!(result, 125444);
     }
 
     #[test]
     fn test_part2_example() {
-        let result = part2(&parse(&read_example_file!()));
+        let result = Day::part2(&Day::parse_example_file());
         assert_eq!(result, 4455);
     }
 
     #[test]
     fn test_part2_solution() {
-        let result = part2(&parse(&read_input_file!()));
+        let result = Day::part2(&Day::parse_input_file());
         assert_eq!(result, 18325);
     }
 }

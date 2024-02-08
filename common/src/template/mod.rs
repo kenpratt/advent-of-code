@@ -1,19 +1,30 @@
-use crate::file::*;
+use crate::interface::AoC;
 
 use lazy_static::lazy_static;
 use regex::Regex;
 
-pub fn run() {
-    let input = parse(&read_input_file!());
-    println!("part 1 result: {:?}", part1(&input));
-    println!("part 2 result: {:?}", part2(&input));
+pub struct Day;
+impl AoC<Vec<Item>, usize, usize> for Day {
+    const FILE: &'static str = file!();
+
+    fn parse(input: String) -> Vec<Item> {
+        Item::parse_list(&input)
+    }
+
+    fn part1(items: &Vec<Item>) -> usize {
+        dbg!(&items);
+        0
+    }
+
+    fn part2(_items: &Vec<Item>) -> usize {
+        0
+    }
 }
 
-#[allow(dead_code)]
 #[derive(Debug)]
-struct Item {
-    foo: String,
-    bar: usize,
+pub struct Item {
+    _foo: String,
+    _bar: usize,
 }
 
 impl Item {
@@ -27,23 +38,10 @@ impl Item {
         }
 
         let caps = ITEM_RE.captures(input).unwrap();
-        let foo = caps.get(1).unwrap().as_str().to_string();
-        let bar = caps.get(2).unwrap().as_str().parse::<usize>().unwrap();
-        Self { foo, bar }
+        let _foo = caps.get(1).unwrap().as_str().to_string();
+        let _bar = caps.get(2).unwrap().as_str().parse::<usize>().unwrap();
+        Self { _foo, _bar }
     }
-}
-
-fn parse(input: &str) -> Vec<Item> {
-    Item::parse_list(input)
-}
-
-fn part1(items: &[Item]) -> usize {
-    dbg!(&items);
-    0
-}
-
-fn part2(_items: &[Item]) -> usize {
-    0
 }
 
 #[cfg(test)]
@@ -52,25 +50,25 @@ mod tests {
 
     #[test]
     fn test_part1_example() {
-        let result = part1(&parse(&read_example_file!()));
+        let result = Day::part1(&Day::parse_example_file());
         assert_eq!(result, 0);
     }
 
     #[test]
     fn test_part1_solution() {
-        let result = part1(&parse(&read_input_file!()));
+        let result = Day::part1(&Day::parse_input_file());
         assert_eq!(result, 0);
     }
 
     #[test]
     fn test_part2_example() {
-        let result = part2(&parse(&read_example_file!()));
+        let result = Day::part2(&Day::parse_example_file());
         assert_eq!(result, 0);
     }
 
     #[test]
     fn test_part2_solution() {
-        let result = part2(&parse(&read_input_file!()));
+        let result = Day::part2(&Day::parse_input_file());
         assert_eq!(result, 0);
     }
 }

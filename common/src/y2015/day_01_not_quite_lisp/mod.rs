@@ -1,13 +1,31 @@
-use crate::file::*;
+use crate::interface::AoC;
 
-pub fn run() {
-    let input = parse(&read_input_file!());
-    println!("part 1 result: {:?}", part1(&input));
-    println!("part 2 result: {:?}", part2(&input));
+pub struct Day;
+impl AoC<Vec<Direction>, i16, Option<usize>> for Day {
+    const FILE: &'static str = file!();
+
+    fn parse(input: String) -> Vec<Direction> {
+        Direction::parse_list(&input)
+    }
+
+    fn part1(directions: &Vec<Direction>) -> i16 {
+        directions.iter().map(|d| d.value()).sum()
+    }
+
+    fn part2(directions: &Vec<Direction>) -> Option<usize> {
+        directions
+            .iter()
+            .scan(0, |acc, d| {
+                *acc += d.value();
+                Some(*acc)
+            })
+            .position(|v| v < 0)
+            .map(|i| i + 1)
+    }
 }
 
 #[derive(Debug)]
-enum Direction {
+pub enum Direction {
     Up,
     Down,
 }
@@ -37,58 +55,39 @@ impl Direction {
     }
 }
 
-fn parse(input: &str) -> Vec<Direction> {
-    Direction::parse_list(input)
-}
-
-fn part1(directions: &[Direction]) -> i16 {
-    directions.iter().map(|d| d.value()).sum()
-}
-
-fn part2(directions: &[Direction]) -> Option<usize> {
-    directions
-        .iter()
-        .scan(0, |acc, d| {
-            *acc += d.value();
-            Some(*acc)
-        })
-        .position(|v| v < 0)
-        .map(|i| i + 1)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_part1_examples() {
-        assert_eq!(part1(&parse(&"(())")), 0);
-        assert_eq!(part1(&parse(&"()()")), 0);
-        assert_eq!(part1(&parse(&"(((")), 3);
-        assert_eq!(part1(&parse(&"(()(()(")), 3);
-        assert_eq!(part1(&parse(&"))(((((")), 3);
-        assert_eq!(part1(&parse(&"())")), -1);
-        assert_eq!(part1(&parse(&"))(")), -1);
-        assert_eq!(part1(&parse(&")))")), -3);
-        assert_eq!(part1(&parse(&")())())")), -3);
+        assert_eq!(Day::part1(&Day::parse_str("(())")), 0);
+        assert_eq!(Day::part1(&Day::parse_str("()()")), 0);
+        assert_eq!(Day::part1(&Day::parse_str("(((")), 3);
+        assert_eq!(Day::part1(&Day::parse_str("(()(()(")), 3);
+        assert_eq!(Day::part1(&Day::parse_str("))(((((")), 3);
+        assert_eq!(Day::part1(&Day::parse_str("())")), -1);
+        assert_eq!(Day::part1(&Day::parse_str("))(")), -1);
+        assert_eq!(Day::part1(&Day::parse_str(")))")), -3);
+        assert_eq!(Day::part1(&Day::parse_str(")())())")), -3);
     }
 
     #[test]
     fn test_part1_solution() {
-        let result = part1(&parse(&read_input_file!()));
+        let result = Day::part1(&Day::parse_input_file());
         assert_eq!(result, 232);
     }
 
     #[test]
     fn test_part2_example() {
-        assert_eq!(part2(&parse(&")")), Some(1));
-        assert_eq!(part2(&parse(&"()())")), Some(5));
-        assert_eq!(part2(&parse(&"()()")), None);
+        assert_eq!(Day::part2(&Day::parse_str(")")), Some(1));
+        assert_eq!(Day::part2(&Day::parse_str("()())")), Some(5));
+        assert_eq!(Day::part2(&Day::parse_str("()()")), None);
     }
 
     #[test]
     fn test_part2_solution() {
-        let result = part2(&parse(&read_input_file!()));
+        let result = Day::part2(&Day::parse_input_file());
         assert_eq!(result, Some(1783));
     }
 }

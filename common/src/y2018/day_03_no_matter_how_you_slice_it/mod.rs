@@ -1,4 +1,4 @@
-use crate::file::*;
+use crate::interface::AoC;
 use std::{
     collections::BTreeSet,
     ops::{Range, RangeInclusive},
@@ -7,14 +7,32 @@ use std::{
 use lazy_static::lazy_static;
 use regex::Regex;
 
-pub fn run() {
-    let input = parse(&read_input_file!());
-    println!("part 1 result: {:?}", part1(&input));
-    println!("part 2 result: {:?}", part2(&input));
+pub struct Day;
+impl AoC<(Vec<Claim>, Grid), usize, u16> for Day {
+    const FILE: &'static str = file!();
+
+    fn parse(input: String) -> (Vec<Claim>, Grid) {
+        let claims = Claim::parse_list(&input);
+        let grid = Grid::build(&claims);
+        (claims, grid)
+    }
+
+    fn part1((_claims, grid): &(Vec<Claim>, Grid)) -> usize {
+        grid.area_with_overlap()
+    }
+
+    fn part2((claims, grid): &(Vec<Claim>, Grid)) -> u16 {
+        let non_overlapping: Vec<&Claim> = claims
+            .iter()
+            .filter(|c| grid.is_non_overlapping(c))
+            .collect();
+        assert_eq!(non_overlapping.len(), 1);
+        non_overlapping.first().unwrap().id
+    }
 }
 
 #[derive(Debug)]
-struct Claim {
+pub struct Claim {
     id: u16,
     x_range: Range<u16>,
     y_range: Range<u16>,
@@ -56,7 +74,7 @@ impl Claim {
 }
 
 #[derive(Debug)]
-struct Grid {
+pub struct Grid {
     x_ranges: Vec<Range<u16>>,
     y_ranges: Vec<Range<u16>>,
     tiles: Vec<u8>,
@@ -167,52 +185,31 @@ impl Grid {
     }
 }
 
-fn parse(input: &str) -> (Vec<Claim>, Grid) {
-    let claims = Claim::parse_list(input);
-    let grid = Grid::build(&claims);
-    (claims, grid)
-}
-
-fn part1((_claims, grid): &(Vec<Claim>, Grid)) -> usize {
-    grid.area_with_overlap()
-}
-
-fn part2((claims, grid): &(Vec<Claim>, Grid)) -> u16 {
-    let non_overlapping: Vec<&Claim> = claims
-        .iter()
-        .filter(|c| grid.is_non_overlapping(c))
-        .collect();
-    assert_eq!(non_overlapping.len(), 1);
-    non_overlapping.first().unwrap().id
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    const EXAMPLE_FILE: &'static str = "example.txt";
-
     #[test]
     fn test_part1_example() {
-        let result = part1(&parse(&read_example_file!()));
+        let result = Day::part1(&Day::parse_example_file());
         assert_eq!(result, 4);
     }
 
     #[test]
     fn test_part1_solution() {
-        let result = part1(&parse(&read_input_file!()));
+        let result = Day::part1(&Day::parse_input_file());
         assert_eq!(result, 98005);
     }
 
     #[test]
     fn test_part2_example() {
-        let result = part2(&parse(&read_example_file!()));
+        let result = Day::part2(&Day::parse_example_file());
         assert_eq!(result, 3);
     }
 
     #[test]
     fn test_part2_solution() {
-        let result = part2(&parse(&read_input_file!()));
+        let result = Day::part2(&Day::parse_input_file());
         assert_eq!(result, 331);
     }
 }

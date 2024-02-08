@@ -1,16 +1,30 @@
-use crate::file::*;
-
 use lazy_static::lazy_static;
 use regex::Regex;
 
-pub fn run() {
-    let input = parse(&read_input_file!());
-    println!("part 1 result: {:?}", part1(&input));
-    println!("part 2 result: {:?}", part2(&input));
-}
+use crate::interface::AoC;
 
+pub struct Day;
+impl AoC<Parameters, u32, u32> for Day {
+    const FILE: &'static str = file!();
+
+    fn parse(input: String) -> Parameters {
+        Parameters::parse(&input)
+    }
+
+    fn part1(parameters: &Parameters) -> u32 {
+        Game::play(parameters)
+    }
+
+    fn part2(parameters: &Parameters) -> u32 {
+        let modified_parameters = Parameters {
+            num_players: parameters.num_players,
+            last_marble: parameters.last_marble * 100,
+        };
+        Game::play(&modified_parameters)
+    }
+}
 #[derive(Debug)]
-struct Parameters {
+pub struct Parameters {
     num_players: u32,
     last_marble: u32,
 }
@@ -192,28 +206,17 @@ impl Game {
     }
 }
 
-fn parse(input: &str) -> Parameters {
-    Parameters::parse(input)
-}
-
-fn part1(parameters: &Parameters) -> u32 {
-    Game::play(parameters)
-}
-
-fn part2(parameters: &Parameters) -> u32 {
-    let modified_parameters = Parameters {
-        num_players: parameters.num_players,
-        last_marble: parameters.last_marble * 100,
-    };
-    Game::play(&modified_parameters)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn parse_examples(examples: &str) -> Vec<(Parameters, u32)> {
-        examples.lines().map(|line| parse_example(line)).collect()
+    const EXAMPLES_FILE: &'static str = "examples.txt";
+
+    fn parse_examples() -> Vec<(Parameters, u32)> {
+        Day::read_file(EXAMPLES_FILE)
+            .lines()
+            .map(|line| parse_example(line))
+            .collect()
     }
 
     fn parse_example(example: &str) -> (Parameters, u32) {
@@ -222,28 +225,28 @@ mod tests {
         }
 
         let caps = EXAMPLE_RE.captures(example).unwrap();
-        let input = parse(caps.get(1).unwrap().as_str());
+        let input = Day::parse_str(caps.get(1).unwrap().as_str());
         let result = caps.get(2).unwrap().as_str().parse::<u32>().unwrap();
         (input, result)
     }
 
     #[test]
     fn test_part1_examples() {
-        let examples = parse_examples(&read_example_file!());
+        let examples = parse_examples();
         for (input, result) in examples {
-            assert_eq!(part1(&input), result);
+            assert_eq!(Day::part1(&input), result);
         }
     }
 
     #[test]
     fn test_part1_solution() {
-        let result = part1(&parse(&read_input_file!()));
+        let result = Day::part1(&Day::parse_input_file());
         assert_eq!(result, 434674);
     }
 
     #[test]
     fn test_part2_solution() {
-        let result = part2(&parse(&read_input_file!()));
+        let result = Day::part2(&Day::parse_input_file());
         assert_eq!(result, 3653994575);
     }
 }

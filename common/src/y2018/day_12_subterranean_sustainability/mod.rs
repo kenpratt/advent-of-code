@@ -1,19 +1,31 @@
-use crate::file::*;
-use crate::math::*;
+use crate::{interface::AoC, math::*};
 
 use lazy_static::lazy_static;
 use regex::Regex;
 
-pub fn run() {
-    let input = parse(&read_input_file!());
-    println!("part 1 result: {:?}", part1(&input));
-    println!("part 2 result: {:?}", part2(&input));
+pub struct Day;
+impl AoC<Input, isize, isize> for Day {
+    const FILE: &'static str = file!();
+
+    fn parse(input: String) -> Input {
+        Input::parse(&input)
+    }
+
+    fn part1(input: &Input) -> isize {
+        let sim = Simulation::run(input, 20);
+        sim.sum_plant_indices()
+    }
+
+    fn part2(input: &Input) -> isize {
+        let sim = Simulation::run(input, 50000000000);
+        sim.sum_plant_indices()
+    }
 }
 
 type Notes = [bool; 32];
 
 #[derive(Debug)]
-struct Input {
+pub struct Input {
     initial: (u128, u8),
     notes: Notes,
 }
@@ -193,45 +205,31 @@ impl Simulation {
     }
 }
 
-fn parse(input: &str) -> Input {
-    Input::parse(input)
-}
-
-fn part1(input: &Input) -> isize {
-    let sim = Simulation::run(input, 20);
-    sim.sum_plant_indices()
-}
-
-fn part2(input: &Input) -> isize {
-    let sim = Simulation::run(input, 50000000000);
-    sim.sum_plant_indices()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_part1_example() {
-        let result = part1(&parse(&read_example_file!()));
+        let result = Day::part1(&Day::parse_example_file());
         assert_eq!(result, 325);
     }
 
     #[test]
     fn test_part1_solution() {
-        let result = part1(&parse(&read_input_file!()));
+        let result = Day::part1(&Day::parse_input_file());
         assert_eq!(result, 1816);
     }
 
     #[test]
     fn test_part2_example() {
-        let result = part2(&parse(&read_example_file!()));
+        let result = Day::part2(&Day::parse_example_file());
         assert_eq!(result, 999999999374);
     }
 
     #[test]
     fn test_part2_solution() {
-        let result = part2(&parse(&read_input_file!()));
+        let result = Day::part2(&Day::parse_input_file());
         assert_eq!(result, 399999999957);
     }
 }

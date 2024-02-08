@@ -1,18 +1,29 @@
-use crate::file::*;
+use crate::interface::AoC;
 
 use std::cmp;
 
 use lazy_static::lazy_static;
 use regex::Regex;
 
-pub fn run() {
-    let input = parse(&read_input_file!());
-    println!("part 1 result: {:?}", part1(&input));
-    println!("part 2 result: {:?}", part2(&input));
+pub struct Day;
+impl AoC<Vec<Present>, usize, usize> for Day {
+    const FILE: &'static str = file!();
+
+    fn parse(input: String) -> Vec<Present> {
+        Present::parse_list(&input)
+    }
+
+    fn part1(presents: &Vec<Present>) -> usize {
+        presents.iter().map(|p| p.paper_needed()).sum()
+    }
+
+    fn part2(presents: &Vec<Present>) -> usize {
+        presents.iter().map(|p| p.ribbon_needed()).sum()
+    }
 }
 
 #[derive(Debug)]
-struct Present {
+pub struct Present {
     length: usize,
     width: usize,
     height: usize,
@@ -71,43 +82,31 @@ fn min(a: usize, b: usize, c: usize) -> usize {
     cmp::min(a, cmp::min(b, c))
 }
 
-fn parse(input: &str) -> Vec<Present> {
-    Present::parse_list(input)
-}
-
-fn part1(presents: &[Present]) -> usize {
-    presents.iter().map(|p| p.paper_needed()).sum()
-}
-
-fn part2(presents: &[Present]) -> usize {
-    presents.iter().map(|p| p.ribbon_needed()).sum()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_part1_examples() {
-        assert_eq!(part1(&parse(&"2x3x4")), 58);
-        assert_eq!(part1(&parse(&"1x1x10")), 43);
+        assert_eq!(Day::part1(&Day::parse_str("2x3x4")), 58);
+        assert_eq!(Day::part1(&Day::parse_str("1x1x10")), 43);
     }
 
     #[test]
     fn test_part1_solution() {
-        let result = part1(&parse(&read_input_file!()));
+        let result = Day::part1(&Day::parse_input_file());
         assert_eq!(result, 1588178);
     }
 
     #[test]
     fn test_part2_examples() {
-        assert_eq!(part2(&parse(&"2x3x4")), 34);
-        assert_eq!(part2(&parse(&"1x1x10")), 14);
+        assert_eq!(Day::part2(&Day::parse_str("2x3x4")), 34);
+        assert_eq!(Day::part2(&Day::parse_str("1x1x10")), 14);
     }
 
     #[test]
     fn test_part2_solution() {
-        let result = part2(&parse(&read_input_file!()));
+        let result = Day::part2(&Day::parse_input_file());
         assert_eq!(result, 3783758);
     }
 }

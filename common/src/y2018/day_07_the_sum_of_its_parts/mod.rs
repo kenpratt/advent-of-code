@@ -1,4 +1,3 @@
-use crate::file::*;
 use std::{
     cmp::{self, Reverse},
     collections::{BinaryHeap, HashMap, HashSet},
@@ -7,10 +6,84 @@ use std::{
 use lazy_static::lazy_static;
 use regex::Regex;
 
-pub fn run() {
-    let input = parse(&read_input_file!());
-    println!("part 1 result: {:?}", part1(&input));
-    println!("part 2 result: {:?}", part2(&input, 5, 60));
+use crate::interface::AoCWithParams;
+
+pub struct Day;
+impl AoCWithParams<Dependencies, (), (usize, usize), String, usize> for Day {
+    const FILE: &'static str = file!();
+
+    const PARAMS_PART1: () = ();
+    const PARAMS_PART2: (usize, usize) = (5, 60);
+
+    fn parse(input: String) -> Dependencies {
+        Dependencies::parse(&input)
+    }
+
+    fn part1(dependencies: &Dependencies, _: ()) -> String {
+        // reversed binary heap will pop the lowest char first
+        let mut frontier: BinaryHeap<Reverse<char>> = dependencies
+            .starting_nodes
+            .iter()
+            .map(|c| Reverse(*c))
+            .collect();
+
+        let mut visited = HashSet::new();
+        let mut visited_order = vec![];
+
+        // visit first node in alphabetic order
+        while let Some(Reverse(curr)) = frontier.pop() {
+            visited.insert(curr);
+            visited_order.push(curr);
+
+            // expand all nodes who now have their dependencies met
+            for to_expand in dependencies.expansions(&curr) {
+                if dependencies.prerequisites_met(to_expand, &visited) {
+                    frontier.push(Reverse(*to_expand));
+                }
+            }
+        }
+
+        visited_order.into_iter().collect()
+    }
+
+    fn part2(dependencies: &Dependencies, (num_workers, base_duration): (usize, usize)) -> usize {
+        // reversed binary heap will pop the lowest item first
+        let mut frontier: BinaryHeap<Reverse<(usize, char)>> = dependencies
+            .starting_nodes
+            .iter()
+            .map(|c| Reverse((0, *c)))
+            .collect();
+
+        // also track worker available times in a binary heap
+        let mut workers: BinaryHeap<Reverse<usize>> = BinaryHeap::new();
+        for _ in 0..num_workers {
+            workers.push(Reverse(0));
+        }
+
+        let mut visited = HashSet::new();
+
+        // visit first available node (using alphabitec order as tie-break)
+        while let Some(Reverse((curr_available_at, curr_id))) = frontier.pop() {
+            visited.insert(curr_id);
+
+            let Reverse(worker_available_at) = workers.pop().unwrap();
+
+            let start_at = cmp::max(worker_available_at, curr_available_at);
+            let end_at = start_at + base_duration + (curr_id as usize - 64);
+
+            // schedule the worker for post completion
+            workers.push(Reverse(end_at));
+
+            // expand all nodes who now have their dependencies met
+            for to_expand in dependencies.expansions(&curr_id) {
+                if dependencies.prerequisites_met(to_expand, &visited) {
+                    frontier.push(Reverse((end_at, *to_expand)));
+                }
+            }
+        }
+
+        workers.into_iter().map(|Reverse(v)| v).max().unwrap()
+    }
 }
 
 #[derive(Debug)]
@@ -38,7 +111,7 @@ impl Requirement {
     }
 }
 
-struct Dependencies {
+pub struct Dependencies {
     metadata: HashMap<char, (HashSet<char>, HashSet<char>)>,
     starting_nodes: Vec<char>,
 }
@@ -102,101 +175,31 @@ impl Dependencies {
     }
 }
 
-fn parse(input: &str) -> Dependencies {
-    Dependencies::parse(input)
-}
-
-fn part1(dependencies: &Dependencies) -> String {
-    // reversed binary heap will pop the lowest char first
-    let mut frontier: BinaryHeap<Reverse<char>> = dependencies
-        .starting_nodes
-        .iter()
-        .map(|c| Reverse(*c))
-        .collect();
-
-    let mut visited = HashSet::new();
-    let mut visited_order = vec![];
-
-    // visit first node in alphabetic order
-    while let Some(Reverse(curr)) = frontier.pop() {
-        visited.insert(curr);
-        visited_order.push(curr);
-
-        // expand all nodes who now have their dependencies met
-        for to_expand in dependencies.expansions(&curr) {
-            if dependencies.prerequisites_met(to_expand, &visited) {
-                frontier.push(Reverse(*to_expand));
-            }
-        }
-    }
-
-    visited_order.into_iter().collect()
-}
-
-fn part2(dependencies: &Dependencies, num_workers: usize, base_duration: usize) -> usize {
-    // reversed binary heap will pop the lowest item first
-    let mut frontier: BinaryHeap<Reverse<(usize, char)>> = dependencies
-        .starting_nodes
-        .iter()
-        .map(|c| Reverse((0, *c)))
-        .collect();
-
-    // also track worker available times in a binary heap
-    let mut workers: BinaryHeap<Reverse<usize>> = BinaryHeap::new();
-    for _ in 0..num_workers {
-        workers.push(Reverse(0));
-    }
-
-    let mut visited = HashSet::new();
-
-    // visit first available node (using alphabitec order as tie-break)
-    while let Some(Reverse((curr_available_at, curr_id))) = frontier.pop() {
-        visited.insert(curr_id);
-
-        let Reverse(worker_available_at) = workers.pop().unwrap();
-
-        let start_at = cmp::max(worker_available_at, curr_available_at);
-        let end_at = start_at + base_duration + (curr_id as usize - 64);
-
-        // schedule the worker for post completion
-        workers.push(Reverse(end_at));
-
-        // expand all nodes who now have their dependencies met
-        for to_expand in dependencies.expansions(&curr_id) {
-            if dependencies.prerequisites_met(to_expand, &visited) {
-                frontier.push(Reverse((end_at, *to_expand)));
-            }
-        }
-    }
-
-    workers.into_iter().map(|Reverse(v)| v).max().unwrap()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_part1_example() {
-        let result = part1(&parse(&read_example_file!()));
+        let result = Day::part1(&Day::parse_example_file(), ());
         assert_eq!(result, "CABDFE");
     }
 
     #[test]
     fn test_part1_solution() {
-        let result = part1(&parse(&read_input_file!()));
+        let result = Day::part1(&Day::parse_input_file(), ());
         assert_eq!(result, "EPWCFXKISTZVJHDGNABLQYMORU");
     }
 
     #[test]
     fn test_part2_example() {
-        let result = part2(&parse(&read_example_file!()), 2, 0);
+        let result = Day::part2(&Day::parse_example_file(), (2, 0));
         assert_eq!(result, 15);
     }
 
     #[test]
     fn test_part2_solution() {
-        let result = part2(&parse(&read_input_file!()), 5, 60);
+        let result = Day::part2(&Day::parse_input_file(), Day::PARAMS_PART2);
         assert_eq!(result, 952);
     }
 }
