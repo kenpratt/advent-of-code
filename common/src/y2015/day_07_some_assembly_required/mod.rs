@@ -14,11 +14,11 @@ impl AoC<Circuit, u16, u16> for Day {
     }
 
     fn part1(circuit: &Circuit) -> u16 {
-        circuit.value("a")
+        circuit.determine_value("a", None)
     }
 
-    fn part2(_instructions: &Circuit) -> u16 {
-        0
+    fn part2(circuit: &Circuit) -> u16 {
+        circuit.determine_value("a", Some(("b", 46065)))
     }
 }
 
@@ -176,9 +176,13 @@ impl Circuit {
         }
     }
 
-    fn value(&self, wire: &str) -> u16 {
-        let mut to_resolve: Vec<&str> = vec![wire]; // TODO regular Vec, and change from front to back?
+    fn determine_value(&self, wire: &str, value_override: Option<(&str, u16)>) -> u16 {
+        let mut to_resolve: Vec<&str> = vec![wire];
+
         let mut values: HashMap<&str, u16> = HashMap::new();
+        if let Some((l, v)) = value_override {
+            values.insert(l, v);
+        }
 
         while let Some(resolve) = to_resolve.pop() {
             let operation = self.instructions.get(resolve).unwrap();
@@ -222,7 +226,7 @@ mod tests {
     fn test_part1_example() {
         let circuit = Day::parse_example_file();
         for (wire, value) in &PART1_EXAMPLE_VALUES {
-            assert_eq!(circuit.value(wire), *value);
+            assert_eq!(circuit.determine_value(wire, None), *value);
         }
     }
 
@@ -233,14 +237,8 @@ mod tests {
     }
 
     #[test]
-    fn test_part2_example() {
-        let result = Day::part2(&Day::parse_example_file());
-        assert_eq!(result, 0);
-    }
-
-    #[test]
     fn test_part2_solution() {
         let result = Day::part2(&Day::parse_input_file());
-        assert_eq!(result, 0);
+        assert_eq!(result, 14134);
     }
 }
