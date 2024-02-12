@@ -5,3 +5,4 @@ pub mod day_03_perfectly_spherical_houses_in_a_vacuum;
 pub mod day_04_the_ideal_stocking_stuffer;
 pub mod day_05_doesnt_he_have_intern_elves_for_this;
 pub mod day_06_probably_a_fire_hazard;
+pub mod day_07_some_assembly_required;

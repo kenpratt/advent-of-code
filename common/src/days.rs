@@ -9,13 +9,14 @@ pub const YEARS: [usize; 2] = [
     2018,
 ];
 
-pub const DAYS_2015: [usize; 6] = [
+pub const DAYS_2015: [usize; 7] = [
     1,
     2,
     3,
     4,
     5,
     6,
+    7,
 ];
 
 pub const DAYS_2018: [usize; 13] = [
@@ -51,6 +52,7 @@ pub fn run_fn(year: usize, day: usize) -> Option<fn(bool)> {
         (2015, 4) => Some(y2015::day_04_the_ideal_stocking_stuffer::Day::run),
         (2015, 5) => Some(y2015::day_05_doesnt_he_have_intern_elves_for_this::Day::run),
         (2015, 6) => Some(y2015::day_06_probably_a_fire_hazard::Day::run),
+        (2015, 7) => Some(y2015::day_07_some_assembly_required::Day::run),
         (2018, 1) => Some(y2018::day_01_chronal_calibration::Day::run),
         (2018, 2) => Some(y2018::day_02_inventory_management_system::Day::run),
         (2018, 3) => Some(y2018::day_03_no_matter_how_you_slice_it::Day::run),
