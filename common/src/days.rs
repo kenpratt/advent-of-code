@@ -19,7 +19,7 @@ pub const DAYS_2015: [usize; 7] = [
     7,
 ];
 
-pub const DAYS_2018: [usize; 13] = [
+pub const DAYS_2018: [usize; 14] = [
     1,
     2,
     3,
@@ -33,6 +33,7 @@ pub const DAYS_2018: [usize; 13] = [
     11,
     12,
     13,
+    14,
 ];
 
 pub fn days_for_year(year: usize) -> &'static [usize] {
@@ -66,6 +67,7 @@ pub fn run_fn(year: usize, day: usize) -> Option<fn(bool)> {
         (2018, 11) => Some(y2018::day_11_chronal_charge::Day::run),
         (2018, 12) => Some(y2018::day_12_subterranean_sustainability::Day::run),
         (2018, 13) => Some(y2018::day_13_mine_cart_madness::Day::run),
+        (2018, 14) => Some(y2018::day_14_chocolate_carts::Day::run),
         _ => return None,
     }
 }
