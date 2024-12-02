@@ -2,7 +2,7 @@ package day01
 
 import "testing"
 
-const example1 = `3   4
+const example = `3   4
 4   3
 2   5
 1   3
@@ -11,13 +11,25 @@ const example1 = `3   4
 
 func TestPart1Example(t *testing.T) {
 	expected := 11
-	actual := part1(example1)
+	actual := part1(example)
 	assertEqual(t, expected, actual)
 }
 
 func TestPart1Input(t *testing.T) {
 	expected := 2264607
 	actual := part1(readInputFile())
+	assertEqual(t, expected, actual)
+}
+
+func TestPart2Example(t *testing.T) {
+	expected := 31
+	actual := part2(example)
+	assertEqual(t, expected, actual)
+}
+
+func TestPart2Input(t *testing.T) {
+	expected := 19457120
+	actual := part2(readInputFile())
 	assertEqual(t, expected, actual)
 }
 

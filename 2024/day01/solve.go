@@ -11,13 +11,19 @@ import (
 func Solve() {
 	input := readInputFile()
 	fmt.Println("part 1: ", part1(input))
+	fmt.Println("part 2: ", part2(input))
 }
 
-func part1(input string) int {
+type List struct {
+	left  []int
+	right []int
+}
+
+func parseInput(input string) List {
 	lines := strings.Split(input, "\n")
 
-	first := make([]int, len(lines))
-	second := make([]int, len(lines))
+	left := make([]int, len(lines))
+	right := make([]int, len(lines))
 
 	for i, line := range lines {
 		parts := strings.Split(line, "   ")
@@ -25,19 +31,39 @@ func part1(input string) int {
 			panic(fmt.Sprintf("line should have 2 parts but has %d: %s", len(parts), parts))
 		}
 
-		first[i] = stringToInt(parts[0])
-		second[i] = stringToInt(parts[1])
+		left[i] = stringToInt(parts[0])
+		right[i] = stringToInt(parts[1])
 	}
 
-	// sort them
-	sort.Ints(first)
-	sort.Ints(second)
+	return List{left, right}
+}
+
+func part1(input string) int {
+	list := parseInput(input)
+
+	// sort the lists
+	sort.Ints(list.left)
+	sort.Ints(list.right)
 
 	result := 0
-	for i := range first {
-		result += absInt(first[i] - second[i])
+	for i := range list.left {
+		result += absInt(list.left[i] - list.right[i])
+	}
+	return result
+}
+
+func part2(input string) int {
+	list := parseInput(input)
+
+	rightCounts := make(map[int]int)
+	for _, v := range list.right {
+		rightCounts[v]++
 	}
 
+	result := 0
+	for _, v := range list.left {
+		result += v * rightCounts[v]
+	}
 	return result
 }
 
