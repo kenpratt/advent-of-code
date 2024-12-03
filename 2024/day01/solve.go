@@ -7,8 +7,8 @@ import (
 	"strings"
 )
 
-func Solve() {
-	input := util.ReadInputFile()
+func Solve(path string) {
+	input := util.ReadInputFile(path)
 	fmt.Println("part 1: ", part1(input))
 	fmt.Println("part 2: ", part2(input))
 }

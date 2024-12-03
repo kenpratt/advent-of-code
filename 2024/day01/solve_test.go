@@ -22,7 +22,7 @@ func TestPart1Example(t *testing.T) {
 
 func TestPart1Input(t *testing.T) {
 	expected := 2264607
-	actual := part1(util.ReadInputFile())
+	actual := part1(util.ReadInputFile("."))
 	assert.Equal(t, expected, actual)
 }
 
@@ -34,6 +34,6 @@ func TestPart2Example(t *testing.T) {
 
 func TestPart2Input(t *testing.T) {
 	expected := 19457120
-	actual := part2(util.ReadInputFile())
+	actual := part2(util.ReadInputFile("."))
 	assert.Equal(t, expected, actual)
 }
