@@ -3,6 +3,7 @@ package main
 import (
 	"adventofcode/day01"
 	"adventofcode/day02"
+	"adventofcode/day03"
 	"fmt"
 	"os"
 )
@@ -14,4 +15,5 @@ func main() {
 	// TODO make this dynamic based on arg, run one day, or all days, etc
 	day01.Solve("day01")
 	day02.Solve("day02")
+	day03.Solve("day03")
 }
