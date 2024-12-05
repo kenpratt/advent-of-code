@@ -16,7 +16,7 @@ func Solve(path string) {
 }
 
 type Spec struct {
-	orderingRules [][2]int
+	orderingRules mapset.Set[[2]int]
 	toProduce     [][]int
 }
 
@@ -29,17 +29,15 @@ func parseInput(input string) Spec {
 	return Spec{orderingRules, toProduce}
 }
 
-func parsePageOrderingRules(input string) [][2]int {
+func parsePageOrderingRules(input string) mapset.Set[[2]int] {
 	lines := strings.Split(input, "\n")
 
-	rules := make([][2]int, len(lines))
+	rules := mapset.NewSet[[2]int]()
 
-	for i, line := range lines {
+	for _, line := range lines {
 		parts := strings.Split(line, "|")
 		util.AssertEqual(2, len(parts))
-
-		rules[i][0] = util.StringToInt(parts[0])
-		rules[i][1] = util.StringToInt(parts[1])
+		rules.Add([2]int{util.StringToInt(parts[0]), util.StringToInt(parts[1])})
 	}
 
 	return rules
@@ -55,7 +53,7 @@ func parsePagesToProduce(input string) [][]int {
 	})
 }
 
-func pagesInCorrectOrder(pages []int, rules mapset.Set[[2]int]) bool {
+func arePagesInCorrectOrder(pages []int, rules mapset.Set[[2]int]) bool {
 	// iterate through pages in reverse order, checking pairs
 	// if there is a pair in the set of rules, than they must be in the
 	// incorrect order
@@ -70,13 +68,38 @@ func pagesInCorrectOrder(pages []int, rules mapset.Set[[2]int]) bool {
 	return true
 }
 
+func findCorrectMiddlePage(pages []int, rules mapset.Set[[2]int]) int {
+	pageSet := mapset.NewSet(pages...)
+	target := len(pages) / 2
+	for _, page := range pages {
+		before := 0
+		after := 0
+		for rule := range rules.Iter() {
+			if rule[0] == page && pageSet.Contains(rule[1]) {
+				before++
+				if before > target {
+					break // can quit, too many element before middle
+				}
+			} else if rule[1] == page && pageSet.Contains(rule[0]) {
+				after++
+				if after > target {
+					break // can quit, too many elements after middle
+				}
+			}
+		}
+		if before == target && after == target {
+			// we know this is the middle page because there are exactly N elements before and after it
+			return page
+		}
+	}
+	panic("Didn't find the correct middle page")
+}
+
 func part1(input string) int {
 	spec := parseInput(input)
 
-	rules := mapset.NewSet(spec.orderingRules...)
-
 	return lo.SumBy(spec.toProduce, func(pages []int) int {
-		if pagesInCorrectOrder(pages, rules) {
+		if arePagesInCorrectOrder(pages, spec.orderingRules) {
 			return pages[len(pages)/2]
 		} else {
 			return 0
@@ -85,5 +108,13 @@ func part1(input string) int {
 }
 
 func part2(input string) int {
-	return 0
+	spec := parseInput(input)
+
+	return lo.SumBy(spec.toProduce, func(pages []int) int {
+		if arePagesInCorrectOrder(pages, spec.orderingRules) {
+			return 0
+		} else {
+			return findCorrectMiddlePage(pages, spec.orderingRules)
+		}
+	})
 }
