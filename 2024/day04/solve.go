@@ -30,6 +30,7 @@ type Grid struct {
 type WordSearch struct {
 	grid    Grid
 	xCoords []Coord
+	aCoords []Coord
 }
 
 func parseInput(input string) WordSearch {
@@ -40,6 +41,7 @@ func parseInput(input string) WordSearch {
 	bounds := Bounds{width, height}
 	values := make([]rune, width*height)
 	xCoords := make([]Coord, 0)
+	aCoords := make([]Coord, 0)
 
 	for y, line := range lines {
 		for x, char := range line {
@@ -47,6 +49,8 @@ func parseInput(input string) WordSearch {
 
 			if char == 'X' {
 				xCoords = append(xCoords, pos)
+			} else if char == 'A' {
+				aCoords = append(aCoords, pos)
 			}
 
 			values[coordToIndex(bounds, pos)] = char
@@ -55,7 +59,7 @@ func parseInput(input string) WordSearch {
 
 	grid := Grid{bounds, values}
 
-	return WordSearch{grid, xCoords}
+	return WordSearch{grid, xCoords, aCoords}
 }
 
 func coordToIndex(bounds Bounds, pos Coord) int {
@@ -105,5 +109,23 @@ func part1(input string) int {
 }
 
 func part2(input string) int {
-	return 0
+	ulo := Coord{-1, -1}
+	uro := Coord{1, -1}
+	dlo := Coord{-1, 1}
+	dro := Coord{1, 1}
+
+	ws := parseInput(input)
+
+	result := 0
+	for _, a := range ws.aCoords {
+		ul := gridAt(ws.grid, addCoords(a, ulo))
+		ur := gridAt(ws.grid, addCoords(a, uro))
+		dl := gridAt(ws.grid, addCoords(a, dlo))
+		dr := gridAt(ws.grid, addCoords(a, dro))
+
+		if ((ul == 'M' && dr == 'S') || (ul == 'S' && dr == 'M')) && ((ur == 'M' && dl == 'S') || (ur == 'S' && dl == 'M')) {
+			result++
+		}
+	}
+	return result
 }
