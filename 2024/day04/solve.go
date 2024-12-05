@@ -1,6 +1,7 @@
 package day04
 
 import (
+	"adventofcode/grid"
 	"adventofcode/util"
 	"fmt"
 	"strings"
@@ -12,25 +13,10 @@ func Solve(path string) {
 	fmt.Println("part 2: ", part2(input))
 }
 
-type Coord struct {
-	x int
-	y int
-}
-
-type Bounds struct {
-	width  int
-	height int
-}
-
-type Grid struct {
-	bounds Bounds
-	values []rune
-}
-
 type WordSearch struct {
-	grid    Grid
-	xCoords []Coord
-	aCoords []Coord
+	grid    grid.Grid[rune]
+	xCoords []grid.Coord
+	aCoords []grid.Coord
 }
 
 func parseInput(input string) WordSearch {
@@ -38,14 +24,14 @@ func parseInput(input string) WordSearch {
 
 	height := len(lines)
 	width := len(lines[0])
-	bounds := Bounds{width, height}
+	bounds := grid.Bounds{Width: width, Height: height}
 	values := make([]rune, width*height)
-	xCoords := make([]Coord, 0)
-	aCoords := make([]Coord, 0)
+	xCoords := make([]grid.Coord, 0)
+	aCoords := make([]grid.Coord, 0)
 
 	for y, line := range lines {
 		for x, char := range line {
-			pos := Coord{x, y}
+			pos := grid.MakeCoord(x, y)
 
 			if char == 'X' {
 				xCoords = append(xCoords, pos)
@@ -53,52 +39,29 @@ func parseInput(input string) WordSearch {
 				aCoords = append(aCoords, pos)
 			}
 
-			values[coordToIndex(bounds, pos)] = char
+			values[grid.CoordToIndex(bounds, pos)] = char
 		}
 	}
 
-	grid := Grid{bounds, values}
+	grid := grid.Grid[rune]{Bounds: bounds, Values: values}
 
 	return WordSearch{grid, xCoords, aCoords}
 }
 
-func coordToIndex(bounds Bounds, pos Coord) int {
-	return pos.y*bounds.width + pos.x
-}
-
-func inBounds(bounds Bounds, pos Coord) bool {
-	return pos.y >= 0 && pos.y < bounds.height && pos.x >= 0 && pos.x < bounds.width
-}
-
-func addCoords(c1 Coord, c2 Coord) Coord {
-	x := c1.x + c2.x
-	y := c1.y + c2.y
-	return Coord{x, y}
-}
-
-func gridAt(grid Grid, pos Coord) rune {
-	if inBounds(grid.bounds, pos) {
-		index := coordToIndex(grid.bounds, pos)
-		return grid.values[index]
-	} else {
-		return -1
-	}
-}
-
 func part1(input string) int {
-	var directions = [...]Coord{{-1, -1}, {0, -1}, {1, -1}, {-1, 0}, {1, 0}, {-1, 1}, {0, 1}, {1, 1}}
+	var directions = grid.DiagonalOffsets()
 
 	ws := parseInput(input)
 
 	result := 0
 	for _, x := range ws.xCoords {
 		for _, offset := range directions {
-			m := addCoords(x, offset)
-			if gridAt(ws.grid, m) == 'M' {
-				a := addCoords(m, offset)
-				if gridAt(ws.grid, a) == 'A' {
-					s := addCoords(a, offset)
-					if gridAt(ws.grid, s) == 'S' {
+			m := grid.AddCoords(x, offset)
+			if c, f := grid.At(ws.grid, m); f && c == 'M' {
+				a := grid.AddCoords(m, offset)
+				if c, f := grid.At(ws.grid, a); f && c == 'A' {
+					s := grid.AddCoords(a, offset)
+					if c, f := grid.At(ws.grid, s); f && c == 'S' {
 						result++
 					}
 				}
@@ -109,19 +72,19 @@ func part1(input string) int {
 }
 
 func part2(input string) int {
-	ulo := Coord{-1, -1}
-	uro := Coord{1, -1}
-	dlo := Coord{-1, 1}
-	dro := Coord{1, 1}
+	ulo := grid.MakeCoord(-1, -1)
+	uro := grid.MakeCoord(1, -1)
+	dlo := grid.MakeCoord(-1, 1)
+	dro := grid.MakeCoord(1, 1)
 
 	ws := parseInput(input)
 
 	result := 0
 	for _, a := range ws.aCoords {
-		ul := gridAt(ws.grid, addCoords(a, ulo))
-		ur := gridAt(ws.grid, addCoords(a, uro))
-		dl := gridAt(ws.grid, addCoords(a, dlo))
-		dr := gridAt(ws.grid, addCoords(a, dro))
+		ul, _ := grid.At(ws.grid, grid.AddCoords(a, ulo))
+		ur, _ := grid.At(ws.grid, grid.AddCoords(a, uro))
+		dl, _ := grid.At(ws.grid, grid.AddCoords(a, dlo))
+		dr, _ := grid.At(ws.grid, grid.AddCoords(a, dro))
 
 		if ((ul == 'M' && dr == 'S') || (ul == 'S' && dr == 'M')) && ((ur == 'M' && dl == 'S') || (ur == 'S' && dl == 'M')) {
 			result++
