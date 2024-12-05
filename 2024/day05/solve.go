@@ -57,12 +57,10 @@ func arePagesInCorrectOrder(pages []int, rules mapset.Set[[2]int]) bool {
 	// iterate through pages in reverse order, checking pairs
 	// if there is a pair in the set of rules, than they must be in the
 	// incorrect order
-	for i := len(pages) - 1; i >= 0; i-- {
-		for j := i - 1; j >= 0; j-- {
-			pair := [2]int{pages[i], pages[j]}
-			if rules.Contains(pair) {
-				return false
-			}
+	for i := len(pages) - 1; i > 0; i-- {
+		pair := [2]int{pages[i], pages[i-1]}
+		if rules.Contains(pair) {
+			return false
 		}
 	}
 	return true
