@@ -1,5 +1,7 @@
 package grid
 
+import "fmt"
+
 type Coord struct {
 	X int
 	Y int
@@ -45,4 +47,58 @@ func At[T any](grid Grid[T], pos Coord) (T, bool) {
 
 func DiagonalOffsets() [8]Coord {
 	return [...]Coord{{X: -1, Y: -1}, {X: 0, Y: -1}, {X: 1, Y: -1}, {X: -1, Y: 0}, {X: 1, Y: 0}, {X: -1, Y: 1}, {X: 0, Y: 1}, {X: 1, Y: 1}}
+}
+
+type Direction int
+
+const (
+	North Direction = iota + 1
+	East
+	South
+	West
+)
+
+func TurnRight(d Direction) Direction {
+	switch d {
+	case North:
+		return East
+	case East:
+		return South
+	case South:
+		return West
+	case West:
+		return North
+	default:
+		panic(fmt.Sprintf("Unknown direction: %v", d))
+	}
+}
+
+func TurnLeft(d Direction) Direction {
+	switch d {
+	case North:
+		return West
+	case West:
+		return South
+	case South:
+		return East
+	case East:
+		return North
+	default:
+		panic(fmt.Sprintf("Unknown direction: %v", d))
+	}
+}
+
+func MoveInDirection(pos Coord, d Direction, distance int) Coord {
+	switch d {
+	case North:
+		return Coord{X: pos.X, Y: pos.Y - distance}
+	case East:
+		return Coord{X: pos.X + distance, Y: pos.Y}
+	case South:
+		return Coord{X: pos.X, Y: pos.Y + distance}
+	case West:
+		return Coord{X: pos.X - distance, Y: pos.Y}
+	default:
+		panic(fmt.Sprintf("Unknown direction: %v", d))
+	}
 }

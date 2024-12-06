@@ -6,6 +6,7 @@ import (
 	"adventofcode/day03"
 	"adventofcode/day04"
 	"adventofcode/day05"
+	"adventofcode/day06"
 	"fmt"
 	"os"
 )
@@ -20,4 +21,5 @@ func main() {
 	day03.Solve("day03")
 	day04.Solve("day04")
 	day05.Solve("day05")
+	day06.Solve("day06")
 }
