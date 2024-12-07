@@ -53,7 +53,7 @@ func parseInput(input string) (grid.Grid[bool], Guard) {
 		for x, char := range line {
 			pos := grid.MakeCoord(x, y)
 
-			i := grid.CoordToIndex(bounds, pos)
+			i := grid.CoordToIndex(&bounds, &pos)
 			switch char {
 			case '#':
 				values[i] = true
@@ -91,7 +91,7 @@ func run(terrain *grid.Grid[bool], state *State) Termination {
 
 func tick(terrain *grid.Grid[bool], state *State) (Termination, bool) {
 	tryMoveTo := ahead(state)
-	obstruction, inBounds := grid.At(terrain, tryMoveTo)
+	obstruction, inBounds := grid.At(terrain, &tryMoveTo)
 	if !inBounds {
 		return OutOfBounds, true
 	}
@@ -100,7 +100,7 @@ func tick(terrain *grid.Grid[bool], state *State) (Termination, bool) {
 		state.guard.orientation = grid.TurnRight(state.guard.orientation)
 	} else {
 		// no obstruction, move to new location
-		visited, _ := grid.At(&state.visited, tryMoveTo)
+		visited, _ := grid.At(&state.visited, &tryMoveTo)
 
 		if visited.status == Once && visited.direction == state.guard.orientation {
 			// whoops, we've already been to this location moving in this direction
@@ -136,7 +136,7 @@ func initialState(terrain *grid.Grid[bool], guard Guard) State {
 		Bounds: terrain.Bounds,
 		Values: make([]Visited, len(terrain.Values)),
 	}
-	grid.Set(&visited, guard.position, Visited{status: Once, direction: guard.orientation})
+	grid.Set(&visited, &guard.position, Visited{status: Once, direction: guard.orientation})
 
 	return State{
 		guard:            guard,
@@ -167,10 +167,10 @@ func part2(input string) int {
 		aheadPos := ahead(&mainState)
 
 		// is the ahead pos empty?
-		obstruction, inBounds := grid.At(&terrain, aheadPos)
+		obstruction, inBounds := grid.At(&terrain, &aheadPos)
 		if inBounds && !*obstruction {
 			// check if we've already visited this location
-			visited, _ := grid.At(&mainState.visited, aheadPos)
+			visited, _ := grid.At(&mainState.visited, &aheadPos)
 			if !(visited.status == Once || visited.status == Multiple) {
 				// try running an alternate simulation with an obstruction here
 

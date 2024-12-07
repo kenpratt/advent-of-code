@@ -39,7 +39,7 @@ func parseInput(input string) WordSearch {
 				aCoords = append(aCoords, pos)
 			}
 
-			values[grid.CoordToIndex(bounds, pos)] = char
+			values[grid.CoordToIndex(&bounds, &pos)] = char
 		}
 	}
 
@@ -56,12 +56,12 @@ func part1(input string) int {
 	result := 0
 	for _, x := range ws.xCoords {
 		for _, offset := range directions {
-			m := grid.AddCoords(x, offset)
-			if c, f := grid.At(&ws.grid, m); f && *c == 'M' {
-				a := grid.AddCoords(m, offset)
-				if c, f := grid.At(&ws.grid, a); f && *c == 'A' {
-					s := grid.AddCoords(a, offset)
-					if c, f := grid.At(&ws.grid, s); f && *c == 'S' {
+			m := grid.AddCoords(&x, &offset)
+			if c, f := grid.At(&ws.grid, &m); f && *c == 'M' {
+				a := grid.AddCoords(&m, &offset)
+				if c, f := grid.At(&ws.grid, &a); f && *c == 'A' {
+					s := grid.AddCoords(&a, &offset)
+					if c, f := grid.At(&ws.grid, &s); f && *c == 'S' {
 						result++
 					}
 				}
@@ -81,10 +81,15 @@ func part2(input string) int {
 
 	result := 0
 	for _, a := range ws.aCoords {
-		ul, _ := grid.At(&ws.grid, grid.AddCoords(a, ulo))
-		ur, _ := grid.At(&ws.grid, grid.AddCoords(a, uro))
-		dl, _ := grid.At(&ws.grid, grid.AddCoords(a, dlo))
-		dr, _ := grid.At(&ws.grid, grid.AddCoords(a, dro))
+		ulc := grid.AddCoords(&a, &ulo)
+		urc := grid.AddCoords(&a, &uro)
+		dlc := grid.AddCoords(&a, &dlo)
+		drc := grid.AddCoords(&a, &dro)
+
+		ul, _ := grid.At(&ws.grid, &ulc)
+		ur, _ := grid.At(&ws.grid, &urc)
+		dl, _ := grid.At(&ws.grid, &dlc)
+		dr, _ := grid.At(&ws.grid, &drc)
 
 		if ((*ul == 'M' && *dr == 'S') || (*ul == 'S' && *dr == 'M')) && ((*ur == 'M' && *dl == 'S') || (*ur == 'S' && *dl == 'M')) {
 			result++

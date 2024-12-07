@@ -30,29 +30,29 @@ func Clone[T any](grid *Grid[T]) Grid[T] {
 	}
 }
 
-func CoordToIndex(bounds Bounds, pos Coord) int {
+func CoordToIndex(bounds *Bounds, pos *Coord) int {
 	return pos.Y*bounds.Width + pos.X
 }
 
-func IndexToCoord(bounds Bounds, i int) Coord {
+func IndexToCoord(bounds *Bounds, i int) Coord {
 	y := i / bounds.Width
 	x := i % bounds.Width
 	return MakeCoord(x, y)
 }
 
-func InBounds(bounds Bounds, pos Coord) bool {
+func InBounds(bounds *Bounds, pos *Coord) bool {
 	return pos.Y >= 0 && pos.Y < bounds.Height && pos.X >= 0 && pos.X < bounds.Width
 }
 
-func AddCoords(c1 Coord, c2 Coord) Coord {
+func AddCoords(c1 *Coord, c2 *Coord) Coord {
 	x := c1.X + c2.X
 	y := c1.Y + c2.Y
 	return Coord{x, y}
 }
 
-func At[T any](grid *Grid[T], pos Coord) (*T, bool) {
-	if InBounds(grid.Bounds, pos) {
-		index := CoordToIndex(grid.Bounds, pos)
+func At[T any](grid *Grid[T], pos *Coord) (*T, bool) {
+	if InBounds(&grid.Bounds, pos) {
+		index := CoordToIndex(&grid.Bounds, pos)
 		return &grid.Values[index], true
 	} else {
 		var noop T
@@ -60,9 +60,9 @@ func At[T any](grid *Grid[T], pos Coord) (*T, bool) {
 	}
 }
 
-func Set[T any](grid *Grid[T], pos Coord, value T) bool {
-	if InBounds(grid.Bounds, pos) {
-		index := CoordToIndex(grid.Bounds, pos)
+func Set[T any](grid *Grid[T], pos *Coord, value T) bool {
+	if InBounds(&grid.Bounds, pos) {
+		index := CoordToIndex(&grid.Bounds, pos)
 		grid.Values[index] = value
 		return true
 	} else {
