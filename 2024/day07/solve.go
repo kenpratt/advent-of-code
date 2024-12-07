@@ -43,7 +43,7 @@ type SolutionState struct {
 	acc      int
 }
 
-func solveEquation(equation *Equation) bool {
+func solveEquation(equation *Equation, enableConcatenation bool) bool {
 	var q deque.Deque[SolutionState]
 
 	initialState := SolutionState{
@@ -76,6 +76,14 @@ func solveEquation(equation *Equation) bool {
 			if multiplied <= equation.result {
 				q.PushFront(SolutionState{equation: equation, index: state.index + 1, acc: multiplied})
 			}
+
+			if enableConcatenation {
+				// try concatenation
+				concatenated := concatenate(state.acc, val)
+				if concatenated <= equation.result {
+					q.PushFront(SolutionState{equation: equation, index: state.index + 1, acc: concatenated})
+				}
+			}
 		}
 	}
 
@@ -83,13 +91,25 @@ func solveEquation(equation *Equation) bool {
 	return false
 }
 
+func concatenate(l int, r int) int {
+	t := r
+	for t > 0 {
+		l *= 10
+		t /= 10
+	}
+	return l + r
+}
+
 func part1(input string) int {
 	equations := parseInput(input)
 
-	solved := lo.Filter(equations, func(eq Equation, _ int) bool { return solveEquation(&eq) })
+	solved := lo.Filter(equations, func(eq Equation, _ int) bool { return solveEquation(&eq, false) })
 	return lo.SumBy(solved, func(eq Equation) int { return eq.result })
 }
 
 func part2(input string) int {
-	return 0
+	equations := parseInput(input)
+
+	solved := lo.Filter(equations, func(eq Equation, _ int) bool { return solveEquation(&eq, true) })
+	return lo.SumBy(solved, func(eq Equation) int { return eq.result })
 }
