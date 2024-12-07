@@ -2,6 +2,8 @@
 target
 *.log
 *.svg
+*.prof
+*.test
 perf.data
 perf.data.old
 profile*.txt

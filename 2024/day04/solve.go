@@ -57,11 +57,11 @@ func part1(input string) int {
 	for _, x := range ws.xCoords {
 		for _, offset := range directions {
 			m := grid.AddCoords(x, offset)
-			if c, f := grid.At(ws.grid, m); f && c == 'M' {
+			if c, f := grid.At(&ws.grid, m); f && *c == 'M' {
 				a := grid.AddCoords(m, offset)
-				if c, f := grid.At(ws.grid, a); f && c == 'A' {
+				if c, f := grid.At(&ws.grid, a); f && *c == 'A' {
 					s := grid.AddCoords(a, offset)
-					if c, f := grid.At(ws.grid, s); f && c == 'S' {
+					if c, f := grid.At(&ws.grid, s); f && *c == 'S' {
 						result++
 					}
 				}
@@ -81,12 +81,12 @@ func part2(input string) int {
 
 	result := 0
 	for _, a := range ws.aCoords {
-		ul, _ := grid.At(ws.grid, grid.AddCoords(a, ulo))
-		ur, _ := grid.At(ws.grid, grid.AddCoords(a, uro))
-		dl, _ := grid.At(ws.grid, grid.AddCoords(a, dlo))
-		dr, _ := grid.At(ws.grid, grid.AddCoords(a, dro))
+		ul, _ := grid.At(&ws.grid, grid.AddCoords(a, ulo))
+		ur, _ := grid.At(&ws.grid, grid.AddCoords(a, uro))
+		dl, _ := grid.At(&ws.grid, grid.AddCoords(a, dlo))
+		dr, _ := grid.At(&ws.grid, grid.AddCoords(a, dro))
 
-		if ((ul == 'M' && dr == 'S') || (ul == 'S' && dr == 'M')) && ((ur == 'M' && dl == 'S') || (ur == 'S' && dl == 'M')) {
+		if ((*ul == 'M' && *dr == 'S') || (*ul == 'S' && *dr == 'M')) && ((*ur == 'M' && *dl == 'S') || (*ur == 'S' && *dl == 'M')) {
 			result++
 		}
 	}

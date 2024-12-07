@@ -21,8 +21,23 @@ type Grid[T any] struct {
 	Values []T
 }
 
+func Clone[T any](grid *Grid[T]) Grid[T] {
+	values := make([]T, len(grid.Values))
+	copy(values, grid.Values)
+	return Grid[T]{
+		Bounds: grid.Bounds,
+		Values: values,
+	}
+}
+
 func CoordToIndex(bounds Bounds, pos Coord) int {
 	return pos.Y*bounds.Width + pos.X
+}
+
+func IndexToCoord(bounds Bounds, i int) Coord {
+	y := i / bounds.Width
+	x := i % bounds.Width
+	return MakeCoord(x, y)
 }
 
 func InBounds(bounds Bounds, pos Coord) bool {
@@ -35,13 +50,23 @@ func AddCoords(c1 Coord, c2 Coord) Coord {
 	return Coord{x, y}
 }
 
-func At[T any](grid Grid[T], pos Coord) (T, bool) {
+func At[T any](grid *Grid[T], pos Coord) (*T, bool) {
 	if InBounds(grid.Bounds, pos) {
 		index := CoordToIndex(grid.Bounds, pos)
-		return grid.Values[index], true
+		return &grid.Values[index], true
 	} else {
 		var noop T
-		return noop, false
+		return &noop, false
+	}
+}
+
+func Set[T any](grid *Grid[T], pos Coord, value T) bool {
+	if InBounds(grid.Bounds, pos) {
+		index := CoordToIndex(grid.Bounds, pos)
+		grid.Values[index] = value
+		return true
+	} else {
+		return false
 	}
 }
 
