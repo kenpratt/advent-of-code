@@ -50,6 +50,12 @@ func AddCoords(c1 *Coord, c2 *Coord) Coord {
 	return Coord{x, y}
 }
 
+func SubtractCoords(c1 *Coord, c2 *Coord) Coord {
+	x := c1.X - c2.X
+	y := c1.Y - c2.Y
+	return Coord{x, y}
+}
+
 func At[T any](grid *Grid[T], pos *Coord) (*T, bool) {
 	if InBounds(&grid.Bounds, pos) {
 		index := CoordToIndex(&grid.Bounds, pos)
