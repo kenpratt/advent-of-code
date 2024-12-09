@@ -51,15 +51,15 @@ func part1(input string) int {
 
 	for _, antennas := range byFrequency {
 		iterPairs(antennas, func(a1 *grid.Coord, a2 *grid.Coord) {
-			diff := grid.SubtractCoords(a2, a1)
+			diff := a2.Subtract(a1)
 
-			n1 := grid.SubtractCoords(a1, &diff)
-			if grid.InBounds(&bounds, &n1) {
+			n1 := a1.Subtract(&diff)
+			if bounds.Within(&n1) {
 				antinodes.Add(n1)
 			}
 
-			n2 := grid.AddCoords(a2, &diff)
-			if grid.InBounds(&bounds, &n2) {
+			n2 := a2.Add(&diff)
+			if bounds.Within(&n2) {
 				antinodes.Add(n2)
 			}
 		})
@@ -75,20 +75,20 @@ func part2(input string) int {
 
 	for _, antennas := range byFrequency {
 		iterPairs(antennas, func(a1 *grid.Coord, a2 *grid.Coord) {
-			diff := grid.SubtractCoords(a2, a1)
+			diff := a2.Subtract(a1)
 
 			// go back
 			n := *a1
-			for grid.InBounds(&bounds, &n) {
+			for bounds.Within(&n) {
 				antinodes.Add(n)
-				n = grid.SubtractCoords(&n, &diff)
+				n = n.Subtract(&diff)
 			}
 
 			// go forward
 			n = *a2
-			for grid.InBounds(&bounds, &n) {
+			for bounds.Within(&n) {
 				antinodes.Add(n)
-				n = grid.AddCoords(&n, &diff)
+				n = n.Add(&diff)
 			}
 
 		})

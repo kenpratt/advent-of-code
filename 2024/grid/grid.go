@@ -21,7 +21,7 @@ type Grid[T any] struct {
 	Values []T
 }
 
-func Clone[T any](grid *Grid[T]) Grid[T] {
+func (grid *Grid[T]) Clone() Grid[T] {
 	values := make([]T, len(grid.Values))
 	copy(values, grid.Values)
 	return Grid[T]{
@@ -30,35 +30,35 @@ func Clone[T any](grid *Grid[T]) Grid[T] {
 	}
 }
 
-func CoordToIndex(bounds *Bounds, pos *Coord) int {
+func (bounds *Bounds) CoordToIndex(pos *Coord) int {
 	return pos.Y*bounds.Width + pos.X
 }
 
-func IndexToCoord(bounds *Bounds, i int) Coord {
+func (bounds *Bounds) IndexToCoord(i int) Coord {
 	y := i / bounds.Width
 	x := i % bounds.Width
 	return MakeCoord(x, y)
 }
 
-func InBounds(bounds *Bounds, pos *Coord) bool {
+func (bounds *Bounds) Within(pos *Coord) bool {
 	return pos.Y >= 0 && pos.Y < bounds.Height && pos.X >= 0 && pos.X < bounds.Width
 }
 
-func AddCoords(c1 *Coord, c2 *Coord) Coord {
+func (c1 *Coord) Add(c2 *Coord) Coord {
 	x := c1.X + c2.X
 	y := c1.Y + c2.Y
 	return Coord{x, y}
 }
 
-func SubtractCoords(c1 *Coord, c2 *Coord) Coord {
+func (c1 *Coord) Subtract(c2 *Coord) Coord {
 	x := c1.X - c2.X
 	y := c1.Y - c2.Y
 	return Coord{x, y}
 }
 
-func At[T any](grid *Grid[T], pos *Coord) (*T, bool) {
-	if InBounds(&grid.Bounds, pos) {
-		index := CoordToIndex(&grid.Bounds, pos)
+func (grid *Grid[T]) At(pos *Coord) (*T, bool) {
+	if grid.Bounds.Within(pos) {
+		index := grid.Bounds.CoordToIndex(pos)
 		return &grid.Values[index], true
 	} else {
 		var noop T
@@ -66,9 +66,9 @@ func At[T any](grid *Grid[T], pos *Coord) (*T, bool) {
 	}
 }
 
-func Set[T any](grid *Grid[T], pos *Coord, value T) bool {
-	if InBounds(&grid.Bounds, pos) {
-		index := CoordToIndex(&grid.Bounds, pos)
+func (grid *Grid[T]) Set(pos *Coord, value T) bool {
+	if grid.Bounds.Within(pos) {
+		index := grid.Bounds.CoordToIndex(pos)
 		grid.Values[index] = value
 		return true
 	} else {
@@ -89,7 +89,7 @@ const (
 	West
 )
 
-func TurnRight(d Direction) Direction {
+func (d Direction) Clockwise() Direction {
 	switch d {
 	case North:
 		return East
@@ -104,7 +104,7 @@ func TurnRight(d Direction) Direction {
 	}
 }
 
-func TurnLeft(d Direction) Direction {
+func (d Direction) CounterClockwise() Direction {
 	switch d {
 	case North:
 		return West
@@ -119,7 +119,7 @@ func TurnLeft(d Direction) Direction {
 	}
 }
 
-func MoveInDirection(pos Coord, d Direction, distance int) Coord {
+func (pos Coord) MoveInDirection(d Direction, distance int) Coord {
 	switch d {
 	case North:
 		return Coord{X: pos.X, Y: pos.Y - distance}

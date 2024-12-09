@@ -53,7 +53,7 @@ func parseInput(input string) (grid.Grid[bool], Guard) {
 		for x, char := range line {
 			pos := grid.MakeCoord(x, y)
 
-			i := grid.CoordToIndex(&bounds, &pos)
+			i := bounds.CoordToIndex(&pos)
 			switch char {
 			case '#':
 				values[i] = true
@@ -91,16 +91,16 @@ func run(terrain *grid.Grid[bool], state *State) Termination {
 
 func tick(terrain *grid.Grid[bool], state *State) (Termination, bool) {
 	tryMoveTo := ahead(state)
-	obstruction, inBounds := grid.At(terrain, &tryMoveTo)
+	obstruction, inBounds := terrain.At(&tryMoveTo)
 	if !inBounds {
 		return OutOfBounds, true
 	}
 
 	if *obstruction || state.extraObstruction == tryMoveTo {
-		state.guard.orientation = grid.TurnRight(state.guard.orientation)
+		state.guard.orientation = state.guard.orientation.Clockwise()
 	} else {
 		// no obstruction, move to new location
-		visited, _ := grid.At(&state.visited, &tryMoveTo)
+		visited, _ := state.visited.At(&tryMoveTo)
 
 		if visited.status == Once && visited.direction == state.guard.orientation {
 			// whoops, we've already been to this location moving in this direction
@@ -128,7 +128,7 @@ func tick(terrain *grid.Grid[bool], state *State) (Termination, bool) {
 }
 
 func ahead(state *State) grid.Coord {
-	return grid.MoveInDirection(state.guard.position, state.guard.orientation, 1)
+	return state.guard.position.MoveInDirection(state.guard.orientation, 1)
 }
 
 func initialState(terrain *grid.Grid[bool], guard Guard) State {
@@ -136,7 +136,7 @@ func initialState(terrain *grid.Grid[bool], guard Guard) State {
 		Bounds: terrain.Bounds,
 		Values: make([]Visited, len(terrain.Values)),
 	}
-	grid.Set(&visited, &guard.position, Visited{status: Once, direction: guard.orientation})
+	visited.Set(&guard.position, Visited{status: Once, direction: guard.orientation})
 
 	return State{
 		guard:            guard,
@@ -167,10 +167,10 @@ func part2(input string) int {
 		aheadPos := ahead(&mainState)
 
 		// is the ahead pos empty?
-		obstruction, inBounds := grid.At(&terrain, &aheadPos)
+		obstruction, inBounds := terrain.At(&aheadPos)
 		if inBounds && !*obstruction {
 			// check if we've already visited this location
-			visited, _ := grid.At(&mainState.visited, &aheadPos)
+			visited, _ := mainState.visited.At(&aheadPos)
 			if !(visited.status == Once || visited.status == Multiple) {
 				// try running an alternate simulation with an obstruction here
 
