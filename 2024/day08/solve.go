@@ -15,14 +15,14 @@ func Solve(path string) {
 	fmt.Println("part 2: ", part2(input))
 }
 
-func parseInput(input string) (grid.Bounds, map[rune][]grid.Coord) {
+func parseInput(input string) (bounds grid.Bounds, byFrequency map[rune][]grid.Coord) {
 	lines := strings.Split(input, "\n")
 
 	height := len(lines)
 	width := len(lines[0])
-	bounds := grid.Bounds{Width: width, Height: height}
+	bounds = grid.Bounds{Width: width, Height: height}
 
-	byFrequency := make(map[rune][]grid.Coord)
+	byFrequency = make(map[rune][]grid.Coord)
 
 	for y, line := range lines {
 		for x, c := range line {
@@ -33,7 +33,7 @@ func parseInput(input string) (grid.Bounds, map[rune][]grid.Coord) {
 		}
 	}
 
-	return bounds, byFrequency
+	return
 }
 
 func iterPairs[T any](slice []T, fn func(*T, *T)) {

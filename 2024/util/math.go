@@ -8,7 +8,7 @@ func AbsInt(x int) int {
 	}
 }
 
-func AbsDiff(x int, y int) int {
+func AbsDiff(x, y int) int {
 	if y >= x {
 		return y - x
 	} else {

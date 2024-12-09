@@ -91,7 +91,7 @@ func solveEquation(equation *Equation, enableConcatenation bool) bool {
 	return false
 }
 
-func concatenate(l int, r int) int {
+func concatenate(l, r int) int {
 	t := r
 	for t > 0 {
 		l *= 10

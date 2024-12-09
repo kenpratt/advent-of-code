@@ -43,9 +43,9 @@ func parseInput(input string) WordSearch {
 		}
 	}
 
-	grid := grid.Grid[rune]{Bounds: bounds, Values: values}
+	g := grid.Grid[rune]{Bounds: bounds, Values: values}
 
-	return WordSearch{grid, xCoords, aCoords}
+	return WordSearch{grid: g, xCoords: xCoords, aCoords: aCoords}
 }
 
 func part1(input string) int {

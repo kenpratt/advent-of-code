@@ -7,7 +7,7 @@ type Coord struct {
 	Y int
 }
 
-func MakeCoord(x int, y int) Coord {
+func MakeCoord(x, y int) Coord {
 	return Coord{X: x, Y: y}
 }
 
