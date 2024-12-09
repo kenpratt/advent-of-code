@@ -10,3 +10,7 @@ func StringToInt(s string) int {
 	}
 	return v
 }
+
+func RuneToInt(c rune) int {
+	return int(c - '0')
+}
