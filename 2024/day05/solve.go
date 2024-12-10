@@ -9,7 +9,8 @@ import (
 )
 
 func Solve(path string) {
-	input := util.ReadInputFile(path)
+	inputStr := util.ReadInputFile(path)
+	input := parseInput(inputStr)
 	util.AssertEqual(6267, part1(input))
 	util.AssertEqual(5184, part2(input))
 }
@@ -92,9 +93,7 @@ func findCorrectMiddlePage(pages []int, rules mapset.Set[[2]int]) int {
 	panic("Didn't find the correct middle page")
 }
 
-func part1(input string) int {
-	spec := parseInput(input)
-
+func part1(spec Spec) int {
 	return lo.SumBy(spec.toProduce, func(pages []int) int {
 		if arePagesInCorrectOrder(pages, spec.orderingRules) {
 			return pages[len(pages)/2]
@@ -104,9 +103,7 @@ func part1(input string) int {
 	})
 }
 
-func part2(input string) int {
-	spec := parseInput(input)
-
+func part2(spec Spec) int {
 	return lo.SumBy(spec.toProduce, func(pages []int) int {
 		if arePagesInCorrectOrder(pages, spec.orderingRules) {
 			return 0

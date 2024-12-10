@@ -8,7 +8,8 @@ import (
 )
 
 func Solve(path string) {
-	input := util.ReadInputFile(path)
+	inputStr := util.ReadInputFile(path)
+	input := parseInput(inputStr)
 	util.AssertEqual(2264607, part1(input))
 	util.AssertEqual(19457120, part2(input))
 }
@@ -37,9 +38,7 @@ func parseInput(input string) List {
 	return List{left, right}
 }
 
-func part1(input string) int {
-	list := parseInput(input)
-
+func part1(list List) int {
 	// sort the lists
 	sort.Ints(list.left)
 	sort.Ints(list.right)
@@ -51,9 +50,7 @@ func part1(input string) int {
 	return result
 }
 
-func part2(input string) int {
-	list := parseInput(input)
-
+func part2(list List) int {
 	rightCounts := make(map[int]int)
 	for _, v := range list.right {
 		rightCounts[v]++

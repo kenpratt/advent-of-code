@@ -6,7 +6,8 @@ import (
 )
 
 func Solve(path string) {
-	input := util.ReadInputFile(path)
+	inputStr := util.ReadInputFile(path)
+	input := parseInput(inputStr)
 	util.AssertEqual(6332189866718, part1(input))
 	util.AssertEqual(6353648390778, part2(input))
 }
@@ -30,9 +31,7 @@ func parseInput(input string) [][2]int {
 	return res
 }
 
-func part1(input string) int {
-	diskMap := parseInput(input)
-
+func part1(diskMap [][2]int) int {
 	// count of unmoved blocks for each file (initially, file size)
 	fileCount := len(diskMap)/2 + 1
 	remainingBlocks := make([]int, fileCount)
@@ -83,9 +82,7 @@ func part1(input string) int {
 	return checksum
 }
 
-func part2(input string) int {
-	diskMap := parseInput(input)
-
+func part2(diskMap [][2]int) int {
 	// build metadata about files and gaps
 	fileCount := len(diskMap)/2 + 1
 	fileSizes := make([]int, fileCount)

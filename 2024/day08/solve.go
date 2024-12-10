@@ -9,19 +9,25 @@ import (
 )
 
 func Solve(path string) {
-	input := util.ReadInputFile(path)
+	inputStr := util.ReadInputFile(path)
+	input := parseInput(inputStr)
 	util.AssertEqual(394, part1(input))
 	util.AssertEqual(1277, part2(input))
 }
 
-func parseInput(input string) (bounds grid.Bounds, byFrequency map[rune][]grid.Coord) {
+type Input struct {
+	bounds      grid.Bounds
+	byFrequency map[rune][]grid.Coord
+}
+
+func parseInput(input string) Input {
 	lines := strings.Split(input, "\n")
 
 	height := len(lines)
 	width := len(lines[0])
-	bounds = grid.Bounds{Width: width, Height: height}
+	bounds := grid.Bounds{Width: width, Height: height}
 
-	byFrequency = make(map[rune][]grid.Coord)
+	byFrequency := make(map[rune][]grid.Coord)
 
 	for y, line := range lines {
 		for x, c := range line {
@@ -32,7 +38,7 @@ func parseInput(input string) (bounds grid.Bounds, byFrequency map[rune][]grid.C
 		}
 	}
 
-	return
+	return Input{bounds, byFrequency}
 }
 
 func iterPairs[T any](slice []T, fn func(*T, *T)) {
@@ -43,8 +49,8 @@ func iterPairs[T any](slice []T, fn func(*T, *T)) {
 	}
 }
 
-func part1(input string) int {
-	bounds, byFrequency := parseInput(input)
+func part1(input Input) int {
+	bounds, byFrequency := input.bounds, input.byFrequency
 
 	antinodes := mapset.NewSet[grid.Coord]()
 
@@ -67,8 +73,8 @@ func part1(input string) int {
 	return antinodes.Cardinality()
 }
 
-func part2(input string) int {
-	bounds, byFrequency := parseInput(input)
+func part2(input Input) int {
+	bounds, byFrequency := input.bounds, input.byFrequency
 
 	antinodes := mapset.NewSet[grid.Coord]()
 

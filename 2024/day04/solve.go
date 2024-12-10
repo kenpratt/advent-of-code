@@ -7,7 +7,8 @@ import (
 )
 
 func Solve(path string) {
-	input := util.ReadInputFile(path)
+	inputStr := util.ReadInputFile(path)
+	input := parseInput(inputStr)
 	util.AssertEqual(2662, part1(input))
 	util.AssertEqual(2034, part2(input))
 }
@@ -47,10 +48,8 @@ func parseInput(input string) WordSearch {
 	return WordSearch{grid: g, xCoords: xCoords, aCoords: aCoords}
 }
 
-func part1(input string) int {
+func part1(ws WordSearch) int {
 	var directions = grid.DiagonalOffsets()
-
-	ws := parseInput(input)
 
 	result := 0
 	for _, x := range ws.xCoords {
@@ -70,13 +69,11 @@ func part1(input string) int {
 	return result
 }
 
-func part2(input string) int {
+func part2(ws WordSearch) int {
 	ulo := grid.MakeCoord(-1, -1)
 	uro := grid.MakeCoord(1, -1)
 	dlo := grid.MakeCoord(-1, 1)
 	dro := grid.MakeCoord(1, 1)
-
-	ws := parseInput(input)
 
 	result := 0
 	for _, a := range ws.aCoords {

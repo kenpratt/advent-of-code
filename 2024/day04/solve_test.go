@@ -20,24 +20,28 @@ MXMXAXMASX`
 
 func TestPart1Example(t *testing.T) {
 	expected := 18
-	actual := part1(example)
+	input := parseInput(example)
+	actual := part1(input)
 	assert.Equal(t, expected, actual)
 }
 
 func TestPart1Input(t *testing.T) {
 	expected := 2662
-	actual := part1(util.ReadInputFile("."))
+	input := parseInput(util.ReadInputFile("."))
+	actual := part1(input)
 	assert.Equal(t, expected, actual)
 }
 
 func TestPart2Example(t *testing.T) {
 	expected := 9
-	actual := part2(example)
+	input := parseInput(example)
+	actual := part2(input)
 	assert.Equal(t, expected, actual)
 }
 
 func TestPart2Input(t *testing.T) {
 	expected := 2034
-	actual := part2(util.ReadInputFile("."))
+	input := parseInput(util.ReadInputFile("."))
+	actual := part2(input)
 	assert.Equal(t, expected, actual)
 }

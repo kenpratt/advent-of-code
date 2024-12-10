@@ -6,7 +6,8 @@ import (
 )
 
 func Solve(path string) {
-	input := util.ReadInputFile(path)
+	inputStr := util.ReadInputFile(path)
+	input := parseInput(inputStr)
 	util.AssertEqual(510, part1(input))
 	util.AssertEqual(553, part2(input))
 }
@@ -29,9 +30,7 @@ func parseInput(input string) [][]int {
 	return reports
 }
 
-func part1(input string) int {
-	reports := parseInput(input)
-
+func part1(reports [][]int) int {
 	safe := 0
 	for _, report := range reports {
 		if isSafe(report, -1) {
@@ -41,9 +40,7 @@ func part1(input string) int {
 	return safe
 }
 
-func part2(input string) int {
-	reports := parseInput(input)
-
+func part2(reports [][]int) int {
 	safe := 0
 	for _, report := range reports {
 		if isSafe(report, -1) {

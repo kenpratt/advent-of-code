@@ -10,7 +10,8 @@ import (
 )
 
 func Solve(path string) {
-	input := util.ReadInputFile(path)
+	inputStr := util.ReadInputFile(path)
+	input := parseInput(inputStr)
 	util.AssertEqual(4647, part1(input))
 	util.AssertEqual(1723, part2(input))
 }
@@ -39,7 +40,12 @@ const (
 	Multiple
 )
 
-func parseInput(input string) (grid.Grid[bool], Guard) {
+type Input struct {
+	terrain grid.Grid[bool]
+	guard   Guard
+}
+
+func parseInput(input string) Input {
 	lines := strings.Split(input, "\n")
 
 	height := len(lines)
@@ -70,7 +76,7 @@ func parseInput(input string) (grid.Grid[bool], Guard) {
 
 	terrain := grid.Grid[bool]{Bounds: bounds, Values: values}
 
-	return terrain, guard
+	return Input{terrain, guard}
 }
 
 type Termination int
@@ -145,8 +151,8 @@ func initialState(terrain *grid.Grid[bool], guard Guard) State {
 	}
 }
 
-func part1(input string) int {
-	terrain, guard := parseInput(input)
+func part1(input Input) int {
+	terrain, guard := input.terrain, input.guard
 	state := initialState(&terrain, guard)
 
 	result := run(&terrain, &state)
@@ -155,8 +161,8 @@ func part1(input string) int {
 	return lo.CountBy[Visited](state.visited.Values, func(visited Visited) bool { return visited.status != Never })
 }
 
-func part2(input string) int {
-	terrain, guard := parseInput(input)
+func part2(input Input) int {
+	terrain, guard := input.terrain, input.guard
 
 	loops := 0
 

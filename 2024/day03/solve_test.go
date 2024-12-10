@@ -12,24 +12,28 @@ const example2 = "xmul(2,4)&mul[3,7]!^don't()_mul(5,5)+mul(32,64](mul(11,8)undo(
 
 func TestPart1Example(t *testing.T) {
 	expected := 161
-	actual := part1(example1)
+	input := parseInput(example1)
+	actual := part1(input)
 	assert.Equal(t, expected, actual)
 }
 
 func TestPart1Input(t *testing.T) {
 	expected := 187194524
-	actual := part1(util.ReadInputFile("."))
+	input := parseInput(util.ReadInputFile("."))
+	actual := part1(input)
 	assert.Equal(t, expected, actual)
 }
 
 func TestPart2Example(t *testing.T) {
 	expected := 48
-	actual := part2(example2)
+	input := parseInput(example2)
+	actual := part2(input)
 	assert.Equal(t, expected, actual)
 }
 
 func TestPart2Input(t *testing.T) {
 	expected := 127092535
-	actual := part2(util.ReadInputFile("."))
+	input := parseInput(util.ReadInputFile("."))
+	actual := part2(input)
 	assert.Equal(t, expected, actual)
 }

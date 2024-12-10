@@ -6,9 +6,15 @@ import (
 )
 
 func Solve(path string) {
-	input := util.ReadInputFile(path)
+	inputStr := util.ReadInputFile(path)
+	input := parseInput(inputStr)
 	util.AssertEqual(187194524, part1(input))
 	util.AssertEqual(127092535, part2(input))
+}
+
+// just here for consistency
+func parseInput(input string) string {
+	return input
 }
 
 type Instruction struct {
@@ -16,7 +22,7 @@ type Instruction struct {
 	right int
 }
 
-func parseInput(input string, useConditionals bool) []Instruction {
+func parseInstructions(input string, useConditionals bool) []Instruction {
 	re := regexp.MustCompile(`(mul|do|don't)\(((\d{1,3}),(\d{1,3}))?\)`)
 
 	matches := re.FindAllStringSubmatch(input, -1)
@@ -55,11 +61,11 @@ func applyInstructions(instructions []Instruction) int {
 }
 
 func part1(input string) int {
-	instructions := parseInput(input, false)
+	instructions := parseInstructions(input, false)
 	return applyInstructions(instructions)
 }
 
 func part2(input string) int {
-	instructions := parseInput(input, true)
+	instructions := parseInstructions(input, true)
 	return applyInstructions(instructions)
 }

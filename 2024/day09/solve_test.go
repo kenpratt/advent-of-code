@@ -11,24 +11,28 @@ const example = "2333133121414131402"
 
 func TestPart1Example(t *testing.T) {
 	expected := 1928
-	actual := part1(example)
+	input := parseInput(example)
+	actual := part1(input)
 	assert.Equal(t, expected, actual)
 }
 
 func TestPart1Input(t *testing.T) {
 	expected := 6332189866718
-	actual := part1(util.ReadInputFile("."))
+	input := parseInput(util.ReadInputFile("."))
+	actual := part1(input)
 	assert.Equal(t, expected, actual)
 }
 
 func TestPart2Example(t *testing.T) {
 	expected := 2858
-	actual := part2(example)
+	input := parseInput(example)
+	actual := part2(input)
 	assert.Equal(t, expected, actual)
 }
 
 func TestPart2Input(t *testing.T) {
 	expected := 6353648390778
-	actual := part2(util.ReadInputFile("."))
+	input := parseInput(util.ReadInputFile("."))
+	actual := part2(input)
 	assert.Equal(t, expected, actual)
 }

@@ -9,7 +9,8 @@ import (
 )
 
 func Solve(path string) {
-	input := util.ReadInputFile(path)
+	inputStr := util.ReadInputFile(path)
+	input := parseInput(inputStr)
 	util.AssertEqual(2501605301465, part1(input))
 	util.AssertEqual(44841372855953, part2(input))
 }
@@ -99,16 +100,12 @@ func concatenate(l, r int) int {
 	return l + r
 }
 
-func part1(input string) int {
-	equations := parseInput(input)
-
+func part1(equations []Equation) int {
 	solved := lo.Filter(equations, func(eq Equation, _ int) bool { return solveEquation(&eq, false) })
 	return lo.SumBy(solved, func(eq Equation) int { return eq.result })
 }
 
-func part2(input string) int {
-	equations := parseInput(input)
-
+func part2(equations []Equation) int {
 	solved := lo.Filter(equations, func(eq Equation, _ int) bool { return solveEquation(&eq, true) })
 	return lo.SumBy(solved, func(eq Equation) int { return eq.result })
 }
