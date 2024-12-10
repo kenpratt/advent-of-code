@@ -2,14 +2,13 @@ package day09
 
 import (
 	"adventofcode/util"
-	"fmt"
 	"sort"
 )
 
 func Solve(path string) {
 	input := util.ReadInputFile(path)
-	fmt.Println("part 1: ", part1(input))
-	fmt.Println("part 2: ", part2(input))
+	util.AssertEqual(6332189866718, part1(input))
+	util.AssertEqual(6353648390778, part2(input))
 }
 
 func parseInput(input string) [][2]int {

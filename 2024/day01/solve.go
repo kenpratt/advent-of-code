@@ -9,8 +9,8 @@ import (
 
 func Solve(path string) {
 	input := util.ReadInputFile(path)
-	fmt.Println("part 1: ", part1(input))
-	fmt.Println("part 2: ", part2(input))
+	util.AssertEqual(2264607, part1(input))
+	util.AssertEqual(19457120, part2(input))
 }
 
 type List struct {

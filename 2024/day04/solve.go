@@ -3,14 +3,13 @@ package day04
 import (
 	"adventofcode/grid"
 	"adventofcode/util"
-	"fmt"
 	"strings"
 )
 
 func Solve(path string) {
 	input := util.ReadInputFile(path)
-	fmt.Println("part 1: ", part1(input))
-	fmt.Println("part 2: ", part2(input))
+	util.AssertEqual(2662, part1(input))
+	util.AssertEqual(2034, part2(input))
 }
 
 type WordSearch struct {

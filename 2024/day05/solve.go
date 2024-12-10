@@ -2,7 +2,6 @@ package day05
 
 import (
 	"adventofcode/util"
-	"fmt"
 	"strings"
 
 	mapset "github.com/deckarep/golang-set/v2"
@@ -11,8 +10,8 @@ import (
 
 func Solve(path string) {
 	input := util.ReadInputFile(path)
-	fmt.Println("part 1: ", part1(input))
-	fmt.Println("part 2: ", part2(input))
+	util.AssertEqual(6267, part1(input))
+	util.AssertEqual(5184, part2(input))
 }
 
 type Spec struct {

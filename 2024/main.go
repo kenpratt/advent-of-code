@@ -96,8 +96,7 @@ func main() {
 }
 
 func runDay(day Day) Result {
-	fmt.Println()
-	fmt.Println(day.name)
+	fmt.Println("Running", day.name)
 
 	res := testing.Benchmark(func(b *testing.B) {
 		for n := 0; n < b.N; n++ {

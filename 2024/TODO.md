@@ -1,0 +1,6 @@
+- change Solve to reuse parsed input between part 1/2?
+- add benchmarking methods for part 1/2 input to the test files
+- figure out how to use instance methods on structs, map clearly does it?
+  - try doing some benchmarking of passing ref vs value -- change main func to run each day 10 times, and turn off inlining?
+- add a "parse" function and reuse the result in part 1 & part 2, like I did in rust
+- add harness to main runner to measure time spent in each day & part 1/2

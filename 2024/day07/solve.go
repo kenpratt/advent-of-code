@@ -2,7 +2,6 @@ package day07
 
 import (
 	"adventofcode/util"
-	"fmt"
 	"strings"
 
 	"github.com/gammazero/deque"
@@ -11,8 +10,8 @@ import (
 
 func Solve(path string) {
 	input := util.ReadInputFile(path)
-	fmt.Println("part 1: ", part1(input))
-	fmt.Println("part 2: ", part2(input))
+	util.AssertEqual(2501605301465, part1(input))
+	util.AssertEqual(44841372855953, part2(input))
 }
 
 func parseInput(input string) []Equation {

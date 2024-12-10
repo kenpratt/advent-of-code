@@ -3,7 +3,6 @@ package day08
 import (
 	"adventofcode/grid"
 	"adventofcode/util"
-	"fmt"
 	"strings"
 
 	mapset "github.com/deckarep/golang-set/v2"
@@ -11,8 +10,8 @@ import (
 
 func Solve(path string) {
 	input := util.ReadInputFile(path)
-	fmt.Println("part 1: ", part1(input))
-	fmt.Println("part 2: ", part2(input))
+	util.AssertEqual(394, part1(input))
+	util.AssertEqual(1277, part2(input))
 }
 
 func parseInput(input string) (bounds grid.Bounds, byFrequency map[rune][]grid.Coord) {

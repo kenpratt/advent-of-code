@@ -2,14 +2,13 @@ package day03
 
 import (
 	"adventofcode/util"
-	"fmt"
 	"regexp"
 )
 
 func Solve(path string) {
 	input := util.ReadInputFile(path)
-	fmt.Println("part 1: ", part1(input))
-	fmt.Println("part 2: ", part2(input))
+	util.AssertEqual(187194524, part1(input))
+	util.AssertEqual(127092535, part2(input))
 }
 
 type Instruction struct {
