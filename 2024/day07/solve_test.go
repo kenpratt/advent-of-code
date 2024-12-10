@@ -44,3 +44,17 @@ func TestPart2Input(t *testing.T) {
 	actual := part2(input)
 	assert.Equal(t, expected, actual)
 }
+
+func BenchmarkPart1(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		input := parseInput(util.ReadInputFile("."))
+		part1(input)
+	}
+}
+
+func BenchmarkPart2(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		input := parseInput(util.ReadInputFile("."))
+		part2(input)
+	}
+}

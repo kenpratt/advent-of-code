@@ -13,4 +13,4 @@ $ gocritic check -enable='#opinionated' ./...
 
 Benchmark a certain day:
 $ cd day05
-$ go test -bench='BenchmarkPart2Input' -cpuprofile='cpu.prof' -memprofile='mem.prof' -benchtime='10x' -benchmem
+$ go test -bench='BenchmarkPart2' -cpuprofile='cpu.prof' -memprofile='mem.prof' -benchtime='10x' -benchmem
