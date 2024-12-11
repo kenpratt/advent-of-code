@@ -1,10 +1,10 @@
 package day07
 
 import (
+	"adventofcode/stack"
 	"adventofcode/util"
 	"strings"
 
-	"github.com/gammazero/deque"
 	"github.com/samber/lo"
 )
 
@@ -43,22 +43,21 @@ type SolutionState struct {
 	acc      int
 }
 
-func solveEquation(equation *Equation, enableConcatenation bool) bool {
-	var q deque.Deque[SolutionState]
-
+func solveEquation(equation *Equation, enableConcatenation bool, st *stack.Stack[SolutionState]) bool {
 	initialState := SolutionState{
 		equation: equation,
 		index:    1,
 		acc:      equation.values[0],
 	}
-	q.PushBack(initialState)
+	st.Push(initialState)
 
-	for q.Len() != 0 {
-		state := q.PopFront()
+	for st.Len() != 0 {
+		state := st.Pop()
 
 		if state.index == len(equation.values) {
 			if state.acc == equation.result {
 				// found a solution
+				st.Clear()
 				return true
 			}
 			// otherwise, ignore this one
@@ -68,20 +67,20 @@ func solveEquation(equation *Equation, enableConcatenation bool) bool {
 			// try add
 			added := state.acc + val
 			if added <= equation.result {
-				q.PushFront(SolutionState{equation: equation, index: state.index + 1, acc: added})
+				st.Push(SolutionState{equation: equation, index: state.index + 1, acc: added})
 			}
 
 			// try multiply
 			multiplied := state.acc * val
 			if multiplied <= equation.result {
-				q.PushFront(SolutionState{equation: equation, index: state.index + 1, acc: multiplied})
+				st.Push(SolutionState{equation: equation, index: state.index + 1, acc: multiplied})
 			}
 
 			if enableConcatenation {
 				// try concatenation
 				concatenated := concatenate(state.acc, val)
 				if concatenated <= equation.result {
-					q.PushFront(SolutionState{equation: equation, index: state.index + 1, acc: concatenated})
+					st.Push(SolutionState{equation: equation, index: state.index + 1, acc: concatenated})
 				}
 			}
 		}
@@ -101,11 +100,19 @@ func concatenate(l, r int) int {
 }
 
 func part1(equations []Equation) int {
-	solved := lo.Filter(equations, func(eq Equation, _ int) bool { return solveEquation(&eq, false) })
+	st := stack.NewStack[SolutionState](12)
+
+	solved := lo.Filter(equations, func(eq Equation, _ int) bool {
+		return solveEquation(&eq, false, &st)
+	})
 	return lo.SumBy(solved, func(eq Equation) int { return eq.result })
 }
 
 func part2(equations []Equation) int {
-	solved := lo.Filter(equations, func(eq Equation, _ int) bool { return solveEquation(&eq, true) })
+	st := stack.NewStack[SolutionState](21)
+
+	solved := lo.Filter(equations, func(eq Equation, _ int) bool {
+		return solveEquation(&eq, true, &st)
+	})
 	return lo.SumBy(solved, func(eq Equation) int { return eq.result })
 }
