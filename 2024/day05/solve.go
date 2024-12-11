@@ -1,10 +1,10 @@
 package day05
 
 import (
+	"adventofcode/set"
 	"adventofcode/util"
 	"strings"
 
-	mapset "github.com/deckarep/golang-set/v2"
 	"github.com/samber/lo"
 )
 
@@ -16,8 +16,13 @@ func Solve(path string) {
 }
 
 type Spec struct {
-	orderingRules mapset.Set[[2]int]
+	orderingRules set.Set[Rule]
 	toProduce     [][]int
+}
+
+type Rule struct {
+	left  int
+	right int
 }
 
 func parseInput(input string) Spec {
@@ -29,15 +34,15 @@ func parseInput(input string) Spec {
 	return Spec{orderingRules, toProduce}
 }
 
-func parsePageOrderingRules(input string) mapset.Set[[2]int] {
+func parsePageOrderingRules(input string) set.Set[Rule] {
 	lines := strings.Split(input, "\n")
 
-	rules := mapset.NewSet[[2]int]()
+	rules := set.NewSet[Rule]()
 
 	for _, line := range lines {
 		parts := strings.Split(line, "|")
 		util.AssertEqual(2, len(parts))
-		rules.Add([2]int{util.StringToInt(parts[0]), util.StringToInt(parts[1])})
+		rules.Add(Rule{util.StringToInt(parts[0]), util.StringToInt(parts[1])})
 	}
 
 	return rules
@@ -53,12 +58,12 @@ func parsePagesToProduce(input string) [][]int {
 	})
 }
 
-func arePagesInCorrectOrder(pages []int, rules mapset.Set[[2]int]) bool {
+func arePagesInCorrectOrder(pages []int, rules set.Set[Rule]) bool {
 	// iterate through pages in reverse order, checking pairs
 	// if there is a pair in the set of rules, than they must be in the
 	// incorrect order
 	for i := len(pages) - 1; i > 0; i-- {
-		pair := [2]int{pages[i], pages[i-1]}
+		pair := Rule{pages[i], pages[i-1]}
 		if rules.Contains(pair) {
 			return false
 		}
@@ -66,19 +71,19 @@ func arePagesInCorrectOrder(pages []int, rules mapset.Set[[2]int]) bool {
 	return true
 }
 
-func findCorrectMiddlePage(pages []int, rules mapset.Set[[2]int]) int {
-	pageSet := mapset.NewSet(pages...)
+func findCorrectMiddlePage(pages []int, rules set.Set[Rule]) int {
+	pageSet := set.NewSet(pages...)
 	target := len(pages) / 2
 	for _, page := range pages {
 		before := 0
 		after := 0
 		for rule := range rules.Iter() {
-			if rule[0] == page && pageSet.Contains(rule[1]) {
+			if rule.left == page && pageSet.Contains(rule.right) {
 				before++
 				if before > target {
 					break // can quit, too many element before middle
 				}
-			} else if rule[1] == page && pageSet.Contains(rule[0]) {
+			} else if rule.right == page && pageSet.Contains(rule.left) {
 				after++
 				if after > target {
 					break // can quit, too many elements after middle

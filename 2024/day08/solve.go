@@ -2,10 +2,9 @@ package day08
 
 import (
 	"adventofcode/grid"
+	"adventofcode/set"
 	"adventofcode/util"
 	"strings"
-
-	mapset "github.com/deckarep/golang-set/v2"
 )
 
 func Solve(path string) {
@@ -52,7 +51,7 @@ func iterPairs[T any](slice []T, fn func(*T, *T)) {
 func part1(input Input) int {
 	bounds, byFrequency := input.bounds, input.byFrequency
 
-	antinodes := mapset.NewSet[grid.Coord]()
+	antinodes := set.NewSet[grid.Coord]()
 
 	for _, antennas := range byFrequency {
 		iterPairs(antennas, func(a1 *grid.Coord, a2 *grid.Coord) {
@@ -70,13 +69,13 @@ func part1(input Input) int {
 		})
 	}
 
-	return antinodes.Cardinality()
+	return antinodes.Len()
 }
 
 func part2(input Input) int {
 	bounds, byFrequency := input.bounds, input.byFrequency
 
-	antinodes := mapset.NewSet[grid.Coord]()
+	antinodes := set.NewSet[grid.Coord]()
 
 	for _, antennas := range byFrequency {
 		iterPairs(antennas, func(a1 *grid.Coord, a2 *grid.Coord) {
@@ -99,5 +98,5 @@ func part2(input Input) int {
 		})
 	}
 
-	return antinodes.Cardinality()
+	return antinodes.Len()
 }

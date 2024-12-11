@@ -2,6 +2,7 @@ package day10
 
 import (
 	"adventofcode/grid"
+	"adventofcode/set"
 	"adventofcode/util"
 	"strings"
 )
@@ -44,24 +45,23 @@ func part1(topo grid.Grid[int]) int {
 
 	// follow each trailhead
 	for _, trailhead := range heightIndices[0] {
-		openSet := map[int]struct{}{}
-		openSet[trailhead] = struct{}{}
+		openSet := set.NewSet[int](trailhead)
 
 		// for each height, find the unique positions it leads to
 		for height := 1; height < 10; height++ {
-			nextOpenSet := map[int]struct{}{}
-			for i := range openSet {
+			nextOpenSet := set.NewSet[int]()
+			for i := range openSet.Iter() {
 				for _, d := range directions {
 					n, inBounds := topo.NeighbourForIndex(i, d)
 					if inBounds && topo.Values[n] == height {
-						nextOpenSet[n] = struct{}{}
+						nextOpenSet.Add(n)
 					}
 				}
 			}
 			openSet = nextOpenSet
 		}
 
-		score += len(openSet)
+		score += openSet.Len()
 	}
 
 	return score
