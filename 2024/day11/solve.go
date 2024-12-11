@@ -2,6 +2,7 @@ package day11
 
 import (
 	"adventofcode/util"
+	"math"
 	"strings"
 
 	"github.com/samber/lo"
@@ -11,7 +12,7 @@ func Solve(path string) {
 	inputStr := util.ReadInputFile(path)
 	input := parseInput(inputStr)
 	util.AssertEqual(217812, part1(input))
-	util.AssertEqual(0, part2(input))
+	util.AssertEqual(259112729857522, part2(input))
 }
 
 func parseInput(input string) []int {
@@ -19,21 +20,42 @@ func parseInput(input string) []int {
 	return lo.Map(parts, func(s string, _ int) int { return util.StringToInt(s) })
 }
 
-func tick(stones []int) []int {
-	result := make([]int, 0)
-	for _, stone := range stones {
+func finalStoneCount(stones []int, rounds int) int {
+	stoneCounts := make(map[int]int)
+	for _, s := range stones {
+		stoneCounts[s]++
+	}
+
+	for i := 0; i < rounds; i++ {
+		stoneCounts = tick(stoneCounts)
+	}
+
+	sum := 0
+	for _, n := range stoneCounts {
+		sum += n
+	}
+	return sum
+}
+
+func tick(stoneCounts map[int]int) map[int]int {
+	// estimate size of result to avoid extra allocs
+	sizeEstimate := len(stoneCounts) + int(math.Sqrt(float64(len(stoneCounts))))
+	result := make(map[int]int, sizeEstimate)
+
+	for stone, count := range stoneCounts {
 		digits := numDigits(stone)
 		switch {
 		case digits == 0:
-			result = append(result, 1)
+			result[1] += count
 		case digits%2 == 0:
 			left, right := split(stone, digits/2)
-			result = append(result, left)
-			result = append(result, right)
+			result[left] += count
+			result[right] += count
 		default:
-			result = append(result, stone*2024)
+			result[stone*2024] += count
 		}
 	}
+
 	return result
 }
 
@@ -64,13 +86,9 @@ func split(val, digits int) (int, int) {
 }
 
 func part1(stones []int) int {
-	for i := 0; i < 25; i++ {
-		stones = tick(stones)
-	}
-
-	return len(stones)
+	return finalStoneCount(stones, 25)
 }
 
 func part2(stones []int) int {
-	return 0
+	return finalStoneCount(stones, 75)
 }
