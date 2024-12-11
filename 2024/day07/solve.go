@@ -38,49 +38,49 @@ func parseEquation(input string) Equation {
 }
 
 type SolutionState struct {
-	equation *Equation
-	index    int
-	acc      int
+	index int
+	acc   int
 }
 
 func solveEquation(equation *Equation, enableConcatenation bool, st *stack.Stack[SolutionState]) bool {
 	initialState := SolutionState{
-		equation: equation,
-		index:    1,
-		acc:      equation.values[0],
+		index: 1,
+		acc:   equation.values[0],
 	}
 	st.Push(initialState)
 
 	for st.Len() != 0 {
 		state := st.Pop()
+		i := state.index
+		acc := state.acc
 
-		if state.index == len(equation.values) {
-			if state.acc == equation.result {
+		if i == len(equation.values) {
+			if acc == equation.result {
 				// found a solution
 				st.Clear()
 				return true
 			}
 			// otherwise, ignore this one
 		} else {
-			val := equation.values[state.index]
+			val := equation.values[i]
 
 			// try add
-			added := state.acc + val
+			added := acc + val
 			if added <= equation.result {
-				st.Push(SolutionState{equation: equation, index: state.index + 1, acc: added})
+				st.Push(SolutionState{index: i + 1, acc: added})
 			}
 
 			// try multiply
-			multiplied := state.acc * val
+			multiplied := acc * val
 			if multiplied <= equation.result {
-				st.Push(SolutionState{equation: equation, index: state.index + 1, acc: multiplied})
+				st.Push(SolutionState{index: i + 1, acc: multiplied})
 			}
 
 			if enableConcatenation {
 				// try concatenation
-				concatenated := concatenate(state.acc, val)
+				concatenated := concatenate(acc, val)
 				if concatenated <= equation.result {
-					st.Push(SolutionState{equation: equation, index: state.index + 1, acc: concatenated})
+					st.Push(SolutionState{index: i + 1, acc: concatenated})
 				}
 			}
 		}
