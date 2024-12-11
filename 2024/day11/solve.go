@@ -43,12 +43,12 @@ func tick(stoneCounts map[int]int) map[int]int {
 	result := make(map[int]int, sizeEstimate)
 
 	for stone, count := range stoneCounts {
-		digits := numDigits(stone)
+		digits := util.NumDigits(stone)
 		switch {
 		case digits == 0:
 			result[1] += count
 		case digits%2 == 0:
-			left, right := split(stone, digits/2)
+			left, right := util.SplitInts(stone, digits/2)
 			result[left] += count
 			result[right] += count
 		default:
@@ -57,32 +57,6 @@ func tick(stoneCounts map[int]int) map[int]int {
 	}
 
 	return result
-}
-
-func numDigits(val int) int {
-	digits := 0
-	for val > 0 {
-		val /= 10
-		digits++
-	}
-	return digits
-}
-
-func split(val, digits int) (int, int) {
-	left := val
-	right := 0
-
-	place := 1
-	for digits > 0 {
-		v := left % 10
-		left /= 10
-		right += v * place
-
-		digits--
-		place *= 10
-	}
-
-	return left, right
 }
 
 func part1(stones []int) int {

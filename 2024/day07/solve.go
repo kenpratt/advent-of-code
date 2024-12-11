@@ -53,35 +53,38 @@ func solveEquation(equation *Equation, enableConcatenation bool, st *stack.Stack
 		state := st.Pop()
 		i := state.index
 		acc := state.acc
+		j := i + 1
+		val := equation.values[i]
 
-		if i == len(equation.values) {
-			if acc == equation.result {
-				// found a solution
+		// try add
+		added := acc + val
+		switch evaluate(j, added, equation) {
+		case Solution:
+			st.Clear()
+			return true
+		case Possible:
+			st.Push(SolutionState{index: j, acc: added})
+		}
+
+		// try multiply
+		multiplied := acc * val
+		switch evaluate(j, multiplied, equation) {
+		case Solution:
+			st.Clear()
+			return true
+		case Possible:
+			st.Push(SolutionState{index: j, acc: multiplied})
+		}
+
+		if enableConcatenation {
+			// try concatenation
+			concatenated := util.ConcatenateInts(acc, val)
+			switch evaluate(j, concatenated, equation) {
+			case Solution:
 				st.Clear()
 				return true
-			}
-			// otherwise, ignore this one
-		} else {
-			val := equation.values[i]
-
-			// try add
-			added := acc + val
-			if added <= equation.result {
-				st.Push(SolutionState{index: i + 1, acc: added})
-			}
-
-			// try multiply
-			multiplied := acc * val
-			if multiplied <= equation.result {
-				st.Push(SolutionState{index: i + 1, acc: multiplied})
-			}
-
-			if enableConcatenation {
-				// try concatenation
-				concatenated := concatenate(acc, val)
-				if concatenated <= equation.result {
-					st.Push(SolutionState{index: i + 1, acc: concatenated})
-				}
+			case Possible:
+				st.Push(SolutionState{index: j, acc: concatenated})
 			}
 		}
 	}
@@ -90,13 +93,31 @@ func solveEquation(equation *Equation, enableConcatenation bool, st *stack.Stack
 	return false
 }
 
-func concatenate(l, r int) int {
-	t := r
-	for t > 0 {
-		l *= 10
-		t /= 10
+type Evaluation int
+
+const (
+	Solution Evaluation = iota
+	Possible
+	Impossible
+)
+
+func evaluate(i int, acc int, eq *Equation) Evaluation {
+	if i == len(eq.values) {
+		// we're at the end
+		if acc == eq.result {
+			return Solution
+		} else {
+			return Impossible
+		}
+	} else {
+		// still have more to explore
+		if acc <= eq.result {
+			return Possible
+		} else {
+			// acc is bigger than the result, no point in continuing
+			return Impossible
+		}
 	}
-	return l + r
 }
 
 func part1(equations []Equation) int {
