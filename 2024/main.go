@@ -64,8 +64,24 @@ func main() {
 
 	// print summary
 	fmt.Printf("\nSummary:\n")
+	totalNs, totalBytes, totalAllocs := 0, 0, 0
 	for _, day := range results {
 		fmt.Printf("%s: %s\t%s\n", day.name, day.res.String(), day.res.MemString())
+		totalNs += int(day.res.NsPerOp())
+		totalBytes += int(day.res.AllocedBytesPerOp())
+		totalAllocs += int(day.res.AllocsPerOp())
+	}
+
+	fmt.Printf("\nTotal (per op):\n  Runtime:     %6d ms\n  Memory:      %6d kB\n  Allocations: %6d allocs\n", totalNs/1000000, totalBytes/1000, totalAllocs)
+
+	// top 5 by time taken
+	fmt.Printf("\nSlowest:\n")
+	slices.SortFunc(results, func(a, b Result) int {
+		return -cmp.Compare(a.res.NsPerOp(), b.res.NsPerOp())
+	})
+	for i := 0; i < 5; i++ {
+		day := results[i]
+		fmt.Printf("  %s: %6d ms\n", day.name, day.res.NsPerOp()/1000000)
 	}
 
 	// top 5 by memory used
@@ -75,7 +91,7 @@ func main() {
 	})
 	for i := 0; i < 5; i++ {
 		day := results[i]
-		fmt.Printf("  %s: %v kB\n", day.name, day.res.AllocedBytesPerOp()/1000)
+		fmt.Printf("  %s: %6d kB\n", day.name, day.res.AllocedBytesPerOp()/1000)
 	}
 
 	// top 5 by memory allocations
@@ -85,17 +101,7 @@ func main() {
 	})
 	for i := 0; i < 5; i++ {
 		day := results[i]
-		fmt.Printf("  %s: %v\n", day.name, day.res.AllocsPerOp())
-	}
-
-	// top 5 by time taken
-	fmt.Printf("\nSlowest:\n")
-	slices.SortFunc(results, func(a, b Result) int {
-		return -cmp.Compare(a.res.NsPerOp(), b.res.NsPerOp())
-	})
-	for i := 0; i < 5; i++ {
-		day := results[i]
-		fmt.Printf("  %s: %v ms\n", day.name, day.res.NsPerOp()/1000000)
+		fmt.Printf("  %s: %6d allocs\n", day.name, day.res.AllocsPerOp())
 	}
 }
 
