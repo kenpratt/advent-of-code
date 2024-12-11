@@ -30,6 +30,21 @@ func (grid *Grid[T]) Clone() Grid[T] {
 	}
 }
 
+func (grid *Grid[T]) Len() int {
+	return len(grid.Values)
+}
+
+func (grid *Grid[T]) NeighbourForIndex(i int, direction Direction) (int, bool) {
+	// TODO try to implement with a simpler math approach
+	c := grid.Bounds.IndexToCoord(i)
+	n := c.MoveInDirection(direction, 1)
+	if grid.Bounds.Within(&n) {
+		return grid.Bounds.CoordToIndex(&n), true
+	} else {
+		return -1, false
+	}
+}
+
 func (bounds *Bounds) CoordToIndex(pos *Coord) int {
 	return pos.Y*bounds.Width + pos.X
 }
@@ -88,6 +103,10 @@ const (
 	South
 	West
 )
+
+func Directions() [4]Direction {
+	return [4]Direction{North, East, South, West}
+}
 
 func (d Direction) Clockwise() Direction {
 	switch d {
