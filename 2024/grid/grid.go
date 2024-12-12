@@ -1,6 +1,9 @@
 package grid
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type Coord struct {
 	X int
@@ -19,6 +22,44 @@ type Bounds struct {
 type Grid[T any] struct {
 	Bounds Bounds
 	Values []T
+}
+
+func Parse[T any](input string, parse func(rune, Coord) T) Grid[T] {
+	lines := strings.Split(input, "\n")
+
+	height := len(lines)
+	width := len(lines[0])
+	bounds := Bounds{Width: width, Height: height}
+	values := make([]T, width*height)
+
+	for y, line := range lines {
+		for x, char := range line {
+			pos := MakeCoord(x, y)
+			i := bounds.CoordToIndex(pos)
+			val := parse(char, pos)
+			values[i] = val
+		}
+	}
+
+	return Grid[T]{bounds, values}
+}
+
+// just make Bounds and call the func per pos, don't actually build a grid
+func ParseBoundsAndCoords(input string, parse func(rune, Coord)) Bounds {
+	lines := strings.Split(input, "\n")
+
+	height := len(lines)
+	width := len(lines[0])
+	bounds := Bounds{Width: width, Height: height}
+
+	for y, line := range lines {
+		for x, char := range line {
+			pos := MakeCoord(x, y)
+			parse(char, pos)
+		}
+	}
+
+	return bounds
 }
 
 func (grid *Grid[T]) Clone() Grid[T] {

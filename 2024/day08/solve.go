@@ -4,7 +4,6 @@ import (
 	"adventofcode/grid"
 	"adventofcode/set"
 	"adventofcode/util"
-	"strings"
 )
 
 func Solve(path string) {
@@ -20,23 +19,12 @@ type Input struct {
 }
 
 func parseInput(input string) Input {
-	lines := strings.Split(input, "\n")
-
-	height := len(lines)
-	width := len(lines[0])
-	bounds := grid.Bounds{Width: width, Height: height}
-
 	byFrequency := make(map[rune][]grid.Coord)
-
-	for y, line := range lines {
-		for x, c := range line {
-			if c != '.' {
-				pos := grid.MakeCoord(x, y)
-				byFrequency[c] = append(byFrequency[c], pos)
-			}
+	bounds := grid.ParseBoundsAndCoords(input, func(c rune, pos grid.Coord) {
+		if c != '.' {
+			byFrequency[c] = append(byFrequency[c], pos)
 		}
-	}
-
+	})
 	return Input{bounds, byFrequency}
 }
 

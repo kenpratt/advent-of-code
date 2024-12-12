@@ -3,7 +3,6 @@ package day06
 import (
 	"adventofcode/grid"
 	"adventofcode/util"
-	"strings"
 
 	"github.com/samber/lo"
 )
@@ -32,35 +31,21 @@ type Input struct {
 }
 
 func parseInput(input string) Input {
-	lines := strings.Split(input, "\n")
-
-	height := len(lines)
-	width := len(lines[0])
-	bounds := grid.Bounds{Width: width, Height: height}
-	values := make([]bool, width*height)
-
 	guard := Guard{}
-
-	for y, line := range lines {
-		for x, char := range line {
-			pos := grid.MakeCoord(x, y)
-
-			i := bounds.CoordToIndex(pos)
-			switch char {
-			case '#':
-				values[i] = true
-			case '.':
-				values[i] = false
-			case '^':
-				guard.orientation = grid.North
-				guard.position = pos
-			default:
-				panic("Unexpected char in grid")
-			}
+	terrain := grid.Parse(input, func(c rune, pos grid.Coord) bool {
+		switch c {
+		case '#':
+			return true
+		case '.':
+			return false
+		case '^':
+			guard.orientation = grid.North
+			guard.position = pos
+			return false
+		default:
+			panic("Unexpected char in grid")
 		}
-	}
-
-	terrain := grid.Grid[bool]{Bounds: bounds, Values: values}
+	})
 
 	return Input{terrain, guard}
 }

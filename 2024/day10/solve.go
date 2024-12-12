@@ -4,7 +4,6 @@ import (
 	"adventofcode/grid"
 	"adventofcode/set"
 	"adventofcode/util"
-	"strings"
 )
 
 func Solve(path string) {
@@ -15,21 +14,9 @@ func Solve(path string) {
 }
 
 func parseInput(input string) grid.Grid[int] {
-	lines := strings.Split(input, "\n")
-
-	height := len(lines)
-	width := len(lines[0])
-	bounds := grid.Bounds{Width: width, Height: height}
-	values := make([]int, width*height)
-
-	for y, line := range lines {
-		for x, char := range line {
-			pos := grid.MakeCoord(x, y)
-			values[bounds.CoordToIndex(pos)] = util.RuneToInt(char)
-		}
-	}
-
-	return grid.Grid[int]{Bounds: bounds, Values: values}
+	return grid.Parse(input, func(c rune, _ grid.Coord) int {
+		return util.RuneToInt(c)
+	})
 }
 
 func part1(topo grid.Grid[int]) int {

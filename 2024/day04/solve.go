@@ -3,7 +3,6 @@ package day04
 import (
 	"adventofcode/grid"
 	"adventofcode/util"
-	"strings"
 )
 
 func Solve(path string) {
@@ -20,30 +19,18 @@ type WordSearch struct {
 }
 
 func parseInput(input string) WordSearch {
-	lines := strings.Split(input, "\n")
-
-	height := len(lines)
-	width := len(lines[0])
-	bounds := grid.Bounds{Width: width, Height: height}
-	values := make([]rune, width*height)
 	xCoords := make([]grid.Coord, 0)
 	aCoords := make([]grid.Coord, 0)
 
-	for y, line := range lines {
-		for x, char := range line {
-			pos := grid.MakeCoord(x, y)
-
-			if char == 'X' {
-				xCoords = append(xCoords, pos)
-			} else if char == 'A' {
-				aCoords = append(aCoords, pos)
-			}
-
-			values[bounds.CoordToIndex(pos)] = char
+	g := grid.Parse(input, func(c rune, pos grid.Coord) rune {
+		if c == 'X' {
+			xCoords = append(xCoords, pos)
+		} else if c == 'A' {
+			aCoords = append(aCoords, pos)
 		}
-	}
 
-	g := grid.Grid[rune]{Bounds: bounds, Values: values}
+		return c
+	})
 
 	return WordSearch{grid: g, xCoords: xCoords, aCoords: aCoords}
 }
