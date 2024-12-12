@@ -22,7 +22,7 @@ type Guard struct {
 
 type State struct {
 	guard            Guard
-	visited          grid.Grid[int]
+	visited          grid.Grid[uint8]
 	extraObstruction grid.Coord
 }
 
@@ -65,7 +65,7 @@ func parseInput(input string) Input {
 	return Input{terrain, guard}
 }
 
-type Termination int
+type Termination uint8
 
 const (
 	OutOfBounds Termination = iota + 1
@@ -98,11 +98,11 @@ func tick(terrain *grid.Grid[bool], state *State) (Termination, bool) {
 		case 0:
 			// special case - never visited
 			// now we've visited once, store the direction
-			*visited = int(state.guard.orientation)
+			*visited = uint8(state.guard.orientation)
 		case 5:
 			// special case - multiple visits
 			// we've already been here multiple times - noop
-		case int(state.guard.orientation):
+		case uint8(state.guard.orientation):
 			// second visit, in the same orientation
 			// whoops, we've already been to this location moving in this direction
 			return Looping, true
@@ -124,11 +124,11 @@ func ahead(state *State) grid.Coord {
 }
 
 func initialState(terrain *grid.Grid[bool], guard Guard) State {
-	visited := grid.Grid[int]{
+	visited := grid.Grid[uint8]{
 		Bounds: terrain.Bounds,
-		Values: make([]int, len(terrain.Values)),
+		Values: make([]uint8, len(terrain.Values)),
 	}
-	visited.Set(guard.position, int(guard.orientation))
+	visited.Set(guard.position, uint8(guard.orientation))
 
 	return State{
 		guard:            guard,
@@ -144,7 +144,7 @@ func part1(input Input) int {
 	result := run(&terrain, &state)
 	util.AssertEqual(OutOfBounds, result)
 
-	return lo.CountBy(state.visited.Values, func(visited int) bool { return visited > 0 })
+	return lo.CountBy(state.visited.Values, func(visited uint8) bool { return visited > 0 })
 }
 
 func part2(input Input) int {

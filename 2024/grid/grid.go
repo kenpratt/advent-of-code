@@ -105,7 +105,7 @@ func DiagonalOffsets() [8]Coord {
 	return [...]Coord{{X: -1, Y: -1}, {X: 0, Y: -1}, {X: 1, Y: -1}, {X: -1, Y: 0}, {X: 1, Y: 0}, {X: -1, Y: 1}, {X: 0, Y: 1}, {X: 1, Y: 1}}
 }
 
-type Direction int
+type Direction uint8
 
 const (
 	North Direction = iota + 1

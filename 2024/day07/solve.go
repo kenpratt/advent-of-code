@@ -93,7 +93,7 @@ func solveEquation(equation *Equation, enableConcatenation bool, st *stack.Stack
 	return false
 }
 
-type Evaluation int
+type Evaluation uint8
 
 const (
 	Solution Evaluation = iota
