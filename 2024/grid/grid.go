@@ -2,6 +2,7 @@ package grid
 
 import (
 	"fmt"
+	"iter"
 	"strings"
 )
 
@@ -30,7 +31,7 @@ func Parse[T any](input string, parse func(rune, Coord) T) Grid[T] {
 	height := len(lines)
 	width := len(lines[0])
 	bounds := Bounds{Width: width, Height: height}
-	values := make([]T, width*height)
+	values := make([]T, bounds.Size())
 
 	for y, line := range lines {
 		for x, char := range line {
@@ -75,15 +76,52 @@ func (grid *Grid[T]) Len() int {
 	return len(grid.Values)
 }
 
+func (grid *Grid[T]) Neighbour(pos Coord, direction Direction) (Coord, bool) {
+	n := pos.MoveInDirection(direction, 1)
+	if grid.Bounds.Within(n) {
+		return n, true
+	} else {
+		return Coord{}, false
+	}
+}
+
 func (grid *Grid[T]) NeighbourForIndex(i int, direction Direction) (int, bool) {
 	// TODO try to implement with a simpler math approach
-	c := grid.Bounds.IndexToCoord(i)
-	n := c.MoveInDirection(direction, 1)
-	if grid.Bounds.Within(n) {
+	pos := grid.Bounds.IndexToCoord(i)
+	n, ok := grid.Neighbour(pos, direction)
+	if ok {
 		return grid.Bounds.CoordToIndex(n), true
 	} else {
 		return -1, false
 	}
+}
+
+func (grid *Grid[T]) IterNeighbours(pos Coord) iter.Seq[Coord] {
+	return func(yield func(Coord) bool) {
+		for _, d := range Directions() {
+			n, ok := grid.Neighbour(pos, d)
+			if ok {
+				if !yield(n) {
+					return
+				}
+			}
+		}
+	}
+}
+
+func (grid *Grid[T]) IterPos() iter.Seq2[int, Coord] {
+	return func(yield func(int, Coord) bool) {
+		for i := range grid.Values {
+			pos := grid.Bounds.IndexToCoord(i)
+			if !yield(i, pos) {
+				return
+			}
+		}
+	}
+}
+
+func (bounds Bounds) Size() int {
+	return bounds.Width * bounds.Height
 }
 
 func (bounds Bounds) CoordToIndex(pos Coord) int {
