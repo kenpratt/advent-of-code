@@ -3,7 +3,6 @@ package day06
 import (
 	"adventofcode/grid"
 	"adventofcode/util"
-	"fmt"
 	"strings"
 
 	"github.com/samber/lo"
@@ -23,22 +22,9 @@ type Guard struct {
 
 type State struct {
 	guard            Guard
-	visited          grid.Grid[Visited]
+	visited          grid.Grid[int]
 	extraObstruction grid.Coord
 }
-
-type Visited struct {
-	status    VisitedStatus
-	direction grid.Direction
-}
-
-type VisitedStatus int
-
-const (
-	Never VisitedStatus = iota + 0
-	Once
-	Multiple
-)
 
 type Input struct {
 	terrain grid.Grid[bool]
@@ -108,22 +94,22 @@ func tick(terrain *grid.Grid[bool], state *State) (Termination, bool) {
 		// no obstruction, move to new location
 		visited, _ := state.visited.AtMut(tryMoveTo)
 
-		if visited.status == Once && visited.direction == state.guard.orientation {
+		switch *visited {
+		case 0:
+			// special case - never visited
+			// now we've visited once, store the direction
+			*visited = int(state.guard.orientation)
+		case 5:
+			// special case - multiple visits
+			// we've already been here multiple times - noop
+		case int(state.guard.orientation):
+			// second visit, in the same orientation
 			// whoops, we've already been to this location moving in this direction
 			return Looping, true
-		}
-
-		// update visited status
-		switch visited.status {
-		case Never:
-			visited.status = Once
-			visited.direction = state.guard.orientation
-		case Once:
-			visited.status = Multiple
-		case Multiple:
-			// noop
 		default:
-			panic(fmt.Sprintf("Unknown visited status: %v", visited.status))
+			// second visit, different orientation
+			*visited = 5 // special case, 5 represents multiple visits
+
 		}
 
 		// move to new location
@@ -138,11 +124,11 @@ func ahead(state *State) grid.Coord {
 }
 
 func initialState(terrain *grid.Grid[bool], guard Guard) State {
-	visited := grid.Grid[Visited]{
+	visited := grid.Grid[int]{
 		Bounds: terrain.Bounds,
-		Values: make([]Visited, len(terrain.Values)),
+		Values: make([]int, len(terrain.Values)),
 	}
-	visited.Set(guard.position, Visited{status: Once, direction: guard.orientation})
+	visited.Set(guard.position, int(guard.orientation))
 
 	return State{
 		guard:            guard,
@@ -158,7 +144,7 @@ func part1(input Input) int {
 	result := run(&terrain, &state)
 	util.AssertEqual(OutOfBounds, result)
 
-	return lo.CountBy[Visited](state.visited.Values, func(visited Visited) bool { return visited.status != Never })
+	return lo.CountBy(state.visited.Values, func(visited int) bool { return visited > 0 })
 }
 
 func part2(input Input) int {
@@ -177,7 +163,7 @@ func part2(input Input) int {
 		if inBounds && !obstruction {
 			// check if we've already visited this location
 			visited, _ := mainState.visited.At(aheadPos)
-			if !(visited.status == Once || visited.status == Multiple) {
+			if visited == 0 {
 				// try running an alternate simulation with an obstruction here
 
 				// update altState
