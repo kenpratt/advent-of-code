@@ -59,7 +59,7 @@ func parseInput(input string) Input {
 		for x, char := range line {
 			pos := grid.MakeCoord(x, y)
 
-			i := bounds.CoordToIndex(&pos)
+			i := bounds.CoordToIndex(pos)
 			switch char {
 			case '#':
 				values[i] = true
@@ -97,16 +97,16 @@ func run(terrain *grid.Grid[bool], state *State) Termination {
 
 func tick(terrain *grid.Grid[bool], state *State) (Termination, bool) {
 	tryMoveTo := ahead(state)
-	obstruction, inBounds := terrain.At(&tryMoveTo)
+	obstruction, inBounds := terrain.At(tryMoveTo)
 	if !inBounds {
 		return OutOfBounds, true
 	}
 
-	if *obstruction || state.extraObstruction == tryMoveTo {
+	if obstruction || state.extraObstruction == tryMoveTo {
 		state.guard.orientation = state.guard.orientation.Clockwise()
 	} else {
 		// no obstruction, move to new location
-		visited, _ := state.visited.At(&tryMoveTo)
+		visited, _ := state.visited.AtMut(tryMoveTo)
 
 		if visited.status == Once && visited.direction == state.guard.orientation {
 			// whoops, we've already been to this location moving in this direction
@@ -142,7 +142,7 @@ func initialState(terrain *grid.Grid[bool], guard Guard) State {
 		Bounds: terrain.Bounds,
 		Values: make([]Visited, len(terrain.Values)),
 	}
-	visited.Set(&guard.position, Visited{status: Once, direction: guard.orientation})
+	visited.Set(guard.position, Visited{status: Once, direction: guard.orientation})
 
 	return State{
 		guard:            guard,
@@ -173,10 +173,10 @@ func part2(input Input) int {
 		aheadPos := ahead(&mainState)
 
 		// is the ahead pos empty?
-		obstruction, inBounds := terrain.At(&aheadPos)
-		if inBounds && !*obstruction {
+		obstruction, inBounds := terrain.At(aheadPos)
+		if inBounds && !obstruction {
 			// check if we've already visited this location
-			visited, _ := mainState.visited.At(&aheadPos)
+			visited, _ := mainState.visited.At(aheadPos)
 			if !(visited.status == Once || visited.status == Multiple) {
 				// try running an alternate simulation with an obstruction here
 

@@ -38,40 +38,50 @@ func (grid *Grid[T]) NeighbourForIndex(i int, direction Direction) (int, bool) {
 	// TODO try to implement with a simpler math approach
 	c := grid.Bounds.IndexToCoord(i)
 	n := c.MoveInDirection(direction, 1)
-	if grid.Bounds.Within(&n) {
-		return grid.Bounds.CoordToIndex(&n), true
+	if grid.Bounds.Within(n) {
+		return grid.Bounds.CoordToIndex(n), true
 	} else {
 		return -1, false
 	}
 }
 
-func (bounds *Bounds) CoordToIndex(pos *Coord) int {
+func (bounds Bounds) CoordToIndex(pos Coord) int {
 	return pos.Y*bounds.Width + pos.X
 }
 
-func (bounds *Bounds) IndexToCoord(i int) Coord {
+func (bounds Bounds) IndexToCoord(i int) Coord {
 	y := i / bounds.Width
 	x := i % bounds.Width
 	return MakeCoord(x, y)
 }
 
-func (bounds *Bounds) Within(pos *Coord) bool {
+func (bounds Bounds) Within(pos Coord) bool {
 	return pos.Y >= 0 && pos.Y < bounds.Height && pos.X >= 0 && pos.X < bounds.Width
 }
 
-func (c1 *Coord) Add(c2 *Coord) Coord {
+func (c1 Coord) Add(c2 Coord) Coord {
 	x := c1.X + c2.X
 	y := c1.Y + c2.Y
 	return Coord{x, y}
 }
 
-func (c1 *Coord) Subtract(c2 *Coord) Coord {
+func (c1 Coord) Subtract(c2 Coord) Coord {
 	x := c1.X - c2.X
 	y := c1.Y - c2.Y
 	return Coord{x, y}
 }
 
-func (grid *Grid[T]) At(pos *Coord) (*T, bool) {
+func (grid *Grid[T]) At(pos Coord) (T, bool) {
+	if grid.Bounds.Within(pos) {
+		index := grid.Bounds.CoordToIndex(pos)
+		return grid.Values[index], true
+	} else {
+		var noop T
+		return noop, false
+	}
+}
+
+func (grid *Grid[T]) AtMut(pos Coord) (*T, bool) {
 	if grid.Bounds.Within(pos) {
 		index := grid.Bounds.CoordToIndex(pos)
 		return &grid.Values[index], true
@@ -81,7 +91,7 @@ func (grid *Grid[T]) At(pos *Coord) (*T, bool) {
 	}
 }
 
-func (grid *Grid[T]) Set(pos *Coord, value T) bool {
+func (grid Grid[T]) Set(pos Coord, value T) bool {
 	if grid.Bounds.Within(pos) {
 		index := grid.Bounds.CoordToIndex(pos)
 		grid.Values[index] = value

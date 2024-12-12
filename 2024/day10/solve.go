@@ -25,7 +25,7 @@ func parseInput(input string) grid.Grid[int] {
 	for y, line := range lines {
 		for x, char := range line {
 			pos := grid.MakeCoord(x, y)
-			values[bounds.CoordToIndex(&pos)] = util.RuneToInt(char)
+			values[bounds.CoordToIndex(pos)] = util.RuneToInt(char)
 		}
 	}
 
