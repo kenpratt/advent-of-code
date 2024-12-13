@@ -1,2 +1,0 @@
-- add ability to main to run just one day (or a few provided days), do a few runs and output the benchmarks
-  - like I'm doing now with copy/paste

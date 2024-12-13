@@ -14,12 +14,16 @@ import (
 	"adventofcode/day11"
 	"adventofcode/day12"
 	"adventofcode/day13"
+	"adventofcode/util"
 	"cmp"
 	"flag"
 	"fmt"
 	"os"
 	"slices"
+	"strings"
 	"testing"
+
+	"github.com/samber/lo"
 )
 
 type Day struct {
@@ -45,27 +49,63 @@ func daySpecs() []Day {
 	}
 }
 
+func daySpecsMap() map[string]Day {
+	return lo.Associate(daySpecs(), func(day Day) (string, Day) { return day.name, day })
+}
+
 type Result struct {
 	name string
 	res  testing.BenchmarkResult
 }
 
 func main() {
-	args := os.Args[1:]
-	fmt.Println("running with args", args)
-	// TODO actually do something with args, or remove it?
-
 	// set up benchmarking params
 	testing.Init()
 	flag.Set("test.benchtime", "10x")
 
+	args := os.Args[1:]
+	if len(args) > 0 {
+		days := strings.Split(args[0], ",")
+		times := 1
+
+		if len(args) >= 2 {
+			times = util.StringToInt(args[1])
+		}
+		results := runSome(days, times)
+		printSummary(results, false)
+	} else {
+		results := runAll()
+		printSummary(results, true)
+	}
+}
+
+func runSome(daysToRun []string, times int) []Result {
+	days := daySpecsMap()
+	results := make([]Result, len(daysToRun)*times)
+	for i, dayToRun := range daysToRun {
+		day, ok := days[dayToRun]
+		util.AssertEqual(true, ok)
+
+		for t := 0; t < times; t++ {
+			j := i*times + t
+			results[j] = runDay(day)
+		}
+		slices.SortFunc(results[i*times:(i+1)*times], func(a, b Result) int { return cmp.Compare(a.res.T, b.res.T) })
+	}
+	return results
+}
+
+func runAll() []Result {
 	// benchmark all the days
 	days := daySpecs()
 	results := make([]Result, len(days))
 	for i, day := range days {
 		results[i] = runDay(day)
 	}
+	return results
+}
 
+func printSummary(results []Result, topN bool) {
 	// print summary
 	fmt.Printf("\nSummary:\n")
 	totalNs, totalBytes, totalAllocs := 0, 0, 0
@@ -76,36 +116,38 @@ func main() {
 		totalAllocs += int(day.res.AllocsPerOp())
 	}
 
-	fmt.Printf("\nTotal (per op):\n  Runtime:     %6d ms\n  Memory:      %6d kB\n  Allocations: %6d allocs\n", totalNs/1000000, totalBytes/1000, totalAllocs)
+	fmt.Printf("\nTotal:\n  Runtime:     %6d ms\n  Memory:      %6d kB\n  Allocations: %6d allocs\n", totalNs/1000000, totalBytes/1000, totalAllocs)
 
-	// top 5 by time taken
-	fmt.Printf("\nSlowest:\n")
-	slices.SortFunc(results, func(a, b Result) int {
-		return -cmp.Compare(a.res.NsPerOp(), b.res.NsPerOp())
-	})
-	for i := 0; i < 5; i++ {
-		day := results[i]
-		fmt.Printf("  %s: %6d ms\n", day.name, day.res.NsPerOp()/1000000)
-	}
+	if topN {
+		// top 5 by time taken
+		fmt.Printf("\nSlowest:\n")
+		slices.SortFunc(results, func(a, b Result) int {
+			return -cmp.Compare(a.res.NsPerOp(), b.res.NsPerOp())
+		})
+		for i := 0; i < 5; i++ {
+			day := results[i]
+			fmt.Printf("  %s: %6d ms\n", day.name, day.res.NsPerOp()/1000000)
+		}
 
-	// top 5 by memory used
-	fmt.Printf("\nHighest memory:\n")
-	slices.SortFunc(results, func(a, b Result) int {
-		return -cmp.Compare(a.res.AllocedBytesPerOp(), b.res.AllocedBytesPerOp())
-	})
-	for i := 0; i < 5; i++ {
-		day := results[i]
-		fmt.Printf("  %s: %6d kB\n", day.name, day.res.AllocedBytesPerOp()/1000)
-	}
+		// top 5 by memory used
+		fmt.Printf("\nHighest memory:\n")
+		slices.SortFunc(results, func(a, b Result) int {
+			return -cmp.Compare(a.res.AllocedBytesPerOp(), b.res.AllocedBytesPerOp())
+		})
+		for i := 0; i < 5; i++ {
+			day := results[i]
+			fmt.Printf("  %s: %6d kB\n", day.name, day.res.AllocedBytesPerOp()/1000)
+		}
 
-	// top 5 by memory allocations
-	fmt.Printf("\nHeaviest allocations:\n")
-	slices.SortFunc(results, func(a, b Result) int {
-		return -cmp.Compare(a.res.AllocsPerOp(), b.res.AllocsPerOp())
-	})
-	for i := 0; i < 5; i++ {
-		day := results[i]
-		fmt.Printf("  %s: %6d allocs\n", day.name, day.res.AllocsPerOp())
+		// top 5 by memory allocations
+		fmt.Printf("\nHeaviest allocations:\n")
+		slices.SortFunc(results, func(a, b Result) int {
+			return -cmp.Compare(a.res.AllocsPerOp(), b.res.AllocsPerOp())
+		})
+		for i := 0; i < 5; i++ {
+			day := results[i]
+			fmt.Printf("  %s: %6d allocs\n", day.name, day.res.AllocsPerOp())
+		}
 	}
 }
 
