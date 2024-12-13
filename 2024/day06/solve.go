@@ -57,27 +57,27 @@ const (
 	Looping
 )
 
-func run(terrain *grid.Grid[bool], state *State) Termination {
+func run(terrain *grid.Grid[bool], state *State, cache *grid.NeighbourCache) Termination {
 	for {
-		result, isDone := tick(terrain, state)
+		result, isDone := tick(terrain, state, cache)
 		if isDone {
 			return result
 		}
 	}
 }
 
-func tick(terrain *grid.Grid[bool], state *State) (Termination, bool) {
-	tryMoveTo := ahead(state)
-	obstruction, inBounds := terrain.At(tryMoveTo)
+func tick(terrain *grid.Grid[bool], state *State, cache *grid.NeighbourCache) (Termination, bool) {
+	tryMoveTo, inBounds := ahead(state, cache)
 	if !inBounds {
 		return OutOfBounds, true
 	}
 
+	obstruction := terrain.At(tryMoveTo)
 	if obstruction || state.extraObstruction == tryMoveTo {
 		state.guard.orientation = state.guard.orientation.Clockwise()
 	} else {
 		// no obstruction, move to new location
-		visited, _ := state.visited.AtMut(tryMoveTo)
+		visited := state.visited.AtMut(tryMoveTo)
 
 		switch *visited {
 		case 0:
@@ -104,8 +104,8 @@ func tick(terrain *grid.Grid[bool], state *State) (Termination, bool) {
 	return 0, false
 }
 
-func ahead(state *State) grid.Coord {
-	return state.guard.position.MoveInDirection(state.guard.orientation, 1)
+func ahead(state *State, cache *grid.NeighbourCache) (grid.Coord, bool) {
+	return cache.Neighbour(state.guard.position, state.guard.orientation)
 }
 
 func initialState(terrain *grid.Grid[bool], guard Guard) State {
@@ -118,15 +118,16 @@ func initialState(terrain *grid.Grid[bool], guard Guard) State {
 	return State{
 		guard:            guard,
 		visited:          visited,
-		extraObstruction: grid.MakeCoord(-1, -1),
+		extraObstruction: grid.Coord(-1),
 	}
 }
 
 func part1(input Input) int {
 	terrain, guard := input.terrain, input.guard
 	state := initialState(&terrain, guard)
+	neighbourCache := grid.MakeNeighbourCache(terrain.Bounds)
 
-	result := run(&terrain, &state)
+	result := run(&terrain, &state, &neighbourCache)
 	util.AssertEqual(OutOfBounds, result)
 
 	return lo.CountBy(state.visited.Values, func(visited uint8) bool { return visited > 0 })
@@ -139,15 +140,15 @@ func part2(input Input) int {
 
 	mainState := initialState(&terrain, guard)
 	altState := initialState(&terrain, guard)
+	neighbourCache := grid.MakeNeighbourCache(terrain.Bounds)
 
 	for {
-		aheadPos := ahead(&mainState)
+		aheadPos, inBounds := ahead(&mainState, &neighbourCache)
 
 		// is the ahead pos empty?
-		obstruction, inBounds := terrain.At(aheadPos)
-		if inBounds && !obstruction {
+		if inBounds && !terrain.At(aheadPos) {
 			// check if we've already visited this location
-			visited, _ := mainState.visited.At(aheadPos)
+			visited := mainState.visited.At(aheadPos)
 			if visited == 0 {
 				// try running an alternate simulation with an obstruction here
 
@@ -157,14 +158,14 @@ func part2(input Input) int {
 				altState.extraObstruction = aheadPos
 
 				// run and see if the result is a loop
-				res := run(&terrain, &altState)
+				res := run(&terrain, &altState, &neighbourCache)
 				if res == Looping {
 					loops++
 				}
 			}
 		}
 
-		_, isDone := tick(&terrain, &mainState)
+		_, isDone := tick(&terrain, &mainState, &neighbourCache)
 		if isDone {
 			break
 		}

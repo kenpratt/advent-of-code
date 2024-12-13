@@ -16,12 +16,12 @@ func Solve(path string) {
 	util.AssertEqual(873584, part2(input))
 }
 
-func parseInput(input string) []Region {
+func parseInput(input string) []RegionMetadata {
 	plots := grid.Parse(input, func(c rune, _ grid.Coord) rune {
 		return c
 	})
 	solver := MakeSolver(plots)
-	return solver.Regions()
+	return solver.GenerateMetadata()
 }
 
 type Solver struct {
@@ -40,6 +40,12 @@ type Edge struct {
 	facing grid.Direction
 }
 
+type RegionMetadata struct {
+	area      int
+	perimeter int
+	sides     int
+}
+
 func MakeSolver(plots grid.Grid[rune]) Solver {
 	explored := grid.Grid[bool]{
 		Bounds: plots.Bounds,
@@ -50,40 +56,39 @@ func MakeSolver(plots grid.Grid[rune]) Solver {
 	}
 }
 
-func (solver *Solver) Regions() []Region {
-	regions := make([]Region, 0)
+func (solver *Solver) GenerateMetadata() []RegionMetadata {
+	bounds := solver.plots.Bounds
+	result := make([]RegionMetadata, 0)
 	toExpand := stack.NewStack[grid.Coord](8)
 
 	// visit each plot
-	for i, kind := range solver.plots.Values {
-		if solver.explored.Values[i] {
+	for pos, kind := range solver.plots.Iter() {
+		if solver.explored.At(pos) {
 			// we've already explored this one, skip it
 			continue
 		}
-		solver.explored.Values[i] = true
+		solver.explored.Set(pos, true)
 
 		// start a new region
-		pos := solver.plots.Bounds.IndexToCoord(i)
 		region := MakeRegion(kind, pos, &solver.plots, &toExpand)
 
 		// fully expand the region
 		for toExpand.Len() > 0 {
 			expand := toExpand.Pop()
-			expandi := solver.plots.Bounds.CoordToIndex(expand)
-			if !solver.explored.Values[expandi] {
-				solver.explored.Values[expandi] = true
+			if !solver.explored.At(expand) {
+				solver.explored.Set(expand, true)
 				region.Add(expand, &solver.plots, &toExpand)
 			}
 		}
 
 		// set the perimeter
-		region.CalculatePerimeter()
+		region.CalculatePerimeter(bounds)
 
 		// add the region
-		regions = append(regions, region)
+		result = append(result, region.CalculateMetadata(bounds))
 	}
 
-	return regions
+	return result
 }
 
 func MakeRegion(kind rune, pos grid.Coord, plots *grid.Grid[rune], toExpand *stack.Stack[grid.Coord]) Region {
@@ -100,27 +105,27 @@ func (region *Region) Add(pos grid.Coord, plots *grid.Grid[rune], toExpand *stac
 	if region.area.Contains(pos) {
 		return
 	}
-	if posKind, _ := plots.At(pos); region.kind != posKind {
+	if posKind := plots.At(pos); region.kind != posKind {
 		panic("Trying to add a point to region of a mismatched kind")
 	}
 
 	region.area.Add(pos)
 	for n := range plots.IterNeighbours(pos) {
-		nKind, _ := plots.At(n)
+		nKind := plots.At(n)
 		if region.kind == nKind {
 			toExpand.Push(n)
 		}
 	}
 }
 
-func (region *Region) CalculatePerimeter() {
+func (region *Region) CalculatePerimeter(bounds grid.Bounds) {
 	edges := set.NewSet[Edge]()
 
 	for pos := range region.area.Iter() {
 		for _, d := range grid.Directions() {
-			n := pos.MoveInDirection(d, 1)
-			if !region.area.Contains(n) {
-				edges.Add(Edge{n, d})
+			n, inBounds := bounds.MoveInDirection(pos, d, 1)
+			if !(inBounds && region.area.Contains(n)) {
+				edges.Add(Edge{pos, d})
 			}
 		}
 	}
@@ -128,39 +133,57 @@ func (region *Region) CalculatePerimeter() {
 	region.perimeter = edges
 }
 
-func (edge Edge) Neighbours() [2]Edge {
+func (edge Edge) NeighbourBefore(bounds grid.Bounds) (Edge, bool) {
 	switch edge.facing {
 	case grid.North, grid.South:
-		// vertical edge, check left and right
-		left := edge.MoveInDirection(grid.West)
-		right := edge.MoveInDirection(grid.East)
-		return [2]Edge{left, right}
+		// vertical edge
+		return edge.MoveInDirection(grid.West, bounds)
 	case grid.West, grid.East:
-		// horizontal edge, check above and below
-		above := edge.MoveInDirection(grid.North)
-		below := edge.MoveInDirection(grid.South)
-		return [2]Edge{above, below}
+		// horizontal edge
+		return edge.MoveInDirection(grid.North, bounds)
 	default:
 		panic("Unreachable")
 	}
 }
 
-func (edge Edge) MoveInDirection(d grid.Direction) Edge {
-	return Edge{
-		edge.pos.MoveInDirection(d, 1),
-		edge.facing,
+func (edge Edge) NeighbourAfter(bounds grid.Bounds) (Edge, bool) {
+	switch edge.facing {
+	case grid.North, grid.South:
+		// vertical edge
+		return edge.MoveInDirection(grid.East, bounds)
+	case grid.West, grid.East:
+		// horizontal edge
+		return edge.MoveInDirection(grid.South, bounds)
+	default:
+		panic("Unreachable")
 	}
 }
 
-func (region *Region) NumSides() int {
+func (edge Edge) MoveInDirection(d grid.Direction, bounds grid.Bounds) (Edge, bool) {
+	pos, inBounds := bounds.MoveInDirection(edge.pos, d, 1)
+	if inBounds {
+		return Edge{
+			pos,
+			edge.facing,
+		}, true
+	} else {
+		return Edge{
+			-1,
+			0,
+		}, false
+	}
+}
+
+func (region *Region) NumSides(bounds grid.Bounds) int {
 	perimeter := region.perimeter
 
 	neighbourCount := 0
 	for edge := range region.perimeter.Iter() {
-		for _, n := range edge.Neighbours() {
-			if perimeter.Contains(n) {
-				neighbourCount++
-			}
+		if n, ok := edge.NeighbourBefore(bounds); ok && perimeter.Contains(n) {
+			neighbourCount++
+		}
+		if n, ok := edge.NeighbourAfter(bounds); ok && perimeter.Contains(n) {
+			neighbourCount++
 		}
 	}
 
@@ -169,24 +192,26 @@ func (region *Region) NumSides() int {
 	return perimeter.Len() - neighbourCount/2
 }
 
-func (region *Region) Price() int {
-	area := region.area.Len()
-	perimeter := region.perimeter.Len()
-	price := area * perimeter
-	return price
+func (region *Region) CalculateMetadata(bounds grid.Bounds) RegionMetadata {
+	return RegionMetadata{
+		area:      region.area.Len(),
+		perimeter: region.perimeter.Len(),
+		sides:     region.NumSides(bounds),
+	}
 }
 
-func (region *Region) BulkPrice() int {
-	area := region.area.Len()
-	sides := region.NumSides()
-	price := area * sides
-	return price
+func (region *RegionMetadata) Price() int {
+	return region.area * region.perimeter
 }
 
-func part1(regions []Region) int {
-	return lo.SumBy(regions, func(region Region) int { return region.Price() })
+func (region *RegionMetadata) BulkPrice() int {
+	return region.area * region.sides
 }
 
-func part2(regions []Region) int {
-	return lo.SumBy(regions, func(region Region) int { return region.BulkPrice() })
+func part1(regions []RegionMetadata) int {
+	return lo.SumBy(regions, func(r RegionMetadata) int { return r.Price() })
+}
+
+func part2(regions []RegionMetadata) int {
+	return lo.SumBy(regions, func(r RegionMetadata) int { return r.BulkPrice() })
 }

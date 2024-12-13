@@ -41,12 +41,9 @@ func part1(ws WordSearch) int {
 	result := 0
 	for _, x := range ws.xCoords {
 		for _, offset := range directions {
-			m := x.Add(offset)
-			if c, f := ws.grid.At(m); f && c == 'M' {
-				a := m.Add(offset)
-				if c, f := ws.grid.At(a); f && c == 'A' {
-					s := a.Add(offset)
-					if c, f := ws.grid.At(s); f && c == 'S' {
+			if m, ok := ws.grid.AddOffset(x, offset); ok && ws.grid.At(m) == 'M' {
+				if a, ok := ws.grid.AddOffset(m, offset); ok && ws.grid.At(a) == 'A' {
+					if s, ok := ws.grid.AddOffset(a, offset); ok && ws.grid.At(s) == 'S' {
 						result++
 					}
 				}
@@ -57,22 +54,27 @@ func part1(ws WordSearch) int {
 }
 
 func part2(ws WordSearch) int {
-	ulo := grid.MakeCoord(-1, -1)
-	uro := grid.MakeCoord(1, -1)
-	dlo := grid.MakeCoord(-1, 1)
-	dro := grid.MakeCoord(1, 1)
+	ulo := grid.MakeOffset(-1, -1)
+	uro := grid.MakeOffset(1, -1)
+	dlo := grid.MakeOffset(-1, 1)
+	dro := grid.MakeOffset(1, 1)
 
 	result := 0
 	for _, a := range ws.aCoords {
-		ulc := a.Add(ulo)
-		urc := a.Add(uro)
-		dlc := a.Add(dlo)
-		drc := a.Add(dro)
+		var ul, ur, dl, dr rune
 
-		ul, _ := ws.grid.At(ulc)
-		ur, _ := ws.grid.At(urc)
-		dl, _ := ws.grid.At(dlc)
-		dr, _ := ws.grid.At(drc)
+		if ulc, ok := ws.grid.AddOffset(a, ulo); ok {
+			ul = ws.grid.At(ulc)
+		}
+		if urc, ok := ws.grid.AddOffset(a, uro); ok {
+			ur = ws.grid.At(urc)
+		}
+		if dlc, ok := ws.grid.AddOffset(a, dlo); ok {
+			dl = ws.grid.At(dlc)
+		}
+		if drc, ok := ws.grid.AddOffset(a, dro); ok {
+			dr = ws.grid.At(drc)
+		}
 
 		if ((ul == 'M' && dr == 'S') || (ul == 'S' && dr == 'M')) && ((ur == 'M' && dl == 'S') || (ur == 'S' && dl == 'M')) {
 			result++

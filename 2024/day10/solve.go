@@ -23,23 +23,23 @@ func part1(topo grid.Grid[int]) int {
 	directions := grid.Directions()
 
 	// lookup by height
-	heightIndices := make(map[int][]int)
-	for i, height := range topo.Values {
-		heightIndices[height] = append(heightIndices[height], i)
+	heightIndices := make(map[int][]grid.Coord)
+	for pos, height := range topo.Iter() {
+		heightIndices[height] = append(heightIndices[height], pos)
 	}
 
 	score := 0
 
 	// follow each trailhead
 	for _, trailhead := range heightIndices[0] {
-		openSet := set.NewSet[int](trailhead)
+		openSet := set.NewSet[grid.Coord](trailhead)
 
 		// for each height, find the unique positions it leads to
 		for height := 1; height < 10; height++ {
-			nextOpenSet := set.NewSet[int]()
-			for i := range openSet.Iter() {
+			nextOpenSet := set.NewSet[grid.Coord]()
+			for pos := range openSet.Iter() {
 				for _, d := range directions {
-					n, inBounds := topo.NeighbourForIndex(i, d)
+					n, inBounds := topo.Neighbour(pos, d)
 					if inBounds && topo.Values[n] == height {
 						nextOpenSet.Add(n)
 					}
@@ -58,9 +58,9 @@ func part2(topo grid.Grid[int]) int {
 	directions := grid.Directions()
 
 	// lookup by height
-	heightIndices := make(map[int][]int)
-	for i, height := range topo.Values {
-		heightIndices[height] = append(heightIndices[height], i)
+	heightIndices := make(map[int][]grid.Coord)
+	for pos, height := range topo.Iter() {
+		heightIndices[height] = append(heightIndices[height], pos)
 	}
 
 	// scores per location
@@ -73,11 +73,11 @@ func part2(topo grid.Grid[int]) int {
 
 	// now go from 8 down to 0, calculating scores
 	for height := 8; height >= 0; height-- {
-		for _, i := range heightIndices[height] {
+		for _, pos := range heightIndices[height] {
 			for _, d := range directions {
-				n, inBounds := topo.NeighbourForIndex(i, d)
+				n, inBounds := topo.Neighbour(pos, d)
 				if inBounds && topo.Values[n] == height+1 {
-					scores[i] += scores[n]
+					scores[pos] += scores[n]
 				}
 			}
 		}
