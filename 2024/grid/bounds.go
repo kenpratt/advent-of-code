@@ -7,6 +7,10 @@ type Bounds struct {
 	Height int
 }
 
+func MakeBounds(width, height int) Bounds {
+	return Bounds{width, height}
+}
+
 func (bounds *Bounds) Size() int {
 	return bounds.Width * bounds.Height
 }
@@ -45,13 +49,16 @@ func (bounds *Bounds) Compose(x, y int) (Coord, bool) {
 	} else {
 		return Coord(-1), false
 	}
-
 }
 
 func (bounds *Bounds) Decompose(pos Coord) (int, int) {
 	x := int(pos) % bounds.Width
 	y := int(pos) / bounds.Width
 	return x, y
+}
+
+func (bounds *Bounds) Neighbour(pos Coord, d Direction) (Coord, bool) {
+	return bounds.MoveInDirection(pos, d, 1)
 }
 
 func (bounds *Bounds) MoveInDirection(pos Coord, d Direction, distance int) (Coord, bool) {

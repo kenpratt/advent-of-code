@@ -11,7 +11,7 @@ func Solve(path string) {
 	inputStr := util.ReadInputFile(path)
 	input := parseInput(inputStr)
 	util.AssertEqual(214400550, part1(input))
-	util.AssertEqual(0, part2(input))
+	util.AssertEqual(8149, part2(input))
 }
 
 type RobotSpec struct {
@@ -40,6 +40,12 @@ func calcVal(p, v, t, len int) int {
 	return r
 }
 
+func calcPos(spec RobotSpec, t int, width int, height int) (int, int) {
+	x := calcVal(spec.px, spec.vx, t, width)
+	y := calcVal(spec.py, spec.vy, t, height)
+	return x, y
+}
+
 func part1(specs []RobotSpec, extra ...int) int {
 	rounds := 100
 	width := 101
@@ -57,8 +63,7 @@ func part1(specs []RobotSpec, extra ...int) int {
 	my := height / 2
 
 	for _, spec := range specs {
-		x := calcVal(spec.px, spec.vx, rounds, width)
-		y := calcVal(spec.py, spec.vy, rounds, height)
+		x, y := calcPos(spec, rounds, width, height)
 
 		switch {
 		case x < mx && y < my:
@@ -76,5 +81,58 @@ func part1(specs []RobotSpec, extra ...int) int {
 }
 
 func part2(specs []RobotSpec) int {
-	return 0
+	width := 101
+	height := 103
+
+	state := State{
+		round:  0,
+		width:  width,
+		height: height,
+		robots: specs,
+		xCount: make([]int, width),
+		yCount: make([]int, height),
+	}
+
+	// search until we find a score that is way bigger than the start
+	target := state.tick() * 5 / 2
+	for {
+		score := state.tick()
+		if score >= target {
+			// winner winner chicken dinner
+			return state.round
+		}
+	}
+}
+
+type State struct {
+	round  int
+	width  int
+	height int
+	robots []RobotSpec
+	xCount []int
+	yCount []int
+}
+
+func (s *State) tick() int {
+	// clear previous state
+	clear(s.xCount)
+	clear(s.yCount)
+
+	// update robots
+	for i := range s.robots {
+		r := &s.robots[i]
+
+		// update position
+		r.px = (r.px + r.vx + s.width) % s.width
+		r.py = (r.py + r.vy + s.height) % s.height
+
+		// record counts per row/col
+		s.xCount[r.px]++
+		s.yCount[r.py]++
+	}
+
+	s.round++
+
+	// calculate score as highest density column + row
+	return lo.Max(s.xCount) + lo.Max(s.yCount)
 }

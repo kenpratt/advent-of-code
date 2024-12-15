@@ -53,6 +53,12 @@ func ParseBoundsAndCoords(input string, parse func(rune, Coord)) Bounds {
 	return bounds
 }
 
+func MakeGrid[T any](width, height int) Grid[T] {
+	bounds := Bounds{Width: width, Height: height}
+	values := make([]T, bounds.Size())
+	return Grid[T]{bounds, values}
+}
+
 func (grid *Grid[T]) Clone() Grid[T] {
 	values := make([]T, len(grid.Values))
 	copy(values, grid.Values)
@@ -86,6 +92,10 @@ func (grid *Grid[T]) Iter() iter.Seq2[Coord, T] {
 			}
 		}
 	}
+}
+
+func (grid *Grid[T]) Compose(x, y int) (Coord, bool) {
+	return grid.Bounds.Compose(x, y)
 }
 
 func (grid *Grid[T]) Neighbour(pos Coord, direction Direction) (Coord, bool) {
