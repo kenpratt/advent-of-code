@@ -2,6 +2,7 @@ package grid
 
 import (
 	"adventofcode/util"
+	"fmt"
 	"iter"
 	"strings"
 )
@@ -125,4 +126,15 @@ func (grid *Grid[T]) Subtract(c1, c2 Coord) Offset {
 
 func (grid *Grid[T]) SubtractOffset(c Coord, o Offset) (Coord, bool) {
 	return grid.Bounds.SubtractOffset(c, o)
+}
+
+func (grid *Grid[T]) Print(f func(T, Coord) rune) {
+	for y := 0; y < grid.Bounds.Height; y++ {
+		for x := 0; x < grid.Bounds.Width; x++ {
+			pos, _ := grid.Bounds.Compose(x, y)
+			c := f(grid.At(pos), pos)
+			fmt.Printf("%c", c)
+		}
+		fmt.Println()
+	}
 }
