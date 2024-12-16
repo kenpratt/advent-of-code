@@ -39,3 +39,7 @@ func (s *Set[T]) Iter() iter.Seq[T] {
 func (s *Set[T]) Remove(val T) {
 	delete(s.values, val)
 }
+
+func (s *Set[T]) Clear() {
+	clear(s.values)
+}

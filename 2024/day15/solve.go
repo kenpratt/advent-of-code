@@ -3,6 +3,7 @@ package day15
 import (
 	"adventofcode/grid"
 	"adventofcode/set"
+	"adventofcode/stack"
 	"adventofcode/util"
 	"strings"
 )
@@ -105,68 +106,67 @@ func (input Input) widen() (grid.Coord, grid.Grid[Terrain]) {
 type Line struct {
 	offset int
 	tip    grid.Coord
-	st     []*Terrain
 	active bool
 }
 
 func MakeLine(offset int, pos grid.Coord) Line {
-	st := []*Terrain{}
 	return Line{
 		offset: offset,
 		tip:    pos,
-		st:     st,
 		active: true,
 	}
 }
 
-func (line *Line) Push(pos grid.Coord, canvas *grid.Grid[Terrain]) {
-	line.st = append(line.st, canvas.AtMut(pos))
+func (line *Line) Push(pos grid.Coord, val Terrain, canvas *grid.Grid[Terrain], opQueue *stack.Stack[Operation]) {
 	line.tip = pos
-}
-
-func (line *Line) Apply() {
-	for j := len(line.st) - 1; j > 0; j-- {
-		i := j - 1
-		*line.st[j] = *line.st[i]
-	}
-	*line.st[0] = Empty
+	opQueue.Push(Operation{canvas.AtMut(pos), val})
 }
 
 type ApplyState struct {
-	d           grid.Direction
 	canvas      *grid.Grid[Terrain]
-	lines       []*Line
+	robot       grid.Coord
+	lines       stack.Stack[Line]
 	activeLines set.Set[int]
+	opQueue     stack.Stack[Operation]
 }
 
-func MakeApplyState(d grid.Direction, canvas *grid.Grid[Terrain]) ApplyState {
+type Operation struct {
+	cell *Terrain
+	val  Terrain
+}
+
+func MakeApplyState(robot grid.Coord, canvas *grid.Grid[Terrain]) ApplyState {
 	return ApplyState{
-		d:           d,
+		robot:       robot,
 		canvas:      canvas,
-		lines:       []*Line{},
+		lines:       stack.NewStack[Line](16),
 		activeLines: set.NewSet[int](),
+		opQueue:     stack.NewStack[Operation](64),
 	}
 }
 
 func (s *ApplyState) AddLine(offset int, pos grid.Coord) *Line {
 	line := MakeLine(offset, pos)
-	s.lines = append(s.lines, &line)
 	s.activeLines.Add(offset)
-	return &line
+	return s.lines.Push(line)
+}
+
+func (s *ApplyState) Push(line *Line, pos grid.Coord, val Terrain) {
+	line.Push(pos, val, s.canvas, &s.opQueue)
 }
 
 func (s *ApplyState) AnyActive() bool {
 	return s.activeLines.Len() > 0
 }
 
-func (s *ApplyState) AddParallelLine(line *Line, inDir grid.Direction) {
-	if !s.d.Vertical() {
+func (s *ApplyState) AddParallelLine(line *Line, aheadDir grid.Direction, parallelDir grid.Direction) {
+	if !aheadDir.Vertical() {
 		return
 	}
 
 	// we need to push to the right of this block too
 	offset := line.offset
-	switch inDir {
+	switch parallelDir {
 	case grid.West:
 		offset--
 	case grid.East:
@@ -174,48 +174,58 @@ func (s *ApplyState) AddParallelLine(line *Line, inDir grid.Direction) {
 	}
 
 	if !s.activeLines.Contains(offset) {
-		curr, _ := s.canvas.Neighbour(line.tip, inDir) // parallel step
-		ahead, _ := s.canvas.Neighbour(curr, s.d)      // forward step
+		curr, _ := s.canvas.Neighbour(line.tip, parallelDir) // parallel step
+		ahead, _ := s.canvas.Neighbour(curr, aheadDir)       // forward step
 
 		line := s.AddLine(offset, curr)
-		line.Push(ahead, s.canvas)
-	}
 
+		// first push slot will be emptied
+		line.Push(ahead, Empty, s.canvas, &s.opQueue)
+	}
 }
 
-func applyInstruction(d grid.Direction, robot *grid.Coord, canvas *grid.Grid[Terrain]) {
-	state := MakeApplyState(d, canvas)
-	state.AddLine(0, *robot)
+func (s *ApplyState) Clear() {
+	s.lines.Clear()
+	s.activeLines.Clear()
+	s.opQueue.Clear()
+}
+
+func (state *ApplyState) ApplyInstruction(d grid.Direction) {
+	state.AddLine(0, state.robot)
 
 	for state.AnyActive() {
-		for _, line := range state.lines {
+		for line := range state.lines.Iter() {
 			if !line.active {
 				continue
 			}
 
 			curr := line.tip
-			ahead, _ := canvas.Neighbour(curr, d)
-			switch canvas.At(ahead) {
+			currVal := state.canvas.At(curr)
+
+			ahead, _ := state.canvas.Neighbour(curr, d)
+			aheadVal := state.canvas.At(ahead)
+
+			switch aheadVal {
 			case Empty:
 				// we found an empty spot, done
-				line.Push(ahead, canvas)
+				state.Push(line, ahead, currVal)
 				line.active = false
 				state.activeLines.Remove(line.offset)
 			case Box:
 				// keep track of the line of boxes
-				line.Push(ahead, canvas)
+				state.Push(line, ahead, currVal)
 			case WideBoxLeft:
 				// maybe add a parallel push
-				state.AddParallelLine(line, grid.East)
+				state.AddParallelLine(line, d, grid.East)
 
 				// normal push
-				line.Push(ahead, canvas)
+				state.Push(line, ahead, currVal)
 			case WideBoxRight:
 				// maybe add a parallel push
-				state.AddParallelLine(line, grid.West)
+				state.AddParallelLine(line, d, grid.West)
 
 				// normal push
-				line.Push(ahead, canvas)
+				state.Push(line, ahead, currVal)
 			case Wall:
 				// no empty space before a wall, nothing we can do
 				return
@@ -226,12 +236,12 @@ func applyInstruction(d grid.Direction, robot *grid.Coord, canvas *grid.Grid[Ter
 	}
 
 	// push each line of boxes down
-	for _, line := range state.lines {
-		line.Apply()
+	for op := range state.opQueue.Iter() {
+		*op.cell = op.val
 	}
 
 	// move robot
-	*robot, _ = canvas.Neighbour(*robot, d)
+	state.robot, _ = state.canvas.Neighbour(state.robot, d)
 }
 
 func score(canvas *grid.Grid[Terrain]) int {
@@ -269,23 +279,24 @@ func print(robot *grid.Coord, canvas *grid.Grid[Terrain]) {
 	})
 }
 
-func part1(input Input) int {
-	robot := input.robot
-	canvas := input.canvas.Clone()
+func solve(instructions []grid.Direction, robot grid.Coord, canvas grid.Grid[Terrain]) int {
+	state := MakeApplyState(robot, &canvas)
 
-	for _, in := range input.instructions {
-		applyInstruction(in, &robot, &canvas)
+	for _, in := range instructions {
+		state.ApplyInstruction(in)
+		state.Clear()
 	}
 
 	return score(&canvas)
 }
 
+func part1(input Input) int {
+	robot := input.robot
+	canvas := input.canvas.Clone()
+	return solve(input.instructions, robot, canvas)
+}
+
 func part2(input Input) int {
 	robot, canvas := input.widen()
-
-	for _, in := range input.instructions {
-		applyInstruction(in, &robot, &canvas)
-	}
-
-	return score(&canvas)
+	return solve(input.instructions, robot, canvas)
 }
