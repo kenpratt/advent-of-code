@@ -44,3 +44,36 @@ func (d Direction) CounterClockwise() Direction {
 		panic(fmt.Sprintf("Unknown direction: %v", d))
 	}
 }
+
+func (d Direction) Horizontal() bool {
+	switch d {
+	case West, East:
+		return true
+	default:
+		return false
+	}
+}
+
+func (d Direction) Vertical() bool {
+	switch d {
+	case North, South:
+		return true
+	default:
+		return false
+	}
+}
+
+func (d Direction) ToString() string {
+	switch d {
+	case North:
+		return "North"
+	case West:
+		return "West"
+	case South:
+		return "South"
+	case East:
+		return "East"
+	default:
+		panic(fmt.Sprintf("Unknown direction: %v", d))
+	}
+}
