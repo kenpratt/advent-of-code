@@ -35,3 +35,7 @@ func (s *Set[T]) Contains(val T) bool {
 func (s *Set[T]) Iter() iter.Seq[T] {
 	return maps.Keys(s.values)
 }
+
+func (s *Set[T]) Remove(val T) {
+	delete(s.values, val)
+}

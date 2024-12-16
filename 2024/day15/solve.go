@@ -2,6 +2,7 @@ package day15
 
 import (
 	"adventofcode/grid"
+	"adventofcode/set"
 	"adventofcode/util"
 	"strings"
 )
@@ -135,7 +136,7 @@ type ApplyState struct {
 	d           grid.Direction
 	canvas      *grid.Grid[Terrain]
 	lines       []*Line
-	activeLines map[int]bool
+	activeLines set.Set[int]
 }
 
 func MakeApplyState(d grid.Direction, canvas *grid.Grid[Terrain]) ApplyState {
@@ -143,19 +144,19 @@ func MakeApplyState(d grid.Direction, canvas *grid.Grid[Terrain]) ApplyState {
 		d:           d,
 		canvas:      canvas,
 		lines:       []*Line{},
-		activeLines: make(map[int]bool),
+		activeLines: set.NewSet[int](),
 	}
 }
 
 func (s *ApplyState) AddLine(offset int, pos grid.Coord) *Line {
 	line := MakeLine(offset, pos)
 	s.lines = append(s.lines, &line)
-	s.activeLines[offset] = true
+	s.activeLines.Add(offset)
 	return &line
 }
 
 func (s *ApplyState) AnyActive() bool {
-	return len(s.activeLines) > 0
+	return s.activeLines.Len() > 0
 }
 
 func (s *ApplyState) AddParallelLine(line *Line, inDir grid.Direction) {
@@ -172,7 +173,7 @@ func (s *ApplyState) AddParallelLine(line *Line, inDir grid.Direction) {
 		offset++
 	}
 
-	if _, ok := s.activeLines[offset]; !ok {
+	if !s.activeLines.Contains(offset) {
 		curr, _ := s.canvas.Neighbour(line.tip, inDir) // parallel step
 		ahead, _ := s.canvas.Neighbour(curr, s.d)      // forward step
 
@@ -199,7 +200,7 @@ func applyInstruction(d grid.Direction, robot *grid.Coord, canvas *grid.Grid[Ter
 				// we found an empty spot, done
 				line.Push(ahead, canvas)
 				line.active = false
-				delete(state.activeLines, line.offset)
+				state.activeLines.Remove(line.offset)
 			case Box:
 				// keep track of the line of boxes
 				line.Push(ahead, canvas)
