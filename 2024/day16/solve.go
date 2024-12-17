@@ -10,9 +10,9 @@ import (
 
 func Solve(path string) {
 	inputStr := util.ReadInputFile(path)
-	input := parseInput(inputStr)
-	util.AssertEqual(88416, part1(input))
-	util.AssertEqual(442, part2(input))
+	solution := parseInput(inputStr)
+	util.AssertEqual(88416, part1(solution))
+	util.AssertEqual(442, part2(solution))
 }
 
 type Input struct {
@@ -22,10 +22,10 @@ type Input struct {
 	facing grid.Direction
 }
 
-func parseInput(input string) Input {
+func parseInput(s string) Solution {
 	var start, end grid.Coord
 
-	maze := grid.Parse[bool](input, func(c rune, p grid.Coord) bool {
+	maze := grid.Parse[bool](s, func(c rune, p grid.Coord) bool {
 		switch c {
 		case '.':
 			return true
@@ -44,7 +44,8 @@ func parseInput(input string) Input {
 	})
 
 	facing := grid.East
-	return Input{maze, start, end, facing}
+	input := Input{maze, start, end, facing}
+	return solve(input)
 }
 
 type State struct {
@@ -52,7 +53,12 @@ type State struct {
 	facing grid.Direction
 }
 
-func solve(input Input, part2 bool) int {
+type Solution struct {
+	score int
+	paths [][]State
+}
+
+func solve(input Input) Solution {
 	initial := State{input.start, input.facing}
 
 	atGoal := func(s State) bool {
@@ -119,35 +125,26 @@ func solve(input Input, part2 bool) int {
 		return res
 	}
 
-	if !part2 {
-		// part 1, just return the cost of the best solution
-		score, _, ok := astar.Solve(initial, atGoal, heuristic, neighbours, astar.None)
-		if !ok {
-			panic("no solution")
-		}
-		return score
-	} else {
-		// part 2, find all paths with the best cost, and return the number of
-		// unique locations in those paths
-		_, paths, ok := astar.Solve(initial, atGoal, heuristic, neighbours, astar.All)
-		if !ok {
-			panic("no solution")
-		}
-
-		locs := set.NewSet[grid.Coord]()
-		for _, path := range paths {
-			for _, s := range path {
-				locs.Add(s.pos)
-			}
-		}
-		return locs.Len()
+	score, paths, ok := astar.Solve(initial, atGoal, heuristic, neighbours, astar.All)
+	if !ok {
+		panic("no solution")
 	}
+	return Solution{score, paths}
 }
 
-func part1(input Input) int {
-	return solve(input, false)
+func part1(solution Solution) int {
+	// just return the cost of the best solution
+	return solution.score
 }
 
-func part2(input Input) int {
-	return solve(input, true)
+func part2(solution Solution) int {
+	// find all paths with the best cost, and return the number of
+	// unique locations in those paths
+	locs := set.NewSet[grid.Coord]()
+	for _, path := range solution.paths {
+		for _, s := range path {
+			locs.Add(s.pos)
+		}
+	}
+	return locs.Len()
 }
