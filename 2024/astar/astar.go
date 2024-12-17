@@ -4,6 +4,7 @@ import (
 	"adventofcode/pqueue"
 	"adventofcode/stack"
 	"adventofcode/util"
+	"fmt"
 )
 
 type Neighbour[T comparable] struct {
@@ -11,28 +12,69 @@ type Neighbour[T comparable] struct {
 	Cost int
 }
 
-func Solve[T comparable](start T, atGoal func(T) bool, heuristic func(T) int, findNeighbours func(T) []Neighbour[T]) (int, [][]T, bool) {
+type Metadata[T any] struct {
+	gScore   int
+	cameFrom []T
+	ref      *pqueue.Item[T]
+}
+
+func (m *Metadata[T]) setCameFrom(val T, findPath FindPath) {
+	if findPath != None {
+		if m.cameFrom == nil {
+			m.cameFrom = []T{val}
+		} else if len(m.cameFrom) == 1 {
+			m.cameFrom[0] = val
+		} else {
+			m.cameFrom = m.cameFrom[:1]
+			m.cameFrom[0] = val
+		}
+	}
+}
+
+func (m *Metadata[T]) appendCameFrom(val T, findPath FindPath) {
+	if findPath == All {
+		m.cameFrom = append(m.cameFrom, val)
+	}
+}
+
+type FindPath uint8
+
+const (
+	None FindPath = iota
+	One
+	All
+)
+
+const printStats = false
+
+func Solve[T comparable](start T, atGoal func(T) bool, heuristic func(T) int, findNeighbours func(T) []Neighbour[T], findPath FindPath) (int, [][]T, bool) {
 	openSet := pqueue.MakePriorityQueue[T]()
-	cameFrom := make(map[T][]T)
-	gScore := make(map[T]int)
+	metadata := make(map[T]*Metadata[T])
 
 	// add start
-	gScore[start] = 0
-	openSet.Push(start, heuristic(start))
+	startRef := openSet.Push(start, heuristic(start))
+	metadata[start] = &Metadata[T]{gScore: 0, ref: startRef}
 
 	// solutions
-	winningScore := 0
+	winningScore := -1
 	winners := []T{}
 
+	iters := 0
 	for openSet.Len() > 0 {
-		curr := openSet.Pop()
-		currG := gScore[curr]
+		iters++
+		curr, currF := openSet.Pop()
+		currG := metadata[curr].gScore
+
+		if winningScore != -1 && currF > winningScore {
+			// can't have any more winners, since F is <= G by definition
+			break
+		}
 
 		if atGoal(curr) {
 			// success!
 
 			// if this isn't the first solution, check if the solutions are getting worse
-			if len(winners) > 0 {
+			if winningScore != -1 {
 				if currG > winningScore {
 					// this solution is worse -- halt
 					break
@@ -50,19 +92,35 @@ func Solve[T comparable](start T, atGoal func(T) bool, heuristic func(T) int, fi
 			for _, neighbour := range neighbours {
 				n, nCost := neighbour.Val, neighbour.Cost
 				tentativeG := currG + nCost
-				g, ok := gScore[n]
-				if !ok || tentativeG < g {
-					// either first path to neighbour, or better than a previous path
-					cameFrom[n] = []T{curr}
-					gScore[n] = tentativeG
+				nm, ok := metadata[n]
+
+				if !ok {
+					// first path to this node
 					fScore := tentativeG + heuristic(n)
-					openSet.Push(n, fScore)
-				} else if tentativeG == g {
-					// an equivalent approach to the current path to neighbour
-					cameFrom[n] = append(cameFrom[n], curr)
+					ref := openSet.Push(n, fScore)
+					nm := Metadata[T]{gScore: tentativeG, ref: ref}
+					nm.setCameFrom(curr, findPath)
+					metadata[n] = &nm
+				} else if tentativeG < nm.gScore {
+					// found something better than the previous path
+
+					// update metadata with new score/path
+					nm.setCameFrom(curr, findPath)
+					nm.gScore = tentativeG
+
+					// reprioritize n in openSet
+					fScore := tentativeG + heuristic(n)
+					openSet.Reprioritize(nm.ref, fScore)
+				} else if tentativeG == nm.gScore {
+					// equivalent approach to the previous path to neighbour
+					nm.appendCameFrom(curr, findPath)
 				}
 			}
 		}
+	}
+
+	if printStats {
+		fmt.Printf("astar stats:\n  iters: %d\n  metadata: %d\n  remaining open set: %d\n", iters, len(metadata), openSet.Len())
 	}
 
 	if len(winners) == 0 {
@@ -71,13 +129,15 @@ func Solve[T comparable](start T, atGoal func(T) bool, heuristic func(T) int, fi
 
 	// reconstruct paths to winners and add to the solution
 	paths := [][]T{}
-	for _, s := range winners {
-		paths = append(paths, reconstructPath(cameFrom, s)...)
+	if findPath != None {
+		for _, s := range winners {
+			paths = append(paths, reconstructPath(metadata, s)...)
+		}
 	}
 	return winningScore, paths, true
 }
 
-func reconstructPath[T comparable](cameFrom map[T][]T, last T) [][]T {
+func reconstructPath[T comparable](metadata map[T]*Metadata[T], last T) [][]T {
 	openSet := stack.NewStack[[]T](1)
 	openSet.Push([]T{last})
 
@@ -86,8 +146,9 @@ func reconstructPath[T comparable](cameFrom map[T][]T, last T) [][]T {
 	for openSet.Len() > 0 {
 		path := openSet.Pop()
 		curr := path[len(path)-1]
-		prevs, ok := cameFrom[curr]
-		if ok {
+		m, ok := metadata[curr]
+		if ok && len(m.cameFrom) > 0 {
+			prevs := m.cameFrom
 			for i, prev := range prevs {
 				if i < len(prevs)-1 {
 					// need to make a copy

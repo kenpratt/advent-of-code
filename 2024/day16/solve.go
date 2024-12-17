@@ -60,7 +60,44 @@ func solve(input Input, part2 bool) int {
 	}
 
 	heuristic := func(s State) int {
-		return input.maze.Bounds.ManhattanDistance(s.pos, input.end)
+		px, py := input.maze.Bounds.Decompose(s.pos)
+		ex, ey := input.maze.Bounds.Decompose(input.end)
+
+		rotations := 0
+
+		if px < ex {
+			switch s.facing {
+			case grid.North, grid.South:
+				rotations++
+			case grid.West:
+				rotations += 2
+			}
+		} else if px > ex {
+			switch s.facing {
+			case grid.North, grid.South:
+				rotations++
+			case grid.East:
+				rotations += 2
+			}
+		}
+
+		if py < ey {
+			switch s.facing {
+			case grid.West, grid.East:
+				rotations++
+			case grid.North:
+				rotations += 2
+			}
+		} else if py > ey {
+			switch s.facing {
+			case grid.West, grid.East:
+				rotations++
+			case grid.South:
+				rotations += 2
+			}
+		}
+
+		return input.maze.Bounds.ManhattanDistance(s.pos, input.end) + rotations*1000
 	}
 
 	neighbours := func(s State) []astar.Neighbour[State] {
@@ -84,7 +121,7 @@ func solve(input Input, part2 bool) int {
 
 	if !part2 {
 		// part 1, just return the cost of the best solution
-		score, _, ok := astar.Solve(initial, atGoal, heuristic, neighbours)
+		score, _, ok := astar.Solve(initial, atGoal, heuristic, neighbours, astar.None)
 		if !ok {
 			panic("no solution")
 		}
@@ -92,7 +129,7 @@ func solve(input Input, part2 bool) int {
 	} else {
 		// part 2, find all paths with the best cost, and return the number of
 		// unique locations in those paths
-		_, paths, ok := astar.Solve(initial, atGoal, heuristic, neighbours)
+		_, paths, ok := astar.Solve(initial, atGoal, heuristic, neighbours, astar.All)
 		if !ok {
 			panic("no solution")
 		}

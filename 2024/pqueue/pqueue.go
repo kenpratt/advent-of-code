@@ -14,18 +14,24 @@ func MakePriorityQueue[T any]() PriorityQueue[T] {
 	return PriorityQueue[T]{data}
 }
 
-func (pq *PriorityQueue[T]) Push(val T, priority int) {
+func (pq *PriorityQueue[T]) Push(val T, priority int) *Item[T] {
 	item := Item[T]{value: val, priority: priority}
 	heap.Push(&pq.data, &item)
+	return &item
 }
 
-func (pq *PriorityQueue[T]) Pop() T {
+func (pq *PriorityQueue[T]) Pop() (T, int) {
 	item := heap.Pop(&pq.data).(*Item[T])
-	return item.value
+	return item.value, item.priority
 }
 
 func (pq *PriorityQueue[T]) Len() int {
 	return pq.data.Len()
+}
+
+func (pq *PriorityQueue[T]) Reprioritize(item *Item[T], priority int) {
+	item.priority = priority
+	heap.Fix(&pq.data, item.index)
 }
 
 // from https://pkg.go.dev/container/heap#example-package-PriorityQueue
