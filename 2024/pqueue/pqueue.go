@@ -2,7 +2,6 @@ package pqueue
 
 import (
 	"container/heap"
-	"fmt"
 )
 
 type PriorityQueue[T any] struct {
@@ -27,14 +26,6 @@ func (pq *PriorityQueue[T]) Pop() T {
 
 func (pq *PriorityQueue[T]) Len() int {
 	return pq.data.Len()
-}
-
-// TODO remove
-func (pq *PriorityQueue[T]) Print() {
-	fmt.Println("PQ:")
-	for _, it := range pq.data {
-		fmt.Println("  ", *it)
-	}
 }
 
 // from https://pkg.go.dev/container/heap#example-package-PriorityQueue

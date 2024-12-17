@@ -3,6 +3,7 @@ package day16
 import (
 	"adventofcode/astar"
 	"adventofcode/grid"
+	"adventofcode/set"
 	"adventofcode/util"
 	"fmt"
 )
@@ -11,7 +12,7 @@ func Solve(path string) {
 	inputStr := util.ReadInputFile(path)
 	input := parseInput(inputStr)
 	util.AssertEqual(88416, part1(input))
-	util.AssertEqual(0, part2(input))
+	util.AssertEqual(442, part2(input))
 }
 
 type Input struct {
@@ -51,10 +52,10 @@ type State struct {
 	facing grid.Direction
 }
 
-func part1(input Input) int {
+func solve(input Input, part2 bool) int {
 	initial := State{input.start, input.facing}
 
-	atGoal := func(s State, g int) bool {
+	atGoal := func(s State) bool {
 		return s.pos == input.end
 	}
 
@@ -62,11 +63,11 @@ func part1(input Input) int {
 		return input.maze.Bounds.ManhattanDistance(s.pos, input.end)
 	}
 
-	neighbours := func(s State) []util.Tuple[State, int] {
+	neighbours := func(s State) []astar.Neighbour[State] {
 		// we can always rotate CW/CCW at cost 1000
-		res := []util.Tuple[State, int]{
-			util.MakeTuple(State{s.pos, s.facing.Clockwise()}, 1000),
-			util.MakeTuple(State{s.pos, s.facing.CounterClockwise()}, 1000),
+		res := []astar.Neighbour[State]{
+			{Val: State{s.pos, s.facing.Clockwise()}, Cost: 1000},
+			{Val: State{s.pos, s.facing.CounterClockwise()}, Cost: 1000},
 		}
 
 		// can we move forward?
@@ -74,20 +75,42 @@ func part1(input Input) int {
 			// not a wall?
 			if input.maze.At(ahead) {
 				// we can move ahead at cost 1
-				res = append(res, util.MakeTuple(State{ahead, s.facing}, 1))
+				res = append(res, astar.Neighbour[State]{Val: State{ahead, s.facing}, Cost: 1})
 			}
 		}
 
 		return res
 	}
 
-	solution, ok := astar.Solve(initial, atGoal, heuristic, neighbours)
-	if !ok {
-		panic("no solution")
+	if !part2 {
+		// part 1, just return the cost of the best solution
+		score, _, ok := astar.Solve(initial, atGoal, heuristic, neighbours)
+		if !ok {
+			panic("no solution")
+		}
+		return score
+	} else {
+		// part 2, find all paths with the best cost, and return the number of
+		// unique locations in those paths
+		_, paths, ok := astar.Solve(initial, atGoal, heuristic, neighbours)
+		if !ok {
+			panic("no solution")
+		}
+
+		locs := set.NewSet[grid.Coord]()
+		for _, path := range paths {
+			for _, s := range path {
+				locs.Add(s.pos)
+			}
+		}
+		return locs.Len()
 	}
-	return solution
+}
+
+func part1(input Input) int {
+	return solve(input, false)
 }
 
 func part2(input Input) int {
-	return 0
+	return solve(input, true)
 }
