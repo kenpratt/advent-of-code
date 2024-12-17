@@ -1,6 +1,9 @@
 package grid
 
-import "fmt"
+import (
+	"adventofcode/util"
+	"fmt"
+)
 
 type Bounds struct {
 	Width  int
@@ -78,4 +81,10 @@ func (bounds *Bounds) MoveInDirection(pos Coord, d Direction, distance int) (Coo
 	}
 
 	return bounds.Compose(x, y)
+}
+
+func (bounds *Bounds) ManhattanDistance(p1 Coord, p2 Coord) int {
+	x1, y1 := bounds.Decompose(p1)
+	x2, y2 := bounds.Decompose(p2)
+	return util.AbsDiff(x1, x2) + util.AbsDiff(y1, y2)
 }
