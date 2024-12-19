@@ -45,7 +45,7 @@ func parseInput(s string) Solution {
 
 	facing := grid.East
 	input := Input{maze, start, end, facing}
-	return solve(input)
+	return solve(&input)
 }
 
 type State struct {
@@ -58,78 +58,86 @@ type Solution struct {
 	paths [][]State
 }
 
-func solve(input Input) Solution {
-	initial := State{input.start, input.facing}
+type Solver struct {
+	input *Input
+}
 
-	atGoal := func(s State) bool {
-		return s.pos == input.end
+func (r *Solver) AtGoal(s State) bool {
+	return s.pos == r.input.end
+}
+
+func (r *Solver) Heuristic(s State) int {
+	px, py := r.input.maze.Bounds.Decompose(s.pos)
+	ex, ey := r.input.maze.Bounds.Decompose(r.input.end)
+
+	rotations := 0
+
+	if px < ex {
+		switch s.facing {
+		case grid.North, grid.South:
+			rotations++
+		case grid.West:
+			rotations += 2
+		}
+	} else if px > ex {
+		switch s.facing {
+		case grid.North, grid.South:
+			rotations++
+		case grid.East:
+			rotations += 2
+		}
 	}
 
-	heuristic := func(s State) int {
-		px, py := input.maze.Bounds.Decompose(s.pos)
-		ex, ey := input.maze.Bounds.Decompose(input.end)
-
-		rotations := 0
-
-		if px < ex {
-			switch s.facing {
-			case grid.North, grid.South:
-				rotations++
-			case grid.West:
-				rotations += 2
-			}
-		} else if px > ex {
-			switch s.facing {
-			case grid.North, grid.South:
-				rotations++
-			case grid.East:
-				rotations += 2
-			}
+	if py < ey {
+		switch s.facing {
+		case grid.West, grid.East:
+			rotations++
+		case grid.North:
+			rotations += 2
 		}
-
-		if py < ey {
-			switch s.facing {
-			case grid.West, grid.East:
-				rotations++
-			case grid.North:
-				rotations += 2
-			}
-		} else if py > ey {
-			switch s.facing {
-			case grid.West, grid.East:
-				rotations++
-			case grid.South:
-				rotations += 2
-			}
+	} else if py > ey {
+		switch s.facing {
+		case grid.West, grid.East:
+			rotations++
+		case grid.South:
+			rotations += 2
 		}
-
-		return input.maze.Bounds.ManhattanDistance(s.pos, input.end) + rotations*1000
 	}
 
-	neighbours := func(s State) []astar.Neighbour[State] {
-		// we can always rotate CW/CCW at cost 1000
-		res := []astar.Neighbour[State]{
-			{Val: State{s.pos, s.facing.Clockwise()}, Cost: 1000},
-			{Val: State{s.pos, s.facing.CounterClockwise()}, Cost: 1000},
-		}
+	return r.input.maze.Bounds.ManhattanDistance(s.pos, r.input.end) + rotations*1000
+}
 
-		// can we move forward?
-		if ahead, ok := input.maze.Neighbour(s.pos, s.facing); ok {
-			// not a wall?
-			if input.maze.At(ahead) {
-				// we can move ahead at cost 1
-				res = append(res, astar.Neighbour[State]{Val: State{ahead, s.facing}, Cost: 1})
-			}
-		}
-
-		return res
+func (r *Solver) Neighbours(s State) []astar.Neighbour[State] {
+	// we can always rotate CW/CCW at cost 1000
+	res := []astar.Neighbour[State]{
+		{Val: State{s.pos, s.facing.Clockwise()}, Cost: 1000},
+		{Val: State{s.pos, s.facing.CounterClockwise()}, Cost: 1000},
 	}
 
-	score, paths, ok := astar.Solve(initial, atGoal, heuristic, neighbours, astar.All)
+	// can we move forward?
+	if ahead, ok := r.input.maze.Neighbour(s.pos, s.facing); ok {
+		// not a wall?
+		if r.input.maze.At(ahead) {
+			// we can move ahead at cost 1
+			res = append(res, astar.Neighbour[State]{Val: State{ahead, s.facing}, Cost: 1})
+		}
+	}
+
+	return res
+}
+
+func (r *Solver) Run() Solution {
+	initial := State{r.input.start, r.input.facing}
+	score, paths, ok := astar.Solve(initial, r, astar.All)
 	if !ok {
 		panic("no solution")
 	}
 	return Solution{score, paths}
+}
+
+func solve(input *Input) Solution {
+	r := Solver{input}
+	return r.Run()
 }
 
 func part1(solution Solution) int {

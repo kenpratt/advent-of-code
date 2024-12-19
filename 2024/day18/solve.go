@@ -44,30 +44,34 @@ func parseInput(input string, extra ...int) Input {
 
 var directions = grid.Directions()
 
-func minimumSteps(memory *grid.Grid[bool], start grid.Coord, end grid.Coord) (int, bool) {
-	initial := start
+type MinimumSteps struct {
+	memory *grid.Grid[bool]
+	start  grid.Coord
+	end    grid.Coord
+}
 
-	atGoal := func(pos grid.Coord) bool {
-		return pos == end
-	}
+func (s *MinimumSteps) AtGoal(pos grid.Coord) bool {
+	return pos == s.end
+}
 
-	heuristic := func(pos grid.Coord) int {
-		return memory.Bounds.ManhattanDistance(pos, end)
-	}
+func (s *MinimumSteps) Heuristic(pos grid.Coord) int {
+	return s.memory.Bounds.ManhattanDistance(pos, s.end)
+}
 
-	neighbours := func(pos grid.Coord) []astar.Neighbour[grid.Coord] {
-		return lo.FilterMap(directions[:], func(d grid.Direction, _ int) (astar.Neighbour[grid.Coord], bool) {
-			n, ok := memory.Neighbour(pos, d)
-			if ok && !memory.At(n) {
-				// neighbour is in-bounds and not corrupted
-				return astar.Neighbour[grid.Coord]{Val: n, Cost: 1}, true
-			} else {
-				return astar.Neighbour[grid.Coord]{}, false
-			}
-		})
-	}
+func (s *MinimumSteps) Neighbours(pos grid.Coord) []astar.Neighbour[grid.Coord] {
+	return lo.FilterMap(directions[:], func(d grid.Direction, _ int) (astar.Neighbour[grid.Coord], bool) {
+		n, ok := s.memory.Neighbour(pos, d)
+		if ok && !s.memory.At(n) {
+			// neighbour is in-bounds and not corrupted
+			return astar.Neighbour[grid.Coord]{Val: n, Cost: 1}, true
+		} else {
+			return astar.Neighbour[grid.Coord]{}, false
+		}
+	})
+}
 
-	score, _, ok := astar.Solve(initial, atGoal, heuristic, neighbours, astar.None)
+func (s *MinimumSteps) Run() (int, bool) {
+	score, _, ok := astar.Solve(s.start, s, astar.None)
 	return score, ok
 }
 
@@ -83,7 +87,9 @@ func minimumStepsAfterNFallen(input *Input, fallen int) (int, bool) {
 	width := memory.Bounds.Width
 	start, _ := memory.Bounds.Compose(0, 0)
 	end, _ := memory.Bounds.Compose(width-1, width-1)
-	return minimumSteps(memory, start, end)
+
+	solver := MinimumSteps{memory, start, end}
+	return solver.Run()
 }
 
 func part1(input Input, extra ...int) int {

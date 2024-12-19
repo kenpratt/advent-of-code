@@ -7,6 +7,12 @@ import (
 	"fmt"
 )
 
+type ClientInterface[T comparable] interface {
+	AtGoal(val T) bool
+	Heuristic(val T) int
+	Neighbours(val T) []Neighbour[T]
+}
+
 type Neighbour[T comparable] struct {
 	Val  T
 	Cost int
@@ -47,12 +53,14 @@ const (
 
 const printStats = false
 
-func Solve[T comparable](start T, atGoal func(T) bool, heuristic func(T) int, findNeighbours func(T) []Neighbour[T], findPath FindPath) (int, [][]T, bool) {
+func Solve[T comparable](start T, impli interface{}, findPath FindPath) (int, [][]T, bool) {
+	impl := impli.(ClientInterface[T])
+
 	openSet := pqueue.MakePriorityQueue[T]()
 	metadata := make(map[T]*Metadata[T])
 
 	// add start
-	startRef := openSet.Push(start, heuristic(start))
+	startRef := openSet.Push(start, impl.Heuristic(start))
 	metadata[start] = &Metadata[T]{gScore: 0, ref: startRef}
 
 	// solutions
@@ -70,7 +78,7 @@ func Solve[T comparable](start T, atGoal func(T) bool, heuristic func(T) int, fi
 			break
 		}
 
-		if atGoal(curr) {
+		if impl.AtGoal(curr) {
 			// success!
 
 			// if this isn't the first solution, check if the solutions are getting worse
@@ -87,7 +95,7 @@ func Solve[T comparable](start T, atGoal func(T) bool, heuristic func(T) int, fi
 			// add to winner
 			winners = append(winners, curr)
 		} else {
-			neighbours := findNeighbours(curr)
+			neighbours := impl.Neighbours(curr)
 
 			for _, neighbour := range neighbours {
 				n, nCost := neighbour.Val, neighbour.Cost
@@ -96,7 +104,7 @@ func Solve[T comparable](start T, atGoal func(T) bool, heuristic func(T) int, fi
 
 				if !ok {
 					// first path to this node
-					fScore := tentativeG + heuristic(n)
+					fScore := tentativeG + impl.Heuristic(n)
 					ref := openSet.Push(n, fScore)
 					nm := Metadata[T]{gScore: tentativeG, ref: ref}
 					nm.setCameFrom(curr, findPath)
@@ -109,7 +117,7 @@ func Solve[T comparable](start T, atGoal func(T) bool, heuristic func(T) int, fi
 					nm.gScore = tentativeG
 
 					// reprioritize n in openSet
-					fScore := tentativeG + heuristic(n)
+					fScore := tentativeG + impl.Heuristic(n)
 					openSet.Reprioritize(nm.ref, fScore)
 				} else if tentativeG == nm.gScore {
 					// equivalent approach to the previous path to neighbour
