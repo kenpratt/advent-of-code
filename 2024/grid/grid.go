@@ -69,6 +69,10 @@ func (grid *Grid[T]) Clone() Grid[T] {
 	}
 }
 
+func (grid *Grid[T]) Clear() {
+	clear(grid.Values)
+}
+
 func (grid *Grid[T]) Len() int {
 	return len(grid.Values)
 }

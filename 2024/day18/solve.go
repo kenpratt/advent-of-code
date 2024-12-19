@@ -4,6 +4,7 @@ import (
 	"adventofcode/astar"
 	"adventofcode/grid"
 	"adventofcode/util"
+	"fmt"
 	"strings"
 
 	"github.com/samber/lo"
@@ -12,8 +13,8 @@ import (
 func Solve(path string) {
 	inputStr := util.ReadInputFile(path)
 	input := parseInput(inputStr)
-	util.AssertEqual(2264607, part1(input))
-	util.AssertEqual(19457120, part2(input))
+	util.AssertEqual(272, part1(input))
+	util.AssertEqual("16,44", part2(input))
 }
 
 type Input struct {
@@ -43,7 +44,7 @@ func parseInput(input string, extra ...int) Input {
 
 var directions = grid.Directions()
 
-func minimumSteps(memory *grid.Grid[bool], start grid.Coord, end grid.Coord) int {
+func minimumSteps(memory *grid.Grid[bool], start grid.Coord, end grid.Coord) (int, bool) {
 	initial := start
 
 	atGoal := func(pos grid.Coord) bool {
@@ -67,21 +68,12 @@ func minimumSteps(memory *grid.Grid[bool], start grid.Coord, end grid.Coord) int
 	}
 
 	score, _, ok := astar.Solve(initial, atGoal, heuristic, neighbours, astar.None)
-	if !ok {
-		panic("no solution")
-	}
-
-	return score
+	return score, ok
 }
 
-func part1(input Input, extra ...int) int {
-	fallen := 1024
-	memory := input.memory.Clone()
-
-	// for tests
-	if len(extra) > 0 {
-		fallen = extra[0]
-	}
+func minimumStepsAfterNFallen(input *Input, fallen int) (int, bool) {
+	memory := &input.memory
+	memory.Clear()
 
 	// set corrupted locations
 	for _, p := range input.bytes[0:fallen] {
@@ -91,9 +83,40 @@ func part1(input Input, extra ...int) int {
 	width := memory.Bounds.Width
 	start, _ := memory.Bounds.Compose(0, 0)
 	end, _ := memory.Bounds.Compose(width-1, width-1)
-	return minimumSteps(&memory, start, end)
+	return minimumSteps(memory, start, end)
 }
 
-func part2(input Input) int {
-	return 0
+func part1(input Input, extra ...int) int {
+	fallen := 1024
+
+	// for tests
+	if len(extra) > 0 {
+		fallen = extra[0]
+	}
+
+	steps, ok := minimumStepsAfterNFallen(&input, fallen)
+	util.AssertEqual(true, ok)
+	return steps
+}
+
+func part2(input Input) string {
+	// binary search to find the first number of bits fallen with no exit
+	l := 0
+	r := len(input.bytes)
+	for {
+		m := (l + r) / 2
+
+		_, ok := minimumStepsAfterNFallen(&input, m)
+		if ok {
+			l = m + 1
+		} else {
+			r = m - 1
+		}
+
+		if l == r {
+			p := input.bytes[l-1]
+			x, y := input.memory.Bounds.Decompose(p)
+			return fmt.Sprintf("%d,%d", x, y)
+		}
+	}
 }
