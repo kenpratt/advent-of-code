@@ -91,11 +91,11 @@ func solve(input *Input, maxCheatLength int, extra ...int) int {
 	for i := 0; i < len(mainPath)-1; i++ {
 		// for each pos, find nearby spots later along the path
 		pos := mainPath[i]
-		px, py := input.track.Bounds.Decompose(pos)
+		px, py := pathIndices.Bounds.Decompose(pos)
 
 		// x search range
 		fromX := max(px-maxCheatLength, 0)
-		toX := min(px+maxCheatLength, input.track.Bounds.Width-1)
+		toX := min(px+maxCheatLength, pathIndices.Bounds.Width-1)
 		for cx := fromX; cx <= toX; cx++ {
 			// clamp into diamond shape (the further we are from px, the less we need to explore y)
 			dx := util.AbsDiff(px, cx)
@@ -103,23 +103,20 @@ func solve(input *Input, maxCheatLength int, extra ...int) int {
 
 			// y search range
 			fromY := max(py-dy, 0)
-			toY := min(py+dy, input.track.Bounds.Height-1)
+			toY := min(py+dy, pathIndices.Bounds.Height-1)
 			for cy := fromY; cy <= toY; cy++ {
-				c, ok := input.track.Bounds.Compose(cx, cy)
-				util.AssertEqual(true, ok)
+				// this is a bit faster than bounds.Compose(cx, cy)
+				c := grid.Coord(int(pos) + (cx - px) + (cy-py)*pathIndices.Bounds.Width)
 
-				// is c passable?
-				if input.track.At(c) {
-					// and is it further ahead in the path? not behind?
-					j := pathIndices.At(c)
-					if j > i {
-						// okay cool, then it's a shortcut
-						shortcut := util.AbsDiff(px, cx) + util.AbsDiff(py, cy)
-						usual := j - i
-						saved := usual - shortcut
-						if saved > 0 {
-							cheats[saved]++
-						}
+				// is j further ahead in the path? not behind?
+				j := pathIndices.At(c)
+				if j > i {
+					// okay cool, then it's a shortcut
+					shortcut := util.AbsDiff(px, cx) + util.AbsDiff(py, cy)
+					usual := j - i
+					saved := usual - shortcut
+					if saved > 0 {
+						cheats[saved]++
 					}
 				}
 			}
