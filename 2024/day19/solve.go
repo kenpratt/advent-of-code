@@ -24,16 +24,16 @@ func parseInput(input string) []int {
 	designs := strings.Split(parts[1], "\n")
 
 	towelSet := set.NewSet(towels...)
-	return lo.Map(designs, func(design string, _ int) int { return possibleArrangements(design, &towelSet) })
+	toTry := pqueue.MakePriorityQueue[int](40)
+	return lo.Map(designs, func(design string, _ int) int { return possibleArrangements(design, &towelSet, &toTry) })
 }
 
-func possibleArrangements(design string, towels *set.Set[string]) int {
+func possibleArrangements(design string, towels *set.Set[string], toTry *pqueue.PriorityQueue[int]) int {
 	designWidth := len(design)
+	toTry.Clear()
 
 	tried := make([]bool, designWidth+1)
 	connectsTo := make([][]int, designWidth)
-
-	toTry := pqueue.MakePriorityQueue[int]()
 
 	minWidth, maxWidth := 1000, 0
 	for t := range towels.Iter() {

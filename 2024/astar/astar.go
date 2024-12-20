@@ -53,13 +53,22 @@ const (
 
 const printStats = false
 
-func Solve[T comparable](start T, impl ClientInterface[T], findPath FindPath) (int, [][]T, bool) {
-	openSet := pqueue.MakePriorityQueue[T]()
-	metadata := make(map[T]*Metadata[T])
+func Solve[T comparable](start T, impl ClientInterface[T], findPath FindPath, extra ...int) (int, [][]T, bool) {
+	// two extra params to tune openSet and metadata initial capacity
+	openSetCapacity := 100
+	metadataCapacity := 1000
+	if len(extra) > 0 {
+		openSetCapacity = extra[0]
+		metadataCapacity = extra[1]
+	}
+
+	openSet := pqueue.MakePriorityQueue[T](openSetCapacity)
+	metadata := make(map[T]*Metadata[T], metadataCapacity)
 
 	// add start
 	startRef := openSet.Push(start, impl.Heuristic(start))
 	metadata[start] = &Metadata[T]{gScore: 0, ref: startRef}
+	maxMetadataSize := len(metadata) // for tuning openSet size
 
 	// solutions
 	winningScore := -1
@@ -107,6 +116,7 @@ func Solve[T comparable](start T, impl ClientInterface[T], findPath FindPath) (i
 					nm := Metadata[T]{gScore: tentativeG, ref: ref}
 					nm.setCameFrom(curr, findPath)
 					metadata[n] = &nm
+					maxMetadataSize = max(maxMetadataSize, len(metadata))
 				} else if tentativeG < nm.gScore {
 					// found something better than the previous path
 
@@ -126,7 +136,7 @@ func Solve[T comparable](start T, impl ClientInterface[T], findPath FindPath) (i
 	}
 
 	if printStats {
-		fmt.Printf("astar stats:\n  iters: %d\n  metadata: %d\n  remaining open set: %d\n", iters, len(metadata), openSet.Len())
+		fmt.Printf("astar stats:\n  iters: %d\n  metadata: %d\n  remaining open set: %d\n  open set max size: %d\n  metadata max size: %d\n", iters, len(metadata), openSet.Len(), openSet.MaxSize, maxMetadataSize)
 	}
 
 	if len(winners) == 0 {

@@ -128,7 +128,7 @@ func (r *Solver) Neighbours(s State) []astar.Neighbour[State] {
 
 func (r *Solver) Run() Solution {
 	initial := State{r.input.start, r.input.facing}
-	score, paths, ok := astar.Solve(initial, r, astar.All)
+	score, paths, ok := astar.Solve(initial, r, astar.All, 700, 37000)
 	if !ok {
 		panic("no solution")
 	}

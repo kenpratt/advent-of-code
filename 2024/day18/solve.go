@@ -71,7 +71,7 @@ func (s *MinimumSteps) Neighbours(pos grid.Coord) []astar.Neighbour[grid.Coord] 
 }
 
 func (s *MinimumSteps) Run() (int, bool) {
-	score, _, ok := astar.Solve(s.start, s, astar.None)
+	score, _, ok := astar.Solve(s.start, s, astar.None, 200, 4000)
 	return score, ok
 }
 
