@@ -53,9 +53,7 @@ const (
 
 const printStats = false
 
-func Solve[T comparable](start T, impli interface{}, findPath FindPath) (int, [][]T, bool) {
-	impl := impli.(ClientInterface[T])
-
+func Solve[T comparable](start T, impl ClientInterface[T], findPath FindPath) (int, [][]T, bool) {
 	openSet := pqueue.MakePriorityQueue[T]()
 	metadata := make(map[T]*Metadata[T])
 
