@@ -12,7 +12,7 @@ func Solve(path string) {
 	inputStr := util.ReadInputFile(path)
 	input := parseInput(inputStr)
 	util.AssertEqual(1518, part1(input))
-	util.AssertEqual(0, part2(input))
+	util.AssertEqual(1032257, part2(input))
 }
 
 type Input struct {
@@ -72,13 +72,13 @@ func nonCheatingPath(input *Input) []grid.Coord {
 	return path
 }
 
-func part1(input Input, extra ...int) int {
+func solve(input *Input, maxLength int, extra ...int) int {
 	saveAtLeast := 100
 	if len(extra) > 0 {
 		saveAtLeast = extra[0]
 	}
 
-	mainPath := nonCheatingPath(&input)
+	mainPath := nonCheatingPath(input)
 
 	// catalog the cheats
 	cheats := make([]int, len(mainPath)-1)
@@ -86,7 +86,7 @@ func part1(input Input, extra ...int) int {
 		for j := i + 1; j < len(mainPath); j++ {
 			// how much time would we need for this cheat?
 			shortcut := input.track.Bounds.ManhattanDistance(mainPath[i], mainPath[j])
-			if shortcut <= 2 {
+			if shortcut <= maxLength {
 				usual := j - i
 				saved := usual - shortcut
 				if saved > 0 {
@@ -99,6 +99,10 @@ func part1(input Input, extra ...int) int {
 	return lo.Sum(cheats[saveAtLeast:])
 }
 
-func part2(input Input) int {
-	return 0
+func part1(input Input, extra ...int) int {
+	return solve(&input, 2, extra...)
+}
+
+func part2(input Input, extra ...int) int {
+	return solve(&input, 20, extra...)
 }
