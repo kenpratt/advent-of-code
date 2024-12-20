@@ -72,7 +72,7 @@ func nonCheatingPath(input *Input) []grid.Coord {
 	return path
 }
 
-func solve(input *Input, maxLength int, extra ...int) int {
+func solve(input *Input, maxCheatLength int, extra ...int) int {
 	saveAtLeast := 100
 	if len(extra) > 0 {
 		saveAtLeast = extra[0]
@@ -80,17 +80,47 @@ func solve(input *Input, maxLength int, extra ...int) int {
 
 	mainPath := nonCheatingPath(input)
 
+	// grid used as lookup table for pos -> path index
+	pathIndices := grid.MakeGrid[int](input.track.Bounds.Width, input.track.Bounds.Height)
+	for i, pos := range mainPath {
+		pathIndices.Set(pos, i)
+	}
+
 	// catalog the cheats
 	cheats := make([]int, len(mainPath)-1)
 	for i := 0; i < len(mainPath)-1; i++ {
-		for j := i + 1; j < len(mainPath); j++ {
-			// how much time would we need for this cheat?
-			shortcut := input.track.Bounds.ManhattanDistance(mainPath[i], mainPath[j])
-			if shortcut <= maxLength {
-				usual := j - i
-				saved := usual - shortcut
-				if saved > 0 {
-					cheats[saved]++
+		// for each pos, find nearby spots later along the path
+		pos := mainPath[i]
+		px, py := input.track.Bounds.Decompose(pos)
+
+		// x search range
+		fromX := max(px-maxCheatLength, 0)
+		toX := min(px+maxCheatLength, input.track.Bounds.Width-1)
+		for cx := fromX; cx <= toX; cx++ {
+			// clamp into diamond shape (the further we are from px, the less we need to explore y)
+			dx := util.AbsDiff(px, cx)
+			dy := maxCheatLength - dx
+
+			// y search range
+			fromY := max(py-dy, 0)
+			toY := min(py+dy, input.track.Bounds.Height-1)
+			for cy := fromY; cy <= toY; cy++ {
+				c, ok := input.track.Bounds.Compose(cx, cy)
+				util.AssertEqual(true, ok)
+
+				// is c passable?
+				if input.track.At(c) {
+					// and is it further ahead in the path? not behind?
+					j := pathIndices.At(c)
+					if j > i {
+						// okay cool, then it's a shortcut
+						shortcut := util.AbsDiff(px, cx) + util.AbsDiff(py, cy)
+						usual := j - i
+						saved := usual - shortcut
+						if saved > 0 {
+							cheats[saved]++
+						}
+					}
 				}
 			}
 		}
