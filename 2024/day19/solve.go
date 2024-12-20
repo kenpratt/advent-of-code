@@ -13,27 +13,26 @@ func Solve(path string) {
 	inputStr := util.ReadInputFile(path)
 	input := parseInput(inputStr)
 	util.AssertEqual(338, part1(input))
-	util.AssertEqual(0, part2(input))
+	util.AssertEqual(841533074412361, part2(input))
 }
 
-type Input struct {
-	towels  []string
-	designs []string
-}
-
-func parseInput(input string) Input {
+func parseInput(input string) []int {
 	parts := strings.Split(input, "\n\n")
 	util.AssertEqual(2, len(parts))
 
 	towels := strings.Split(parts[0], ", ")
 	designs := strings.Split(parts[1], "\n")
-	return Input{towels, designs}
+
+	towelSet := set.NewSet(towels...)
+	return lo.Map(designs, func(design string, _ int) int { return possibleArrangements(design, &towelSet) })
 }
 
-func isPossible(design string, towels *set.Set[string]) bool {
+func possibleArrangements(design string, towels *set.Set[string]) int {
 	designWidth := len(design)
 
 	tried := make([]bool, designWidth+1)
+	connectsTo := make([][]int, designWidth)
+
 	toTry := pqueue.MakePriorityQueue[int]()
 
 	minWidth, maxWidth := 1000, 0
@@ -45,7 +44,7 @@ func isPossible(design string, towels *set.Set[string]) bool {
 	// start with index 0
 	toTry.Push(0, 0)
 
-	// keep going until we either find a solution, or we run out of options
+	// build up a map of where we can go from each location
 	for toTry.Len() > 0 {
 		i, _ := toTry.Pop()
 		if tried[i] {
@@ -53,6 +52,7 @@ func isPossible(design string, towels *set.Set[string]) bool {
 		}
 
 		tried[i] = true
+		connectsTo[i] = make([]int, 0)
 
 		for width := minWidth; width <= maxWidth; width++ {
 			j := i + width
@@ -61,31 +61,41 @@ func isPossible(design string, towels *set.Set[string]) bool {
 				continue
 			}
 
-			if tried[j] {
-				// we already tried this length so there's no point even checking if it works
-				continue
-			}
-
 			if towels.Contains(design[i:j]) {
+				connectsTo[i] = append(connectsTo[i], j)
+
 				if j == designWidth {
 					// we made it to the end!
-					return true
 				} else {
 					// we can progress further
-					toTry.Push(j, -j) // -j because we want the biggest value first
+					if !tried[j] {
+						toTry.Push(j, -j) // -j because we want the biggest value first
+					} else {
+						// we already tried this length so there's no point revisiting it
+					}
 				}
 			}
 		}
 	}
 
-	return false
+	scoring := make([]int, designWidth+1)
+	scoring[0] = 1
+	for i := 0; i < designWidth; i++ {
+		if tried[i] {
+			score := scoring[i]
+			for _, j := range connectsTo[i] {
+				scoring[j] += score
+			}
+		}
+	}
+
+	return scoring[designWidth]
 }
 
-func part1(input Input) int {
-	towels := set.NewSet(input.towels...)
-	return lo.CountBy(input.designs, func(design string) bool { return isPossible(design, &towels) })
+func part1(arrangements []int) int {
+	return lo.CountBy(arrangements, func(n int) bool { return n > 0 })
 }
 
-func part2(input Input) int {
-	return 0
+func part2(arrangements []int) int {
+	return lo.Sum(arrangements)
 }
