@@ -45,6 +45,21 @@ func (d Direction) CounterClockwise() Direction {
 	}
 }
 
+func (d Direction) Reverse() Direction {
+	switch d {
+	case North:
+		return South
+	case East:
+		return West
+	case South:
+		return North
+	case West:
+		return East
+	default:
+		panic(fmt.Sprintf("Unknown direction: %v", d))
+	}
+}
+
 func (d Direction) Horizontal() bool {
 	switch d {
 	case West, East:

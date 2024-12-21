@@ -88,3 +88,27 @@ func (bounds *Bounds) ManhattanDistance(p1 Coord, p2 Coord) int {
 	x2, y2 := bounds.Decompose(p2)
 	return util.AbsDiff(x1, x2) + util.AbsDiff(y1, y2)
 }
+
+func (bounds *Bounds) IsOnLine(p1 Coord, p2 Coord, m Coord) bool {
+	x1, y1 := bounds.Decompose(p1)
+	x2, y2 := bounds.Decompose(p2)
+	xm, ym := bounds.Decompose(m)
+
+	if x1 == xm && xm == x2 {
+		// same x, check if ym is in between
+		if y1 <= y2 {
+			return y1 <= ym && ym <= y2
+		} else {
+			return y2 <= ym && ym <= y1
+		}
+	} else if y1 == ym && ym == y2 {
+		// same y, check if xm is in between
+		if x1 <= x2 {
+			return x1 <= xm && xm <= x2
+		} else {
+			return x2 <= xm && xm <= x1
+		}
+	} else {
+		return false
+	}
+}
