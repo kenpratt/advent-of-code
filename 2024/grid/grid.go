@@ -142,3 +142,40 @@ func (grid *Grid[T]) Print(f func(T, Coord) rune) {
 		fmt.Println()
 	}
 }
+
+func (grid *Grid[T]) ForLinearPath(from Coord, to Coord, do func(Coord) bool) bool {
+	x1, y1 := grid.Bounds.Decompose(from)
+	x2, y2 := grid.Bounds.Decompose(to)
+
+	var steps, incr int
+	if y1 == y2 {
+		// horizontal line
+		if x1 < x2 {
+			steps = x2 - x1
+			incr = 1
+		} else {
+			steps = x1 - x2
+			incr = -1
+		}
+	} else if x1 == x2 {
+		// vertical line
+		if y1 < y2 {
+			steps = y2 - y1
+			incr = grid.Bounds.Width
+		} else {
+			steps = y1 - y2
+			incr = -grid.Bounds.Width
+		}
+	} else {
+		panic(fmt.Sprintf("IterLine expects the two points to be on a straight line: %v, %v", from, to))
+	}
+
+	for i := 0; i < steps; i++ {
+		ok := do(Coord(int(from) + (i+1)*incr))
+		if !ok {
+			return false
+		}
+	}
+
+	return true
+}

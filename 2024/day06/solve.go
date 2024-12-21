@@ -62,21 +62,21 @@ const (
 	Looping
 )
 
-func run(terrain *grid.Grid[bool], state *State, neighbourCache *grid.NeighbourCache, obstructionCache *ObstructionCache) Termination {
+func run(terrain *grid.Grid[bool], state *State, obstructionCache *ObstructionCache) Termination {
 	for {
-		result, isDone := tick(terrain, state, neighbourCache, obstructionCache)
+		result, isDone := tick(terrain, state, obstructionCache)
 		if isDone {
 			return result
 		}
 	}
 }
 
-func tick(terrain *grid.Grid[bool], state *State, neighbourCache *grid.NeighbourCache, obstructionCache *ObstructionCache) (Termination, bool) {
+func tick(terrain *grid.Grid[bool], state *State, obstructionCache *ObstructionCache) (Termination, bool) {
 	// move to just before the next obstruction
-	beforeObstruction, isObstructed := state.NextObstruction(terrain, neighbourCache, obstructionCache)
+	beforeObstruction, isObstructed := state.NextObstruction(terrain, obstructionCache)
 
 	// mark the path along the way as visited
-	status, terminated := state.MarkPathVisited(state.guard.position, beforeObstruction, state.guard.orientation, neighbourCache)
+	status, terminated := state.MarkPathVisited(state.guard.position, beforeObstruction, state.guard.orientation, terrain)
 	if terminated {
 		return status, true
 	}
@@ -94,14 +94,9 @@ func tick(terrain *grid.Grid[bool], state *State, neighbourCache *grid.Neighbour
 	}
 }
 
-func (s *State) MarkPathVisited(from grid.Coord, to grid.Coord, d grid.Direction, neighbourCache *grid.NeighbourCache) (Termination, bool) {
-	for pos := from; pos != to; {
-		n, inBounds := neighbourCache.Neighbour(pos, d)
-		if !inBounds {
-			panic("expected visited path to all be in bounds")
-		}
-
-		visited := s.visited.AtMut(n)
+func (s *State) MarkPathVisited(from grid.Coord, to grid.Coord, d grid.Direction, terrain *grid.Grid[bool]) (Termination, bool) {
+	ok := terrain.ForLinearPath(from, to, func(pos grid.Coord) bool {
+		visited := s.visited.AtMut(pos)
 		switch *visited {
 		case 0:
 			// special case - never visited
@@ -113,16 +108,19 @@ func (s *State) MarkPathVisited(from grid.Coord, to grid.Coord, d grid.Direction
 		case uint8(d):
 			// second visit, in the same orientation
 			// whoops, we've already been to this location moving in this direction
-			return Looping, true
+			return false
 		default:
 			// second visit, different orientation
 			*visited = 5 // special case, 5 represents multiple visits
 		}
+		return true
+	})
 
-		pos = n
+	if !ok {
+		return Looping, true
+	} else {
+		return 0, false
 	}
-
-	return 0, false
 }
 
 type ObstructionCache struct {
@@ -194,11 +192,11 @@ func (cache *ObstructionCache) NextObstruction(pos grid.Coord, d grid.Direction)
 	return val.prev, val.obstruction, val.isObstructed
 }
 
-func (s *State) NextObstruction(terrain *grid.Grid[bool], neighbourCache *grid.NeighbourCache, obstructionCache *ObstructionCache) (grid.Coord, bool) {
+func (s *State) NextObstruction(terrain *grid.Grid[bool], obstructionCache *ObstructionCache) (grid.Coord, bool) {
 	beforeObstruction, _, isObstructed := obstructionCache.NextObstruction(s.guard.position, s.guard.orientation)
 	if terrain.Bounds.IsOnLine(s.guard.position, beforeObstruction, s.extraObstruction) {
 		// special case, the extra obstruction is in the way
-		beforeExtraObstruction, _ := neighbourCache.Neighbour(s.extraObstruction, s.guard.orientation.Reverse())
+		beforeExtraObstruction, _ := terrain.Neighbour(s.extraObstruction, s.guard.orientation.Reverse())
 		return beforeExtraObstruction, true
 	} else {
 		return beforeObstruction, isObstructed
@@ -223,7 +221,7 @@ func part1(input Input) int {
 	terrain, guard := input.terrain, input.guard
 	state := initialState(&terrain, guard)
 
-	result := run(&terrain, &state, &input.neighbourCache, &input.obstructionCache)
+	result := run(&terrain, &state, &input.obstructionCache)
 	util.AssertEqual(OutOfBounds, result)
 
 	return lo.CountBy(state.visited.Values, func(visited uint8) bool { return visited > 0 })
@@ -234,7 +232,6 @@ func part2(input Input) int {
 
 	loops := 0
 
-	neighbourCache := &input.neighbourCache
 	obstructionCache := &input.obstructionCache
 
 	mainState := initialState(&terrain, guard)
@@ -248,7 +245,7 @@ func part2(input Input) int {
 
 		// check all the points between here and the next obstruction OR edge of map, to see if we want to insert a new one
 		for pos := initialPos; pos != lastPassable; {
-			ahead, inBounds := neighbourCache.Neighbour(pos, d)
+			ahead, inBounds := terrain.Neighbour(pos, d)
 
 			// check if we've already visited this location
 			if inBounds && mainState.visited.At(ahead) == 0 {
@@ -263,7 +260,7 @@ func part2(input Input) int {
 					altState.extraObstruction = ahead
 
 					// run and see if the result is a loop
-					res := run(&terrain, &altState, neighbourCache, obstructionCache)
+					res := run(&terrain, &altState, obstructionCache)
 					if res == Looping {
 						loops++
 					}
@@ -273,7 +270,7 @@ func part2(input Input) int {
 			pos = ahead
 		}
 
-		_, isDone := tick(&terrain, &mainState, neighbourCache, obstructionCache)
+		_, isDone := tick(&terrain, &mainState, obstructionCache)
 		if isDone {
 			break
 		}
