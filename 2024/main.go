@@ -79,7 +79,7 @@ type Result struct {
 func main() {
 	// set up benchmarking params
 	testing.Init()
-	flag.Set("test.benchtime", "30x")
+	flag.Set("test.benchtime", "10x")
 
 	args := os.Args[1:]
 	if len(args) > 0 {

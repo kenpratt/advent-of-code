@@ -7,12 +7,17 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const example = `1
+const example1 = `1
 10
 100
 2024`
 
-var expectedFor123 = [10]int{
+const example2 = `1
+2
+3
+2024`
+
+var expectedFor123 = [10]uint32{
 	15887950,
 	16495136,
 	527345,
@@ -33,7 +38,7 @@ func TestNthSecretNumber(t *testing.T) {
 
 func TestPart1Example(t *testing.T) {
 	expected := 37327623
-	input := parseInput(example)
+	input := parseInput(example1)
 	actual := part1(input)
 	assert.Equal(t, expected, actual)
 }
@@ -45,15 +50,29 @@ func TestPart1Input(t *testing.T) {
 	assert.Equal(t, expected, actual)
 }
 
+func TestCalculatePricesAndChanges(t *testing.T) {
+	expected := map[[4]int8]uint8{
+		{-3, 6, -1, -1}: 4,
+		{-2, 0, -2, 2}:  4,
+		{-1, -1, 0, 2}:  6,
+		{-1, 0, 2, -2}:  4,
+		{0, 2, -2, 0}:   4,
+		{2, -2, 0, -2}:  2,
+		{6, -1, -1, 0}:  4,
+	}
+	actual := calculatePriceChangeSequences(123, 10)
+	assert.Equal(t, expected, actual)
+}
+
 func TestPart2Example(t *testing.T) {
-	expected := 0
-	input := parseInput(example)
+	expected := 23
+	input := parseInput(example2)
 	actual := part2(input)
 	assert.Equal(t, expected, actual)
 }
 
 func TestPart2Input(t *testing.T) {
-	expected := 0
+	expected := 1667
 	input := parseInput(util.ReadInputFile("."))
 	actual := part2(input)
 	assert.Equal(t, expected, actual)
