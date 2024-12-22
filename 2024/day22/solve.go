@@ -82,8 +82,8 @@ func part1(initial []uint32) int {
 }
 
 func part2(initial []uint32) int {
-	combined := make(map[[4]int8]uint16)
-	seen := make(map[[4]int8]struct{})
+	combined := make(map[[4]int8]uint16, 23000)
+	seen := make(map[[4]int8]struct{}, 4000)
 
 	for _, n := range initial {
 		clear(seen)
