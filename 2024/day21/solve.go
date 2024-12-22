@@ -11,7 +11,7 @@ func Solve(path string) {
 	inputStr := util.ReadInputFile(path)
 	input := parseInput(inputStr)
 	util.AssertEqual(219366, part1(input))
-	util.AssertEqual(0, part2(input))
+	util.AssertEqual(271631192020464, part2(input))
 }
 
 func parseInput(input string) [][4]Numpad {
@@ -99,6 +99,10 @@ type DpadStep struct {
 	times  uint8
 }
 
+type DpadMove struct {
+	from, to Dpad
+}
+
 func (n Dpad) gapRow() uint8 {
 	return 1
 }
@@ -127,7 +131,7 @@ func (n Dpad) col() uint8 {
 	}
 }
 
-func robotPath(from, to Pad) []DpadStep {
+func robotPath(from, to Pad) ([]DpadMove, int) {
 	fromRow := from.row()
 	toRow := to.row()
 	fromCol := from.col()
@@ -167,8 +171,16 @@ func robotPath(from, to Pad) []DpadStep {
 		} else {
 			verticalFirst = true
 		}
+	} else if vertical.button == Up && vertical.times > 0 {
+		// similarly for moving down, prefer it first unless it puts us in the hole
+		if toRow == from.gapRow() && fromCol == 0 {
+			// moving up first would put us in a hole
+			verticalFirst = false
+		} else {
+			verticalFirst = true
+		}
 	} else {
-		// doesn't matter
+		// otherwise, doesn't matter
 		verticalFirst = true
 	}
 
@@ -191,53 +203,90 @@ func robotPath(from, to Pad) []DpadStep {
 	// then press A once
 	steps = append(steps, DpadStep{DpadA, 1})
 
-	return steps
+	// convert steps to moves
+	moves := make([]DpadMove, 0)
+	extra := 0
+
+	curr := DpadA
+	for _, step := range steps {
+		next := step.button
+		moves = append(moves, DpadMove{curr, next})
+
+		if step.times > 1 {
+			extra += int(step.times) - 1
+		}
+
+		curr = next
+	}
+
+	return moves, extra
 }
 
-func shortestNumpadSequence(code [4]Numpad) int {
+func buildDpadLookup() map[DpadMove]util.Tuple[[]DpadMove, int] {
+	// optimiziation, build a map of all 20 possible moves and poss it into shortestDpadSequence
+	res := make(map[DpadMove]util.Tuple[[]DpadMove, int], 20)
+
+	for i := Up; i <= DpadA; i++ {
+		for j := Up; j <= DpadA; j++ {
+			if i != j {
+				moves, extra := robotPath(i, j)
+				res[DpadMove{i, j}] = util.Tuple[[]DpadMove, int]{First: moves, Second: extra}
+			}
+		}
+	}
+
+	return res
+}
+
+func shortestNumpadSequence(code [4]Numpad, intermediaryRobots uint8) int {
 	res := 0
+
+	dpadLookup := buildDpadLookup()
 
 	// always start from A
 	curr := NumpadA
 	for _, next := range code {
-		firstRobot := robotPath(curr, next)
-		res += shortestDpadSequence(firstRobot, 2)
+		moves, extra := robotPath(curr, next)
+
+		// convert move slice to a map
+		moveMap := make(map[DpadMove]int)
+		for _, move := range moves {
+			moveMap[move] = 1
+		}
+
+		res += shortestDpadSequence(moveMap, intermediaryRobots, dpadLookup)
+		res += extra
 		curr = next
 	}
 
 	return res
 }
 
-// shortest sequence for a two robot setup
-func shortestDpadSequence(steps []DpadStep, nesting uint8) int {
-	res := 0
-
-	// always start from A
-	curr := DpadA
-	for _, step := range steps {
-		next := step.button
-
-		var press int
-		// figure out if we still have more robots
-		if nesting > 0 {
-			// robot cost is a dpad sequence
-			secondRobot := robotPath(curr, next)
-			press = shortestDpadSequence(secondRobot, nesting-1)
-		} else {
-			// human cost is 1, can just press the button
-			press = 1
+func shortestDpadSequence(moveMap map[DpadMove]int, intermediaryRobots uint8, dpadLookup map[DpadMove]util.Tuple[[]DpadMove, int]) int {
+	if intermediaryRobots == 0 {
+		// humans can just press the buttons
+		res := 0
+		for _, n := range moveMap {
+			res += n
 		}
-		res += press
-
-		// and the button presses
-		if step.times > 1 {
-			res += int(step.times - 1)
-		}
-
-		curr = next
+		return res
 	}
 
-	return res
+	// build a map of the move counts to iterate on
+	nextMoveMap := make(map[DpadMove]int)
+
+	extraAcc := 0
+	for move, n := range moveMap {
+		tuple := dpadLookup[move]
+		moves, extra := tuple.First, tuple.Second
+		for _, intMove := range moves {
+			nextMoveMap[intMove] += n
+		}
+		extraAcc += extra * n
+	}
+
+	// recur
+	return extraAcc + shortestDpadSequence(nextMoveMap, intermediaryRobots-1, dpadLookup)
 }
 
 func numericCode(code [4]Numpad) int {
@@ -250,10 +299,10 @@ func numericCode(code [4]Numpad) int {
 	return res
 }
 
-func part1(codes [][4]Numpad) int {
+func sumComplexity(codes [][4]Numpad, intermediaryRobots uint8) int {
 	res := 0
 	for _, c := range codes {
-		seq := shortestNumpadSequence(c)
+		seq := shortestNumpadSequence(c, intermediaryRobots)
 		code := numericCode(c)
 		cost := seq * code
 		res += cost
@@ -261,6 +310,10 @@ func part1(codes [][4]Numpad) int {
 	return res
 }
 
+func part1(codes [][4]Numpad) int {
+	return sumComplexity(codes, 2)
+}
+
 func part2(codes [][4]Numpad) int {
-	return 0
+	return sumComplexity(codes, 25)
 }
