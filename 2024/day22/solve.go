@@ -38,8 +38,8 @@ func currSecretNumber(val uint32) uint32 {
 	// mult by 64 (lshift 6), bitwise XOR with self, modulo
 	val = (val ^ (val << 6)) & 16777215
 
-	// div by 32 (rshift 5), bitwise XOR with self, modulo
-	val = (val ^ (val >> 5)) & 16777215
+	// div by 32 (rshift 5), bitwise XOR with self, don't need to modulo
+	val = (val ^ (val >> 5))
 
 	// mult by 2048 (lshift 11), bitwise XOR with self, modulo
 	val = (val ^ (val << 11)) & 16777215
@@ -47,9 +47,7 @@ func currSecretNumber(val uint32) uint32 {
 	return val
 }
 
-func calculatePriceChangeSequences(initial uint32, rounds int) map[[4]int8]uint8 {
-	sequences := make(map[[4]int8]uint8)
-
+func calculatePriceChangeSequences(initial uint32, rounds int, combined map[[4]int8]uint16, seen map[[4]int8]struct{}) {
 	lastNumber := initial
 	lastPrice := uint8(initial % 10)
 	var seq [4]int8
@@ -62,9 +60,10 @@ func calculatePriceChangeSequences(initial uint32, rounds int) map[[4]int8]uint8
 
 		if i > 3 {
 			// add to sequences
-			if _, ok := sequences[seq]; !ok {
+			if _, ok := seen[seq]; !ok {
 				// only record the first time each sequence is seen
-				sequences[seq] = currPrice
+				seen[seq] = struct{}{}
+				combined[seq] += uint16(currPrice)
 			}
 		}
 
@@ -72,8 +71,6 @@ func calculatePriceChangeSequences(initial uint32, rounds int) map[[4]int8]uint8
 		lastPrice = currPrice
 		copy(seq[0:3], seq[1:4])
 	}
-
-	return sequences
 }
 
 func part1(initial []uint32) int {
@@ -82,12 +79,11 @@ func part1(initial []uint32) int {
 
 func part2(initial []uint32) int {
 	combined := make(map[[4]int8]uint16)
+	seen := make(map[[4]int8]struct{})
 
 	for _, n := range initial {
-		sequences := calculatePriceChangeSequences(n, 2000)
-		for seq, bananas := range sequences {
-			combined[seq] += uint16(bananas)
-		}
+		clear(seen)
+		calculatePriceChangeSequences(n, 2000, combined, seen)
 	}
 
 	res := uint16(0)

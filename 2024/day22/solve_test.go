@@ -51,7 +51,7 @@ func TestPart1Input(t *testing.T) {
 }
 
 func TestCalculatePricesAndChanges(t *testing.T) {
-	expected := map[[4]int8]uint8{
+	expected := map[[4]int8]uint16{
 		{-3, 6, -1, -1}: 4,
 		{-2, 0, -2, 2}:  4,
 		{-1, -1, 0, 2}:  6,
@@ -60,7 +60,9 @@ func TestCalculatePricesAndChanges(t *testing.T) {
 		{2, -2, 0, -2}:  2,
 		{6, -1, -1, 0}:  4,
 	}
-	actual := calculatePriceChangeSequences(123, 10)
+	actual := make(map[[4]int8]uint16)
+	seen := make(map[[4]int8]struct{})
+	calculatePriceChangeSequences(123, 10, actual, seen)
 	assert.Equal(t, expected, actual)
 }
 
