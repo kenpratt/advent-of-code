@@ -47,7 +47,18 @@ func currSecretNumber(val uint32) uint32 {
 	return val
 }
 
-func calculatePriceChangeSequences(initial uint32, rounds int, combined map[[4]int8]uint16, seen map[[4]int8]struct{}) {
+const sequencesSize = 160000 // 20^4
+
+func sequenceIndex(seq [4]int8) uint32 {
+	// convert seq to a base 20 number
+	d0 := uint32(seq[0] + 10)
+	d1 := uint32(seq[1] + 10)
+	d2 := uint32(seq[2] + 10)
+	d3 := uint32(seq[3] + 10)
+	return d0*8000 + d1*400 + d2*20 + d3
+}
+
+func calculatePriceChangeSequences(initial uint32, rounds int, combined *[sequencesSize]uint16, seen *[sequencesSize]bool) {
 	lastNumber := initial
 	lastPrice := uint8(initial % 10)
 	var seq [4]int8
@@ -59,14 +70,15 @@ func calculatePriceChangeSequences(initial uint32, rounds int, combined map[[4]i
 		change := int8(currPrice) - int8(lastPrice)
 		seq[3] = change
 		seqSum += change
+		seqI := sequenceIndex(seq)
 
 		// ignore negative sequences, as they are incredibly unlikely to lead to a best outcome
 		if i > 3 && seqSum >= 0 {
 			// add to sequences
-			if _, ok := seen[seq]; !ok {
+			if !seen[seqI] {
 				// only record the first time each sequence is seen
-				seen[seq] = struct{}{}
-				combined[seq] += uint16(currPrice)
+				seen[seqI] = true
+				combined[seqI] += uint16(currPrice)
 			}
 		}
 
@@ -82,12 +94,12 @@ func part1(initial []uint32) int {
 }
 
 func part2(initial []uint32) int {
-	combined := make(map[[4]int8]uint16, 23000)
-	seen := make(map[[4]int8]struct{}, 4000)
+	combined := [sequencesSize]uint16{}
+	seen := [sequencesSize]bool{}
 
 	for _, n := range initial {
-		clear(seen)
-		calculatePriceChangeSequences(n, 2000, combined, seen)
+		clear(seen[:])
+		calculatePriceChangeSequences(n, 2000, &combined, &seen)
 	}
 
 	res := uint16(0)

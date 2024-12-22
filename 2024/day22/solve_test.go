@@ -57,10 +57,22 @@ func TestCalculatePricesAndChanges(t *testing.T) {
 		{0, 2, -2, 0}:   4,
 		{6, -1, -1, 0}:  4,
 	}
-	actual := make(map[[4]int8]uint16)
-	seen := make(map[[4]int8]struct{})
-	calculatePriceChangeSequences(123, 10, actual, seen)
-	assert.Equal(t, expected, actual)
+	combined := [sequencesSize]uint16{}
+	seen := [sequencesSize]bool{}
+	calculatePriceChangeSequences(123, 10, &combined, &seen)
+
+	expectedSum := uint16(0)
+	for seq, n := range expected {
+		seqI := sequenceIndex(seq)
+		assert.Equal(t, n, combined[seqI])
+		expectedSum += n
+	}
+
+	actualSum := uint16(0)
+	for _, v := range combined {
+		actualSum += v
+	}
+	assert.Equal(t, expectedSum, actualSum)
 }
 
 func TestPart2Example(t *testing.T) {
