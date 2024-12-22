@@ -51,14 +51,17 @@ func calculatePriceChangeSequences(initial uint32, rounds int, combined map[[4]i
 	lastNumber := initial
 	lastPrice := uint8(initial % 10)
 	var seq [4]int8
+	seqSum := int8(0)
 
 	for i := 1; i <= rounds; i++ {
 		currNumber := currSecretNumber(lastNumber)
 		currPrice := uint8(currNumber % 10)
 		change := int8(currPrice) - int8(lastPrice)
 		seq[3] = change
+		seqSum += change
 
-		if i > 3 {
+		// ignore negative sequences, as they are incredibly unlikely to lead to a best outcome
+		if i > 3 && seqSum >= 0 {
 			// add to sequences
 			if _, ok := seen[seq]; !ok {
 				// only record the first time each sequence is seen
@@ -69,6 +72,7 @@ func calculatePriceChangeSequences(initial uint32, rounds int, combined map[[4]i
 
 		lastNumber = currNumber
 		lastPrice = currPrice
+		seqSum -= seq[0]
 		copy(seq[0:3], seq[1:4])
 	}
 }

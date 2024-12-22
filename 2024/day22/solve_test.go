@@ -53,11 +53,8 @@ func TestPart1Input(t *testing.T) {
 func TestCalculatePricesAndChanges(t *testing.T) {
 	expected := map[[4]int8]uint16{
 		{-3, 6, -1, -1}: 4,
-		{-2, 0, -2, 2}:  4,
 		{-1, -1, 0, 2}:  6,
-		{-1, 0, 2, -2}:  4,
 		{0, 2, -2, 0}:   4,
-		{2, -2, 0, -2}:  2,
 		{6, -1, -1, 0}:  4,
 	}
 	actual := make(map[[4]int8]uint16)
