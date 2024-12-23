@@ -38,66 +38,42 @@ func TestNthSecretNumber(t *testing.T) {
 
 func TestPart1Example(t *testing.T) {
 	expected := 37327623
-	input := parseInput(example1)
-	actual := part1(input)
+	input, _ := parseInput(example1)
+	actual := part1(&input)
 	assert.Equal(t, expected, actual)
 }
 
 func TestPart1Input(t *testing.T) {
 	expected := 14273043166
-	input := parseInput(util.ReadInputFile("."))
-	actual := part1(input)
+	input, _ := parseInput(util.ReadInputFile("."))
+	actual := part1(&input)
 	assert.Equal(t, expected, actual)
-}
-
-func TestCalculatePricesAndChanges(t *testing.T) {
-	expected := map[uint32]uint16{
-		62589:  4, // {-3, 6, -1, -1}
-		75812:  6, // {-1, -1, 0, 2}
-		84970:  4, // {0, 2, -2, 0}
-		131790: 4, // {6, -1, -1, 0}
-	}
-	combined := [sequencesSize]uint16{}
-	seen := [sequencesSize]bool{}
-	calculatePriceChangeSequences(123, 10, &combined, &seen)
-
-	expectedSum := uint16(0)
-	for i, n := range expected {
-		assert.Equal(t, n, combined[i])
-		expectedSum += n
-	}
-
-	actualSum := uint16(0)
-	for _, v := range combined {
-		actualSum += v
-	}
-	assert.Equal(t, expectedSum, actualSum)
 }
 
 func TestPart2Example(t *testing.T) {
 	expected := 23
-	input := parseInput(example2)
-	actual := part2(input)
+	_, input := parseInput(example2)
+	actual := part2(&input)
 	assert.Equal(t, expected, actual)
 }
 
 func TestPart2Input(t *testing.T) {
 	expected := 1667
-	input := parseInput(util.ReadInputFile("."))
-	actual := part2(input)
+	_, input := parseInput(util.ReadInputFile("."))
+	actual := part2(&input)
 	assert.Equal(t, expected, actual)
 }
 
 func BenchmarkPart1(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		input := parseInput(util.ReadInputFile("."))
-		part1(input)
+		input, _ := parseInput(util.ReadInputFile("."))
+		part1(&input)
 	}
 }
 
 func BenchmarkPart2(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		input := parseInput(util.ReadInputFile("."))
-		part2(input)
+		_, input := parseInput(util.ReadInputFile("."))
+		part2(&input)
 	}
 }

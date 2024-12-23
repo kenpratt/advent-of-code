@@ -9,23 +9,24 @@ import (
 
 func Solve(path string) {
 	inputStr := util.ReadInputFile(path)
-	input := parseInput(inputStr)
-	util.AssertEqual(14273043166, part1(input))
-	util.AssertEqual(1667, part2(input))
+	finalSecrets, bananasForSequnce := parseInput(inputStr)
+	util.AssertEqual(14273043166, part1(&finalSecrets))
+	util.AssertEqual(1667, part2(&bananasForSequnce))
 }
 
-func parseInput(input string) []uint32 {
+func parseInput(input string) ([]uint32, [sequencesSize]uint16) {
 	lines := strings.Split(input, "\n")
-	return lo.Map(lines, func(s string, _ int) uint32 { return uint32(util.StringToInt(s)) })
+	initial := lo.Map(lines, func(s string, _ int) uint32 { return uint32(util.StringToInt(s)) })
+	return calculate(initial)
 }
 
 func nthSecretNumber(initial uint32, nth int) uint32 {
-	last := initial
+	prev := initial
 	for i := 0; i < nth; i++ {
-		curr := currSecretNumber(last)
-		last = curr
+		curr := currSecretNumber(prev)
+		prev = curr
 	}
-	return last
+	return prev
 }
 
 // 64       = 2^6
@@ -49,20 +50,33 @@ func currSecretNumber(val uint32) uint32 {
 
 const sequencesSize = 160000 // 20^4
 
-func calculatePriceChangeSequences(initial uint32, rounds int, combined *[sequencesSize]uint16, seen *[sequencesSize]bool) {
-	lastNumber := initial
-	lastPrice := uint8(initial % 10)
+func calculate(initial []uint32) ([]uint32, [sequencesSize]uint16) {
+	finalSecrets := make([]uint32, len(initial))
+	bananasForSequnce := [sequencesSize]uint16{}
+	seen := [sequencesSize]bool{}
+
+	for i, n := range initial {
+		clear(seen[:])
+		finalSecrets[i] = calculateNumber(n, 2000, &bananasForSequnce, &seen)
+	}
+
+	return finalSecrets, bananasForSequnce
+}
+
+func calculateNumber(initial uint32, rounds int, bananasForSequnce *[sequencesSize]uint16, seen *[sequencesSize]bool) uint32 {
+	prevNumber := initial
+	prevPrice := uint8(initial % 10)
 
 	// use rolling values for sequence of four changes
-	// - seqSum is a sum of the last 4 changes
-	// - seqI in an index for the combined/seen arrays, and it is the last 4 changes combined into a uint32, as a base 20 number
+	// - seqSum is a sum of the previous 4 changes
+	// - seqI in an index for the combined/seen arrays, and it is the previous 4 changes combined into a uint32, as a base 20 number
 	seqSum := uint8(0)
 	seqI := uint32(0)
 
 	for i := 1; i <= rounds; i++ {
-		currNumber := currSecretNumber(lastNumber)
+		currNumber := currSecretNumber(prevNumber)
 		currPrice := uint8(currNumber % 10)
-		change := 10 + currPrice - lastPrice // add 10 so it's between 1-19 instead of -9 to 9
+		change := 10 + currPrice - prevPrice // add 10 so it's between 1-19 instead of -9 to 9
 		seqSum += change
 		seqI += uint32(change)
 
@@ -72,11 +86,11 @@ func calculatePriceChangeSequences(initial uint32, rounds int, combined *[sequen
 		if i > 3 && seqSum >= 40 && !seen[seqI] {
 			// only record the first time each sequence is seen
 			seen[seqI] = true
-			combined[seqI] += uint16(currPrice)
+			bananasForSequnce[seqI] += uint16(currPrice)
 		}
 
-		lastNumber = currNumber
-		lastPrice = currPrice
+		prevNumber = currNumber
+		prevPrice = currPrice
 
 		seq0 := seqI / 8000
 		seqSum -= uint8(seq0)
@@ -84,23 +98,21 @@ func calculatePriceChangeSequences(initial uint32, rounds int, combined *[sequen
 		// get seqI ready for next round by removing the oldest value and shoving the other values over by multiplying by 20
 		seqI = (seqI - uint32(seq0)*8000) * 20
 	}
+
+	return prevNumber
 }
 
-func part1(initial []uint32) int {
-	return lo.SumBy(initial, func(n uint32) int { return int(nthSecretNumber(n, 2000)) })
-}
-
-func part2(initial []uint32) int {
-	combined := [sequencesSize]uint16{}
-	seen := [sequencesSize]bool{}
-
-	for _, n := range initial {
-		clear(seen[:])
-		calculatePriceChangeSequences(n, 2000, &combined, &seen)
+func part1(finalSecrets *[]uint32) int {
+	sum := 0
+	for _, v := range *finalSecrets {
+		sum += int(v)
 	}
+	return sum
+}
 
+func part2(bananasForSequnce *[sequencesSize]uint16) int {
 	res := uint16(0)
-	for _, bananas := range combined {
+	for _, bananas := range bananasForSequnce {
 		res = max(res, bananas)
 	}
 	return int(res)
