@@ -49,43 +49,40 @@ func currSecretNumber(val uint32) uint32 {
 
 const sequencesSize = 160000 // 20^4
 
-func sequenceIndex(seq [4]int8) uint32 {
-	// convert seq to a base 20 number
-	d0 := uint32(seq[0] + 10)
-	d1 := uint32(seq[1] + 10)
-	d2 := uint32(seq[2] + 10)
-	d3 := uint32(seq[3] + 10)
-	return d0*8000 + d1*400 + d2*20 + d3
-}
-
 func calculatePriceChangeSequences(initial uint32, rounds int, combined *[sequencesSize]uint16, seen *[sequencesSize]bool) {
 	lastNumber := initial
 	lastPrice := uint8(initial % 10)
-	var seq [4]int8
-	seqSum := int8(0)
+
+	// use rolling values for sequence of four changes
+	// - seqSum is a sum of the last 4 changes
+	// - seqI in an index for the combined/seen arrays, and it is the last 4 changes combined into a uint32, as a base 20 number
+	seqSum := uint8(0)
+	seqI := uint32(0)
 
 	for i := 1; i <= rounds; i++ {
 		currNumber := currSecretNumber(lastNumber)
 		currPrice := uint8(currNumber % 10)
-		change := int8(currPrice) - int8(lastPrice)
-		seq[3] = change
+		change := 10 + currPrice - lastPrice // add 10 so it's between 1-19 instead of -9 to 9
 		seqSum += change
-		seqI := sequenceIndex(seq)
+		seqI += uint32(change)
 
+		// add to sequences
 		// ignore negative sequences, as they are incredibly unlikely to lead to a best outcome
-		if i > 3 && seqSum >= 0 {
-			// add to sequences
-			if !seen[seqI] {
-				// only record the first time each sequence is seen
-				seen[seqI] = true
-				combined[seqI] += uint16(currPrice)
-			}
+		// a seq of 0,0,0,0 will be 40 due to adding 10 to it
+		if i > 3 && seqSum >= 40 && !seen[seqI] {
+			// only record the first time each sequence is seen
+			seen[seqI] = true
+			combined[seqI] += uint16(currPrice)
 		}
 
 		lastNumber = currNumber
 		lastPrice = currPrice
-		seqSum -= seq[0]
-		copy(seq[0:3], seq[1:4])
+
+		seq0 := seqI / 8000
+		seqSum -= uint8(seq0)
+
+		// get seqI ready for next round by removing the oldest value and shoving the other values over by multiplying by 20
+		seqI = (seqI - uint32(seq0)*8000) * 20
 	}
 }
 

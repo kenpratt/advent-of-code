@@ -51,20 +51,19 @@ func TestPart1Input(t *testing.T) {
 }
 
 func TestCalculatePricesAndChanges(t *testing.T) {
-	expected := map[[4]int8]uint16{
-		{-3, 6, -1, -1}: 4,
-		{-1, -1, 0, 2}:  6,
-		{0, 2, -2, 0}:   4,
-		{6, -1, -1, 0}:  4,
+	expected := map[uint32]uint16{
+		62589:  4, // {-3, 6, -1, -1}
+		75812:  6, // {-1, -1, 0, 2}
+		84970:  4, // {0, 2, -2, 0}
+		131790: 4, // {6, -1, -1, 0}
 	}
 	combined := [sequencesSize]uint16{}
 	seen := [sequencesSize]bool{}
 	calculatePriceChangeSequences(123, 10, &combined, &seen)
 
 	expectedSum := uint16(0)
-	for seq, n := range expected {
-		seqI := sequenceIndex(seq)
-		assert.Equal(t, n, combined[seqI])
+	for i, n := range expected {
+		assert.Equal(t, n, combined[i])
 		expectedSum += n
 	}
 
