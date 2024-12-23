@@ -55,14 +55,14 @@ func TestPart1Input(t *testing.T) {
 }
 
 func TestPart2Example(t *testing.T) {
-	expected := 0
+	expected := "co,de,ka,ta"
 	input := parseInput(example)
 	actual := part2(&input)
 	assert.Equal(t, expected, actual)
 }
 
 func TestPart2Input(t *testing.T) {
-	expected := 0
+	expected := "hl,io,ku,pk,ps,qq,sh,tx,ty,wq,xi,xj,yp"
 	input := parseInput(util.ReadInputFile("."))
 	actual := part2(&input)
 	assert.Equal(t, expected, actual)

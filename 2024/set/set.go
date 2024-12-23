@@ -40,6 +40,15 @@ func (s *Set[T]) Remove(val T) {
 	delete(s.values, val)
 }
 
+// remove an arbitrary value from te set
+func (s *Set[T]) Pop() T {
+	nextVal, stop := iter.Pull(maps.Keys(s.values))
+	val, _ := nextVal()
+	stop()
+	delete(s.values, val)
+	return val
+}
+
 func (s *Set[T]) Clear() {
 	clear(s.values)
 }
