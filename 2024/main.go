@@ -24,6 +24,7 @@ import (
 	"adventofcode/day21"
 	"adventofcode/day22"
 	"adventofcode/day23"
+	"adventofcode/day24"
 	"adventofcode/util"
 	"cmp"
 	"flag"
@@ -66,6 +67,7 @@ func daySpecs() []Day {
 		{"day21", day21.Solve},
 		{"day22", day22.Solve},
 		{"day23", day23.Solve},
+		{"day24", day24.Solve},
 	}
 }
 
