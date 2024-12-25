@@ -17,6 +17,7 @@ func Solve(path string) {
 type Input struct {
 	initial map[string]bool
 	gates   map[string]Gate
+	zNames  []string
 }
 
 type Gate struct {
@@ -43,6 +44,8 @@ func parseInput(input string) Input {
 		}
 	}
 
+	zNames := make([]string, 0)
+
 	// parse gates
 	gates := make(map[string]Gate, 0)
 	re := regexp.MustCompile(`\A(\w+) (\w+) (\w+) \-> (\w+)\z`)
@@ -53,9 +56,15 @@ func parseInput(input string) Input {
 		right := match[3]
 		output := match[4]
 		gates[output] = Gate{left, operation, right, output}
+
+		if output[0] == 'z' {
+			zNames = append(zNames, output)
+		}
 	}
 
-	return Input{initial, gates}
+	slices.Sort(zNames)
+
+	return Input{initial, gates, zNames}
 }
 
 func (g *Gate) apply(left, right bool) bool {
@@ -71,15 +80,15 @@ func (g *Gate) apply(left, right bool) bool {
 	}
 }
 
-func calculateOutput(name string, input Input) bool {
-	if val, ok := input.initial[name]; ok {
+func calculateOutput(name string, initial map[string]bool, gates map[string]Gate) bool {
+	if val, ok := initial[name]; ok {
 		return val
 	}
 
-	if gate, ok := input.gates[name]; ok {
+	if gate, ok := gates[name]; ok {
 		// calculate the value of the gate
-		left := calculateOutput(gate.left, input)
-		right := calculateOutput(gate.right, input)
+		left := calculateOutput(gate.left, initial, gates)
+		right := calculateOutput(gate.right, initial, gates)
 		return gate.apply(left, right)
 	}
 
@@ -88,25 +97,17 @@ func calculateOutput(name string, input Input) bool {
 
 func part1(input Input) int {
 	// figure out the values for z gates
-	zNames := make([]string, 0)
-	zValues := make(map[string]bool, 0)
-	for output, _ := range input.gates {
-		if output[0] == 'z' {
-			zNames = append(zNames, output)
-			zValues[output] = calculateOutput(output, input)
-		}
+	zValues := make(map[string]bool, len(input.zNames))
+	for _, name := range input.zNames {
+		zValues[name] = calculateOutput(name, input.initial, input.gates)
 	}
-
-	// make an output int
-
-	// sort largest alpha first
-	slices.SortFunc(zNames, func(a, b string) int { return -strings.Compare(a, b) })
 
 	// assuming all z vals between 0 and N are accounted for, no gaps
 	res := 0
-	for _, output := range zNames {
+	for i := len(input.zNames) - 1; i >= 0; i-- {
+		name := input.zNames[i]
 		res <<= 1
-		if zValues[output] {
+		if zValues[name] {
 			res |= 1
 		}
 	}
