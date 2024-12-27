@@ -8,7 +8,7 @@ import (
 func Solve(path string) {
 	inputStr := util.ReadInputFile(path)
 	input := parseInput(inputStr)
-	util.AssertEqual(0, part1(input))
+	util.AssertEqual(3155, part1(input))
 }
 
 type Input struct {
